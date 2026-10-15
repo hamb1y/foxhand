@@ -1,97 +1,52 @@
 <img src="extension/icons/icon.svg" width="96" height="96" alt="WebMCP Controller logo" align="right">
 
-# WebMCP Controller — full-control Firefox MCP
+# WebMCP Controller
 
-Live Firefox (your **current profile, all tabs**) driven by any MCP harness
-(Claude, opencode, Cursor, anything speaking Streamable HTTP). There is no
-server to start: Firefox itself launches a small helper app (a native
-messaging host) when the add-on loads, and the helper serves MCP.
+Let an AI agent drive the Firefox you already use: your current profile, your
+open tabs, your logins. Any MCP client can connect, including Claude Code,
+Codex, Gemini CLI, opencode and Cursor.
 
-While the model works, a glowing **AI cursor** glides to whatever it is
-clicking or typing into, with a small bubble saying what it is doing
-(toggle it in the popup).
+There is no server to start by hand. Firefox launches a small helper app (a
+native messaging host) when the add-on loads, and the helper serves MCP on
+your own machine.
 
-**Pause AI** (popup button, or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd>)
-stops every command until you resume; the AI is told it's paused. The toolbar
-badge shows `II` while paused and a lime dot while the AI is working.
+[**Install the add-on from addons.mozilla.org**](https://addons.mozilla.org/en-US/firefox/addon/webmcp-controller/)
 
-**Install:** add the add-on, paste one command (below) to install the helper,
-click **Copy MCP config** in the add-on popup, paste that into your harness.
+## Features
 
-## Architecture
+- **Your real browser.** Works on your current profile, with your tabs,
+  bookmarks, history and logged-in sessions. Not a clean headless browser.
+- **Local by design.** The helper listens on `127.0.0.1` and every request
+  needs a 256-bit bearer token. Nothing leaves your machine unless the AI tool
+  you connect sends it somewhere.
+- **Visible AI cursor.** While the agent works, a glowing cursor glides to
+  whatever it is clicking or typing into, with a bubble that says what it is
+  doing. Toggle it from the popup.
+- **Pause AI.** The popup button, or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd>,
+  stops every command until you resume. The toolbar badge shows `II` while
+  paused and a lime dot while the AI is working.
+- **44 tools.** Tabs, windows, navigation, page reading, screenshots, form
+  filling, clicking, bookmarks, history, downloads and cookies (read-only).
+  See [Tools](#tools).
 
-```text
- Firefox                                   helper (native messaging host)        harness
-+------------------------+  stdin/stdout  +-------------------------------+     +-----------------+
-| WebExtension           | <------------> | webmcp-host              |     | Claude / opencode|
-| background.js          |  (Firefox      |  started & stopped by Firefox |     | / any MCP client |
-|  connectNative(...)    |   launches it) |  127.0.0.1:8901/mcp  <---------------- POST /mcp       |
-+------------------------+                +-------------------------------+     +-----------------+
+## Quick start
+
+1. **Install the helper** (once per computer). The add-on's popup shows the
+   right command for your system with a **Copy command** button. See
+   [Installing the helper](#installing-the-helper).
+2. **Install the add-on** from the link above.
+3. **Connect your AI.** Click the toolbar icon, then **Copy MCP config**
+   (a green dot means ready). Paste the config into your AI tool.
+
+Claude Code, for example:
+
+```bash
+claude mcp add --transport http firefox http://127.0.0.1:8901/mcp \
+  --header "Authorization: Bearer <token>"
 ```
 
-- The add-on owns the settings: it generates the **token** on first run and
-  pushes `{token, port, bind}` to the helper. Defaults: port **8901**, bind
-  **127.0.0.1**.
-- Harness → helper: MCP **Streamable HTTP** `POST /mcp`, authenticated with
-  `Authorization: Bearer <token>`. Unauthenticated: `GET /health`, `GET /`.
-- The helper lives exactly as long as the add-on is running — close Firefox
-  and the MCP endpoint goes away.
-
-Why an extension at all: Firefox's CDP/remote-debugging surface is incomplete,
-while a privileged WebExtension gets every tab, window, bookmark, history entry
-and cookie of the profile you actually use. Why a native host: extensions
-cannot listen on ports, and native messaging is the one sanctioned way for an
-add-on to talk to a local program — no manual server, no extra login.
-
-## Quickstart
-
-### 1. Install the helper (once per computer)
-
-The add-on's popup shows this for your system with a **Copy command** button.
-
-**Windows** — open PowerShell or Command Prompt and paste:
-
-```bat
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/hamb1y/webmcp-controller/releases/latest/download/install.ps1 | iex"
-```
-
-**macOS / Linux / WSL** — open Terminal and paste (inside WSL it installs the Windows helper for you):
-
-```sh
-curl -fsSL https://github.com/hamb1y/webmcp-controller/releases/latest/download/install.sh | sh
-```
-
-The script picks the right binary (x64/arm64), checks its SHA-256 and runs
-`install`. Prefer clicking? Grab `webmcp-host-<os>-<arch>` from the
-[releases page](https://github.com/hamb1y/webmcp-controller/releases/latest) — on
-Windows double-click the `.exe`; elsewhere `chmod +x` it and run it with `install`.
-
-Already installed? Run the same command again to **update**: Firefox switches
-to the new helper by itself within a few seconds, no restart needed.
-
-`install` copies the binary to a per-user folder and registers it with Firefox
-(no admin rights needed). The downloaded file can be deleted afterwards.
-
-| OS | Binary goes to | Registered via |
-|---|---|---|
-| Windows | `%LOCALAPPDATA%\webmcp-controller\` | `HKCU\Software\Mozilla\NativeMessagingHosts\webmcp_controller` |
-| macOS | `~/Library/Application Support/webmcp-controller/` | `~/Library/Application Support/Mozilla/NativeMessagingHosts/` |
-| Linux | `~/.local/share/webmcp-controller/` | `~/.mozilla/native-messaging-hosts/` (+ snap path) |
-
-Other commands: `status`, `uninstall`, `version`, `help`.
-From a source checkout: `npm install && npm run install-host` (uses Node instead
-of the bundled binary).
-
-### 2. Load the add-on
-
-Development: `about:debugging#/runtime/this-firefox` → **Load Temporary
-Add-on…** → pick `extension/manifest.json`. Permanent: see *Publishing* below.
-
-### 3. Connect your harness
-
-Toolbar icon → **Copy MCP config** (green dot = ready). The settings page
-(toolbar icon → **Settings**) also has a Claude Code command and an opencode
-snippet. The copied config looks like:
+The settings page (toolbar icon → **Settings**) also has commands and snippets
+for the other clients. The generic config looks like this:
 
 ```json
 {
@@ -105,278 +60,319 @@ snippet. The copied config looks like:
 }
 ```
 
-Claude Code: `claude mcp add --transport http firefox http://127.0.0.1:8901/mcp --header "Authorization: Bearer <token>"`.
-Codex (`~/.codex/config.toml`): `[mcp_servers.firefox]` with `url = "http://127.0.0.1:8901/mcp"` and `http_headers = { Authorization = "Bearer <token>" }`.
-Gemini CLI: `gemini mcp add --scope user --transport http firefox http://127.0.0.1:8901/mcp --header "Authorization: Bearer <token>"`.
-opencode: `{"mcp":{"firefox":{"type":"remote","url":"…/mcp","headers":{"Authorization":"Bearer <token>"}}}}`.
-Clients that only speak stdio: `npx -y mcp-remote http://127.0.0.1:8901/mcp --header "Authorization: Bearer <token>"`.
+<details>
+<summary>Other clients</summary>
 
-Check from a shell:
+- **Codex** (`~/.codex/config.toml`):
+  ```toml
+  [mcp_servers.firefox]
+  url = "http://127.0.0.1:8901/mcp"
+  http_headers = { Authorization = "Bearer <token>" }
+  ```
+- **Gemini CLI:** `gemini mcp add --scope user --transport http firefox http://127.0.0.1:8901/mcp --header "Authorization: Bearer <token>"`
+- **opencode:** `{"mcp":{"firefox":{"type":"remote","url":"http://127.0.0.1:8901/mcp","headers":{"Authorization":"Bearer <token>"}}}}`
+- **stdio-only clients:** `npx -y mcp-remote http://127.0.0.1:8901/mcp --header "Authorization: Bearer <token>"`
+
+</details>
+
+Check the connection from a shell:
 
 ```bash
 curl http://127.0.0.1:8901/health
-# {"ok":true,"extensionConnected":true,"version":"0.3.0"}
+# {"ok":true,"extensionConnected":true,"version":"0.4.0"}
 ```
 
-### Harness inside WSL, Firefox on Windows
+## Architecture
 
-WSL2 (default NAT networking) can't reach Windows' `127.0.0.1`. Easiest:
+```text
+ Firefox (WebExtension)                 Helper (native messaging host)          AI client
++----------------------+   stdio     +-----------------------------+   HTTP   +--------------+
+| background.js       | <---------> | webmcp-host                 | <-----> | Claude Code,  |
+| content scripts     |  Firefox    | serves MCP on 127.0.0.1     |  POST   | Codex, ...    |
+| (tabs, page, cursor)|  starts it  | Bearer-token authenticated  |  /mcp   |              |
++----------------------+            +-----------------------------+         +--------------+
+```
 
-1. Add-on toolbar icon → **Settings** → **Connect your AI** → **Your AI**: pick
-   yours (Claude Code, Codex, Gemini CLI, opencode, or Other) → **Runs in**: **WSL**.
-   That turns on **Let AIs in WSL connect to this Firefox** for you.
-2. Windows Firewall asks about `webmcp-host` → tick **Private networks**
-   → **Allow access**.
-3. **Copy**, then paste it inside WSL. The Claude Code and Gemini commands look up
-   the Windows address with `$(ip route show default | awk '{print $3}')`, so they
-   survive reboots; config files (Codex, opencode, JSON) hold the current address,
-   so copy them again if the connection stops after a Windows restart.
+- The add-on owns the settings. It generates the **token** on first run and
+  sends `{token, port, bind}` to the helper. Defaults: port **8901**, bind
+  **127.0.0.1**.
+- AI clients talk to the helper over MCP Streamable HTTP, `POST /mcp`, with
+  `Authorization: Bearer <token>`. Two endpoints need no token: `GET /health`
+  and `GET /`.
+- The helper runs as long as the add-on runs. Close Firefox and the MCP
+  endpoint goes away.
 
-The helper then also listens on the `vEthernet (WSL)` adapter only, not your
-LAN. Alternative: WSL mirrored networking (`networkingMode=mirrored` under
-`[wsl2]` in `%UserProfile%\.wslconfig`, then `wsl --shutdown`) makes
-`127.0.0.1:8901` work from WSL as-is.
+Why an extension: a WebExtension gets every tab, window, bookmark and cookie
+of the profile you use, which the remote-debugging protocol does not offer.
+Why a native host: extensions cannot listen on ports, and native messaging is
+the sanctioned way for an add-on to reach a local program.
+
+## Installing the helper
+
+**Windows**, in PowerShell or Command Prompt:
+
+```bat
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/hamb1y/webmcp-controller/releases/latest/download/install.ps1 | iex"
+```
+
+**macOS, Linux, WSL**, in a terminal (inside WSL it installs the Windows helper):
+
+```sh
+curl -fsSL https://github.com/hamb1y/webmcp-controller/releases/latest/download/install.sh | sh
+```
+
+The script picks the x64 or arm64 binary, checks its SHA-256 and runs
+`install`. Prefer to do it by hand? Download `webmcp-host-<os>-<arch>` from the
+[releases page](https://github.com/hamb1y/webmcp-controller/releases/latest),
+then run it with `install` (on Windows, double-click the `.exe`).
+
+`install` copies the helper to a per-user folder and registers it with Firefox.
+No admin rights needed.
+
+| OS | Helper goes to | Registered via |
+|---|---|---|
+| Windows | `%LOCALAPPDATA%\webmcp-controller\` | `HKCU\Software\Mozilla\NativeMessagingHosts\webmcp_controller` |
+| macOS | `~/Library/Application Support/webmcp-controller/` | `~/Library/Application Support/Mozilla/NativeMessagingHosts/` |
+| Linux | `~/.local/share/webmcp-controller/` | `~/.mozilla/native-messaging-hosts/` (and the Snap path) |
+
+Other commands: `status`, `uninstall`, `version`, `help`.
+
+**To update**, run the install command again. Firefox switches to the new
+helper within a few seconds, with no restart.
+
+### Running from a source checkout
+
+```bash
+npm install
+npm run install-host   # registers a Node-based helper with Firefox
+```
+
+Then load `extension/manifest.json` as a temporary add-on at
+`about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…**.
+
+## Harness inside WSL, Firefox on Windows
+
+WSL2's default NAT networking cannot reach Windows' `127.0.0.1`. The easy path:
+
+1. Toolbar icon → **Settings** → **Connect your AI**. Pick your AI, then set
+   **Runs in** to **WSL**. This allows AIs in WSL to connect.
+2. If Windows Firewall asks about `webmcp-host`, allow it on **Private networks**.
+3. Copy the config and paste it inside WSL. The Claude Code and Gemini commands
+   look up the Windows address on each run, so they survive reboots. Config
+   files hold the current address, so copy them again if the connection drops
+   after a Windows restart.
+
+The helper then listens on the `vEthernet (WSL)` adapter only, not your LAN.
+Alternatively, enable WSL mirrored networking (`networkingMode=mirrored` under
+`[wsl2]` in `%UserProfile%\.wslconfig`, then `wsl --shutdown`). After that,
+`127.0.0.1:8901` works from WSL as-is.
 
 ## AI cursor
 
-Every tool accepts an optional `thought` argument (≤300 chars, e.g.
-`"Opening the pricing page to compare plans"`). The add-on shows it in a
-bubble beside an animated cursor on the page being driven:
+Every tool accepts an optional `thought` argument (up to 300 characters, for
+example `"Opening the pricing page to compare plans"`). The add-on shows it in
+a bubble next to an animated cursor on the page being driven.
 
-- `act_*` tools: the cursor glides to the target element first, then clicks
-  with a ripple. Without a `thought` it shows a default label
-  ("Clicking “Sign in”", "Typing a password", …). Typed passwords are never
-  echoed.
-- Tab/navigation tools: the thought appears on the tab they affect.
-- `cursor_note {note}`: just say something, no action.
-- It is drawn in a closed shadow root with `pointer-events: none`, so it never
-  blocks real input or leaks into `page_html` / `snapshot_ax`, and it is
+- **Actions** (`act_*`): the cursor glides to the target, then clicks with a
+  ripple. Without a `thought`, it shows a default label such as "Clicking
+  “Sign in”". Typed passwords are never echoed.
+- **Tab and navigation tools:** the thought appears on the tab they affect.
+- **`cursor_note`:** shows a note without doing anything else.
+- The cursor is drawn in a closed shadow root with `pointer-events: none`. It
+  never blocks real input or appears in `page_html` or `snapshot_ax`, and it is
   hidden while `screenshot` captures.
-- It fades after 8s idle. Toggle: popup → **Show AI cursor**, or Settings →
-  **Show the AI cursor**. On by default.
-- Cursor shapes are [Bibata](https://github.com/ful1e5/Bibata_Cursor) by
-  ful1e5 (GPL-3.0).
+- It fades after 8 seconds idle. Turn it off in the popup (**Show AI cursor**)
+  or in Settings (**Show the AI cursor**). It is on by default.
 
-The server's MCP `instructions` tell models to pass `thought`, so most
-harnesses do it without prompting.
+Cursor shapes are [Bibata](https://github.com/ful1e5/Bibata_Cursor) by ful1e5
+(GPL-3.0).
 
-## Versions and updates
+## Tools
 
-- Add-on and helper share one version (`package.json`, `manifest.json`,
-  `shared/src/version.ts`), plus a separate wire `PROTOCOL` number that only
-  changes on breaking bridge changes.
-- On connect they exchange both. Same protocol, different version → the popup
-  suggests updating the helper but keeps working. Different protocol → the
-  popup says which side is too old and shows the fix (the install command, or
-  "update the add-on").
-- Re-running the installer while Firefox is open replaces the helper in
-  place; the running helper notices, exits, and the add-on reconnects to the
-  new one.
-- 0.3.4 renamed everything from firefox-mcp to WebMCP Controller (add-on ID,
-  native host name, helper binary, install folder). Older add-ons and helpers
-  don't talk to the new ones: install the new add-on and run the install
-  command once. The new installer removes the old `firefox_mcp_bridge`
-  registration; delete the old `firefox-mcp` folder once Firefox is closed.
+Tool names match `registerTool(` in `mcp-server/src/tools/*.ts`. All tools
+except `extension_status`, `wait_for_tab_event` and `cursor_note` accept the
+optional `thought` described under [AI cursor](#ai-cursor).
+
+<details>
+<summary><strong>Tabs and windows</strong> (19)</summary>
+
+| Tool | What it does |
+|---|---|
+| `tabs_list` | List all open tabs (id, url, title, active/pinned/audible state). |
+| `tabs_query` | Find tabs by URL or title pattern and state flags. |
+| `active_tab` | Get the active tab (id, url, title, window). |
+| `tab_create` | Open a new tab, optionally at a URL. |
+| `tab_navigate` | Navigate a tab to a URL (defaults to the active tab). |
+| `tab_close` | Close one or more tabs. Needs `confirm:true`. |
+| `tab_duplicate` | Duplicate a tab (defaults to the active tab). |
+| `tab_move` | Move a tab to a new index, optionally to another window. |
+| `tab_pin` | Pin a tab (defaults to the active tab). |
+| `tab_unpin` | Unpin a tab (defaults to the active tab). |
+| `tab_mute` | Mute or unmute a tab (defaults to the active tab). |
+| `window_list` | List windows (id, focused, tab count). |
+| `window_create` | Open a new window, optionally at a URL. |
+| `window_focus` | Bring a window to the front. |
+| `window_close` | Close a window and its tabs. Needs `confirm:true`. |
+| `nav_back` | Go back in a tab's history (defaults to the active tab). |
+| `nav_forward` | Go forward in a tab's history (defaults to the active tab). |
+| `nav_reload` | Reload a tab (defaults to the active tab). |
+| `focus_tab` | Activate a tab by id. |
+
+</details>
+
+<details>
+<summary><strong>Reading pages</strong> (5)</summary>
+
+| Tool | What it does |
+|---|---|
+| `snapshot_ax` | Accessibility snapshot with `[ref=N]` nodes for the `act_*` tools. |
+| `page_text` | Visible text of the page. |
+| `page_html` | Page HTML, optionally limited to a CSS selector subtree. |
+| `screenshot` | Screenshot of the tab's visible area, returned as an image. |
+| `page_info` | URL, title and load state. |
+
+</details>
+
+<details>
+<summary><strong>Acting on pages</strong> (9)</summary>
+
+| Tool | What it does |
+|---|---|
+| `act_click` | Click an element by snapshot ref or CSS selector. Fails on disabled elements. |
+| `act_type` | Type into a text field, optionally submitting it through its form or composer button, otherwise with Enter. |
+| `act_fill_form` | Fill several fields in one call. Every field is checked first, so one bad field changes nothing. |
+| `act_select` | Choose option(s) in a `<select>`: exact value first, then label. |
+| `act_hover` | Send hover events for JS menus and tooltips. CSS `:hover` cannot be triggered. |
+| `act_scroll` | Scroll the page or an element, by direction and pixels, or to top or bottom. |
+| `act_key` | Press a key with optional modifiers, such as `Enter` or `a` + Ctrl. |
+| `act_wait` | Wait for text or a selector to appear. `timeoutMs` defaults to 10000, max 60000. |
+| `act_find` | Find text on the page, returning match locations and count. |
+
+</details>
+
+<details>
+<summary><strong>Browser data</strong> (8)</summary>
+
+| Tool | What it does |
+|---|---|
+| `bookmarks_search` | Search bookmarks by title or URL. |
+| `bookmarks_create` | Create a bookmark. |
+| `bookmarks_remove` | Delete a bookmark by id. Needs `confirm:true`. |
+| `history_search` | Search browsing history. |
+| `downloads_list` | List recent downloads (filename, state, progress). |
+| `cookies_for_tab` | Read the cookies a tab's page can see, from its container or private store, including partitioned ones. Read-only. |
+| `sessions_recently_closed` | List recently closed tabs and windows that can be restored. |
+| `sessions_restore` | Restore a recently closed tab or window by session id. |
+
+</details>
+
+<details>
+<summary><strong>Meta</strong> (3)</summary>
+
+| Tool | What it does |
+|---|---|
+| `extension_status` | Whether the add-on is connected, plus profile details. |
+| `wait_for_tab_event` | Wait for an event such as `tab.updated`, `tab.removed`, `tab.activated` or `download.done`. Pass the result's `seq` as `afterSeq` to catch events between calls. |
+| `cursor_note` | Show a note in the AI cursor bubble without acting. |
+
+</details>
+
+## Limits and safety
+
+- **Local only by default.** The helper binds `127.0.0.1`. Every MCP request
+  needs the 256-bit bearer token, compared in constant time. Rotate the token
+  in Settings (**New**) and re-copy the config.
+- **Browser checks.** Requests with a foreign `Host` or `Origin` header get a
+  403, which blocks DNS rebinding and cross-site requests. The token is checked
+  before the body is read.
+- **Cancellation.** Closing the HTTP request, or sending
+  `notifications/cancelled`, stops the command in Firefox too.
+- **Confirm guard.** `tab_close`, `window_close` and `bookmarks_remove` refuse
+  to run without `confirm:true`.
+- **No password access.** No tool reads saved logins or the Firefox password
+  manager. `cookies_for_tab` is read-only.
+- **Screenshots are viewport-only.** `screenshot` captures the visible area of
+  the tab, not the full scrollable page or the browser chrome.
+- **Prompt injection is real.** A web page can try to instruct the agent.
+  Don't point it at anything you wouldn't let a stranger click through.
+
+## Troubleshooting
+
+- **"Helper app not installed."** The install step didn't run, or it registered
+  somewhere this Firefox doesn't read. Run `webmcp-host status` to see where it
+  registered, then press **Retry** in the popup.
+  - Snap Firefox on Ubuntu reads `~/snap/firefox/common/.mozilla/native-messaging-hosts`.
+    The installer writes there too.
+  - Flatpak Firefox can't run native helpers without extra sandbox overrides.
+    Use the deb or tarball build instead. The installer warns when it finds one.
+- **"Helper is too old" or "add-on is too old."** Run the install command again,
+  or update the add-on, as the popup says.
+- **Worked before 0.3.4, "not installed" now.** Everything was renamed from
+  `firefox-mcp`. Install the new add-on and run the install command once. The
+  installer removes the old registration. Delete the old `firefox-mcp` folder
+  after closing Firefox.
+- **"Port 8901 is already in use."** Another app, or this add-on in a second
+  Firefox profile, holds the port. In Settings, choose another port, save, then
+  re-copy the MCP config.
+- **401 Unauthorized.** The token changed. Re-copy the config.
+- **Temporary add-on disappeared after a restart.** Temporary add-ons unload
+  when Firefox closes. Reload it from `about:debugging`, or install the signed
+  add-on.
+- **`RESTRICTED_PAGE`.** Page-content tools (`page_*`, `snapshot_ax`, `act_*`)
+  don't run on `about:`, `chrome:`, `resource:`, `moz-extension:`,
+  `view-source:`, `jar:`, `data:` or `blob:` pages, or on
+  `addons.mozilla.org`. Firefox doesn't allow scripting there.
+- **`REF_STALE` or `REF_NOT_FOUND`.** Refs from `snapshot_ax` belong to one
+  page load. Pass the snapshot's `generation` with the refs. After the page
+  changes or navigates, take a new snapshot.
+- **`PAYLOAD_TOO_LARGE`.** Firefox limits native messages to 1 MB. Ask for less
+  text per call.
+- **Helper logs.** The helper writes to stderr, which Firefox shows in the
+  Browser Console (Ctrl+Shift+J) with a `[webmcp]` prefix.
 
 ## Development
 
 ```bash
 npm install
 npm run build && npm run typecheck
-node test/e2e.mjs                 # real background.js (mocked browser APIs) + real helper over native messaging and HTTP
-MISSING=1 node test/e2e.mjs       # the "helper not installed" flow
-node test/host.mjs                # helper: reconfiguration, Host/Origin checks, size limits, cancellation, protocol mismatch
-npx playwright install firefox && node test/content.mjs   # real content script in real Firefox
-npm test                          # all of the above
-node test/e2e.mjs dist/host/webmcp-host-linux-x64   # same, against a compiled helper
+npm test                                 # everything below
+node test/e2e.mjs                        # real background.js (mocked browser APIs) and real helper over native messaging and HTTP
+MISSING=1 node test/e2e.mjs              # the "helper not installed" flow
+node test/host.mjs                       # helper: reconfiguration, Host/Origin checks, size limits, cancellation, protocol mismatch
+npx playwright install firefox && node test/content.mjs   # content scripts in real Firefox
+node test/e2e.mjs dist/host/webmcp-host-linux-x64         # same, against a compiled helper
 npx web-ext@8 lint -s extension
 ```
 
-Load `extension/manifest.json` as a temporary add-on and `npm run install-host`
-to point Firefox at your checkout.
+The add-on and helper share one version number (`package.json`,
+`manifest.json`, `shared/src/version.ts`). A separate wire `PROTOCOL` number
+changes only on breaking bridge changes. On connect the two sides exchange both
+numbers. A version mismatch gets a warning and keeps working. A protocol
+mismatch tells you which side needs updating.
 
-## Releasing
+### Releasing
 
 ```bash
-node scripts/set-version.mjs 0.3.1   # bumps package.json ×3, manifest.json, shared/src/version.ts
-git commit -am "v0.3.1" && git tag v0.3.1 && git push --follow-tags
+node scripts/set-version.mjs X.Y.Z   # bumps every version file
+git commit -am "vX.Y.Z" && git tag vX.Y.Z && git push --follow-tags
 ```
 
-The tag triggers `.github/workflows/release.yml`: it checks the versions
-match the tag, runs the tests, builds every helper with bun and publishes the
-binaries, `install.sh`/`install.ps1`, `SHA256SUMS` and the add-on zip as a
-GitHub release. Locally the same thing is `npm run release` (needs bun and an
-authenticated `gh`); `npm run build:host` alone just builds
-(`TARGETS="linux-x64"` for one). Installers use `releases/latest/download/…`,
-so a new release is picked up without changing the add-on.
+Pushing a `v*` tag runs `.github/workflows/release.yml`. It checks that the
+versions match the tag, runs the test suite, builds the helper binaries with
+Bun, and publishes them with the installers, `SHA256SUMS` and the add-on zip
+as a GitHub release. `npm run release` does the same locally and needs Bun and
+an authenticated `gh`. The installers always fetch `releases/latest`, so the
+published installers pick up each new release automatically.
 
-Single-file executables via `bun build --compile` (60–85 MB, no runtime
-needed). They are **unsigned**: expect SmartScreen on Windows and Gatekeeper
-on macOS (`xattr -c <file>` clears the quarantine flag; if macOS still
-refuses, `codesign -s - -f <file>` gives it an ad-hoc signature).
+Single-file helper binaries are built with `bun build --compile` and are
+unsigned. Windows SmartScreen and macOS Gatekeeper will warn. On macOS,
+`xattr -c <file>` clears the quarantine flag.
 
-## Tools
+Add-on packaging: `bash scripts/pack-extension.sh` writes
+`webmcp-controller.zip`, with `manifest.json` at the root. Upload it at
+[addons.mozilla.org/developers](https://addons.mozilla.org/developers/).
+`scripts/amo-sign.sh` signs with the AMO API from the command line.
 
-Tool names below match `registerTool(` in `mcp-server/src/tools/*.ts` exactly
-(44 total). All except `extension_status`, `wait_for_tab_event` and
-`cursor_note` take the optional `thought` described under *AI cursor*.
+## License
 
-### Inventory / manage (`tabs.ts`, 19)
-
-| Tool | What it does |
-|---|---|
-| `tabs_list` | List all open tabs (id, url, title, active/pinned/audible state). |
-| `tabs_query` | Find tabs by URL/title pattern and state flags. |
-| `active_tab` | Get the currently active tab (id, url, title, window). |
-| `tab_create` | Open a new tab, optionally with a URL. |
-| `tab_navigate` | Navigate a tab to a URL (defaults to the active tab). |
-| `tab_close` | Close one or more tabs (destructive: needs `confirm:true`). |
-| `tab_duplicate` | Duplicate a tab (defaults to the active tab). |
-| `tab_move` | Move a tab to a new index, optionally to another window. |
-| `tab_pin` | Pin a tab (defaults to the active tab). |
-| `tab_unpin` | Unpin a tab (defaults to the active tab). |
-| `tab_mute` | Mute or unmute a tab (defaults to the active tab). |
-| `window_list` | List open Firefox windows (id, focused, tab count). |
-| `window_create` | Open a new window, optionally with a URL. |
-| `window_focus` | Bring a window to the front. |
-| `window_close` | Close a window and all its tabs (destructive: needs `confirm:true`). |
-| `nav_back` | Go back in a tab's history (defaults to the active tab). |
-| `nav_forward` | Go forward in a tab's history (defaults to the active tab). |
-| `nav_reload` | Reload a tab (defaults to the active tab). |
-| `focus_tab` | Activate (focus) a tab by id. |
-
-### Understand (`understand.ts`, 5)
-
-| Tool | What it does |
-|---|---|
-| `snapshot_ax` | Accessibility snapshot of the page for grounding `act_*` refs (`[ref=N]` nodes). |
-| `page_text` | Extract the visible text of the page. |
-| `page_html` | Extract page HTML, optionally limited to a CSS selector subtree. |
-| `screenshot` | Capture a screenshot of the tab's visible area (returned as an image). |
-| `page_info` | Basic page metadata: URL, title, load state. |
-
-### Act (`act.ts`, 9)
-
-| Tool | What it does |
-|---|---|
-| `act_click` | Click an element by snapshot ref or CSS selector. Fails on disabled elements. |
-| `act_type` | Type into a text field (optional submit via its form or composer's own button, else Enter). |
-| `act_fill_form` | Fill several fields in one call; every field is checked first, so a bad one changes nothing. |
-| `act_select` | Select option(s) in a `<select>`: exact value first, then label. |
-| `act_hover` | Send hover events (JS menus and tooltips; CSS `:hover` can't be triggered). |
-| `act_scroll` | Scroll the page or an element (direction/pixels, or top/bottom). |
-| `act_key` | Press a key, optionally with modifiers (e.g. `Enter`, `a` + Ctrl). |
-| `act_wait` | Wait for text or a selector to appear (poll, `timeoutMs` default 10000 / max 60000). |
-| `act_find` | Find text on the page (returns match locations/count). |
-
-### Browser data (`browser.ts`, 8)
-
-| Tool | What it does |
-|---|---|
-| `bookmarks_search` | Search bookmarks by title/URL query. |
-| `bookmarks_create` | Create a bookmark. |
-| `bookmarks_remove` | Delete a bookmark by id (destructive: needs `confirm:true`). |
-| `history_search` | Search browsing history. |
-| `downloads_list` | List recent downloads (filename, state, progress). |
-| `cookies_for_tab` | Read cookies visible to a tab's page, from its container/private store, including ones partitioned under that site (read-only). |
-| `sessions_recently_closed` | List recently closed tabs/windows available for restore. |
-| `sessions_restore` | Restore a recently closed tab/window by session id. |
-
-### Meta (`tools/index.ts`, 3)
-
-| Tool | What it does |
-|---|---|
-| `extension_status` | Check whether the bridge extension is connected, plus profile details. |
-| `wait_for_tab_event` | Wait for an extension-pushed event (`tab.updated/removed/activated`, `download.done`); pass a result's `seq` as `afterSeq` to catch events between calls. |
-| `cursor_note` | Show a note in the AI cursor bubble without doing anything. |
-
-## Troubleshooting
-
-- **Popup says "Helper app not installed".** The install step didn't run or
-  wrote to a different place than this Firefox reads. Run the binary with
-  `status` to see where it registered. Snap Firefox on Ubuntu reads
-  `~/snap/firefox/common/.mozilla/native-messaging-hosts` (the installer
-  writes there too); **Flatpak** Firefox cannot run native hosts without
-  extra sandbox overrides — use the deb/tarball build (the installer warns when
-it sees one). Then press **Retry**.
-- **Popup says the helper is too old / the add-on is too old.** Run the
-  install command again, or update the add-on, as the popup says.
-- **Worked before 0.3.4, "not installed" after.** Everything was renamed; run the
-  install command once more.
-- **"Port 8901 is already in use".** Another app, or this add-on in a second
-  Firefox profile, holds it. Settings → Port → pick another → Save, then
-  re-copy the MCP config.
-- **401 unauthorized.** The token changed (Settings → New) — re-copy the config.
-- **Temp add-on gone after restart.** Temporary add-ons unload when Firefox
-  closes — reload via `about:debugging`, or install a signed `.xpi`. A
-  temporary add-on keeps its token only while its ID stays the same (it does —
-  the ID is fixed in `manifest.json`).
-- **`RESTRICTED_PAGE`.** Content-script ops (`page.snapshot/text/html`, all
-  `act.*`) are blocked on `about:*`, `chrome:*`, `resource:*`,
-  `moz-extension:*`, `view-source:*`, `jar:`, `data:`/`blob:` pages and on
-  `addons.mozilla.org` (Firefox forbids scripting there).
-- **`act_wait` vs bridge timeout.** `act_wait` has its own `timeoutMs`
-  (default 10000, max 60000); the helper extends its 30s watchdog to
-  `timeoutMs + 15s` for that call.
-- **`REF_STALE` / `REF_NOT_FOUND`.** Refs from `snapshot_ax` belong to one page
-  load and are never reused. Pass the snapshot's `generation` with refs; after
-  the page changes or navigates, take a new snapshot.
-- **`PAYLOAD_TOO_LARGE`.** Firefox caps native messages at 1 MB; send less text
-  per call.
-- **Helper logs.** The helper writes to stderr, which Firefox shows in the
-  Browser Console (Ctrl+Shift+J) prefixed `[webmcp]`.
-
-## Limits & safety
-
-- **Local only by default.** The helper binds `127.0.0.1`; every MCP request
-  needs the 256-bit bearer token, compared in constant time.
-- **Browser checks.** Requests with a foreign `Host` or `Origin` header get 403
-  (DNS rebinding / cross-site protection); the token is checked before the
-  body is parsed.
-- **Cancellation.** Closing an HTTP request or sending
-  `notifications/cancelled` stops the command in Firefox too.
-- **Confirm guard.** `tab_close`, `window_close`, `bookmarks_remove` refuse
-  without explicit `confirm:true`.
-- **No password-store access.** There is no tool for saved logins / the
-  Firefox password manager. `cookies_for_tab` is read-only.
-- **Screenshots are viewport-only.** `screenshot` captures the tab's visible
-  area (`page.shot`), not the full scrollable page or OS chrome.
-
-## Publishing the extension (AMO)
-
-Two lanes, same upload flow at
-[addons.mozilla.org/developers](https://addons.mozilla.org/developers/):
-
-- **Unlisted (fast, self-distribution).** Automated checks only, signed in
-  minutes. Install the resulting `.xpi` via Add-ons Manager → gear icon →
-  Install Add-on From File. No public listing, no manual review. This is the
-  right lane for personal use. AMO only signs the add-on — the helper
-  binaries are shipped separately (e.g. GitHub releases).
-- **Listed (public store page).** Full human review — expect days to weeks,
-  and scrutiny proportional to permissions. This extension requests `tabs`,
-  `bookmarks`, `history`, `cookies`, and `<all_urls>` content scripting, i.e.
-  it can read and drive every page. A public listing will need a convincing
-  justification: why full control is the product (AI browsing agent), why the
-  data stays local (native helper on the same machine, token-gated), plus a
-  privacy policy. Plan on review iterations.
-
-Steps (both lanes):
-
-1. `bash scripts/pack-extension.sh` → `webmcp-controller.zip`
-   (manifest at zip root, `web-ext lint` clean).
-2. Either upload the zip at
-   [addons.mozilla.org/developers](https://addons.mozilla.org/developers/)
-   → Submit a New Add-on, or sign from the CLI:
-   `AMO_JWT_ISSUER=… AMO_JWT_SECRET=… bash scripts/amo-sign.sh`
-   (get API keys at
-   [AMO API keys](https://addons.mozilla.org/developers/addon/api/key/);
-   default channel is `unlisted`, set `AMO_CHANNEL=listed` for a public
-   listing).
-3. Fill in the submission: pick **On your own** (unlisted) vs **On this
-   site** (listed), declare the
-   [`data_collection_permissions`](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/)
-   already in `manifest.json` (`browsingActivity`, `websiteContent`,
-   `websiteActivity`, `bookmarksInfo` — required because page content,
-   URLs, interactions, and bookmarks flow to the local helper),
-   and for listed also add icons (shipped in `extension/icons/`),
-   description, and support info.
+[Mozilla Public License 2.0](LICENSE).
