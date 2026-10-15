@@ -1,0 +1,63 @@
+name: Source archive
+# Builds the source archive for AMO review once a release is published, and
+# attaches it to that release. It contains the tagged tree plus a build.sh.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Assemble source archive
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          OUT="webmcp-controller-source-${TAG}.zip"
+          STAGE="$(mktemp -d)"
+          git archive --format=tar HEAD | tar -x -C "$STAGE"
+          cat > "$STAGE/build.sh" <<'EOF'
+          #!/usr/bin/env bash
+          # Build the WebMCP Controller add-on from this source archive.
+          #
+          # Requirements:
+          #   - Linux, macOS, or Windows with Git Bash or WSL
+          #   - bash and python3 3.8 or newer (standard library only)
+          #   - For the native helper only (WITH_HELPER=1): Node.js 22 and npm,
+          #     plus Bun for the single-file binaries
+          #
+          # Usage:
+          #   bash build.sh              writes webmcp-controller.zip (the add-on)
+          #   WITH_HELPER=1 bash build.sh   also builds the helper into dist/host/
+          set -euo pipefail
+          cd "$(dirname "$0")"
+
+          command -v python3 >/dev/null 2>&1 || { echo "build.sh: python3 is required" >&2; exit 1; }
+          echo "build.sh: python3 $(python3 -V 2>&1 | cut -d' ' -f2)"
+          bash scripts/pack-extension.sh
+
+          if [ "${WITH_HELPER:-0}" = "1" ]; then
+            command -v node >/dev/null 2>&1 || { echo "build.sh: Node.js 22 is required for WITH_HELPER=1" >&2; exit 1; }
+            echo "build.sh: node $(node -v), npm $(npm -v)"
+            npm ci
+            npm run build
+            npm run build:host
+          fi
+          EOF
+          chmod +x "$STAGE/build.sh"
+          (cd "$STAGE" && zip -qr "$GITHUB_WORKSPACE/$OUT" .)
+          ls -l "$GITHUB_WORKSPACE/$OUT"
+
+      - name: Attach to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" "webmcp-controller-source-${TAG}.zip" --clobber

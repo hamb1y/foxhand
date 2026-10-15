@@ -373,6 +373,44 @@ Add-on packaging: `bash scripts/pack-extension.sh` writes
 [addons.mozilla.org/developers](https://addons.mozilla.org/developers/).
 `scripts/amo-sign.sh` signs with the AMO API from the command line.
 
+## Building from source
+
+The add-on has no build step. The JavaScript, CSS and HTML in `extension/` ship
+unmodified: nothing is transpiled, bundled or minified. Packaging copies those
+files into a zip.
+
+**Requirements**
+
+- Linux, macOS, or Windows with Git Bash or WSL
+- `bash` and `python3` 3.8 or newer (standard library only)
+- `unzip` is optional; the script lists the zip contents without it
+
+**Steps** (tested with Python 3.14 on Linux)
+
+```bash
+git clone https://github.com/hamb1y/webmcp-controller.git
+cd webmcp-controller
+git checkout v0.4.0
+bash scripts/pack-extension.sh      # writes webmcp-controller.zip
+```
+
+The zip contains the 20 files listed in `scripts/pack-extension.sh`, with
+`manifest.json` at its root.
+
+**Third-party assets.** The Google Sans Flex font (`extension/fonts/`, SIL OFL
+1.1) and the Bibata cursor license (`extension/cursors/bibata/`, GPL-3.0) ship
+with their license texts.
+
+**The native helper** is a separate program that isn't part of the add-on zip.
+To build it too, install Node.js 22 (the version CI uses) and, for the
+single-file binaries, Bun. Then run:
+
+```bash
+npm ci                 # uses the lockfile
+npm run build          # compiles shared/ and mcp-server/ with tsc
+npm run build:host     # optional: single-file binaries in dist/host/ (needs Bun)
+```
+
 ## License
 
 [Mozilla Public License 2.0](LICENSE).
