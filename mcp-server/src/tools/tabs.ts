@@ -151,16 +151,19 @@ export function registerTabTools(
   server.registerTool(
     "tab_close",
     {
-      description: "Close one or more tabs. Destructive: needs confirm:true unless the guard is disabled.",
+      description:
+        "Close one or more tabs (tabIds), one tab (tabId), or the active tab (neither). " +
+        "Destructive: needs confirm:true unless the guard is disabled.",
       inputSchema: {
-        tabIds: z.array(z.number().int().positive()).min(1).describe("Tab ids to close"),
+        tabIds: z.array(z.number().int().positive()).min(1).optional().describe("Tab ids to close"),
+        tabId: tabIdField,
         confirm: confirmField,
       },
     },
     async (args) => {
       const denied = requireConfirm(config, args.confirm, "tab_close");
       if (denied) return refusal(denied);
-      return text(await callBridge(bridge, "tab.close", { tabIds: args.tabIds }));
+      return text(await callBridge(bridge, "tab.close", args.tabIds ? { tabIds: args.tabIds } : { tabId: args.tabId }));
     },
   );
 

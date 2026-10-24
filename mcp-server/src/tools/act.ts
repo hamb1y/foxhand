@@ -35,6 +35,16 @@ const generationField = z
   .optional()
   .describe("The `generation` of the snapshot_ax the ref came from. If the page has since navigated, the call fails with REF_STALE instead of acting on the wrong element.");
 
+const dialogField = z
+  .enum(["accept", "dismiss"])
+  .optional()
+  .describe(
+    "How to answer a confirm()/prompt() the page shows because of this action (default dismiss = Cancel). " +
+      "Dialogs never block: the result lists any the page showed (`dialogs`). Repeat with \"accept\" to answer OK.",
+  );
+
+const promptTextField = z.string().max(1000).optional().describe("Text to answer a prompt() with, when dialog is \"accept\"");
+
 /** Guard for tools that need exactly one element target. Returns an error string or null. */
 function requireTarget(args: { ref?: number; selector?: string }, tool: string): string | null {
   if (args.ref === undefined && args.selector === undefined) {
@@ -53,6 +63,8 @@ export function registerActTools(
     {
       description: "Click an element by snapshot ref or CSS selector. Fails with ELEMENT_DISABLED on a disabled element.",
       inputSchema: {
+        dialog: dialogField,
+        promptText: promptTextField,
         tabId: tabIdField,
         ref: refField,
         selector: selectorField,
@@ -65,6 +77,8 @@ export function registerActTools(
       if (denied) return refusal(denied);
       return text(
         await callBridge(bridge, "act.click", {
+          dialog: args.dialog,
+          promptText: args.promptText,
           tabId: args.tabId,
           ref: args.ref,
           selector: args.selector,
@@ -82,6 +96,8 @@ export function registerActTools(
         "Replace the value of a text field, textarea, contenteditable, <select> (by option value or label) or checkbox/radio (\"true\"/\"false\"). " +
         "Fails with NOT_EDITABLE on buttons and read-only fields. Optionally submit afterwards.",
       inputSchema: {
+        dialog: dialogField,
+        promptText: promptTextField,
         tabId: tabIdField,
         ref: refField,
         selector: selectorField,
@@ -97,6 +113,8 @@ export function registerActTools(
       if (denied) return refusal(denied);
       return text(
         await callBridge(bridge, "act.type", {
+          dialog: args.dialog,
+          promptText: args.promptText,
           tabId: args.tabId,
           ref: args.ref,
           selector: args.selector,
@@ -117,6 +135,8 @@ export function registerActTools(
         "Fill several fields in one call (same value rules as act_type). Every field is checked before anything changes, " +
         "so a bad ref or value fails the whole call without partial edits.",
       inputSchema: {
+        dialog: dialogField,
+        promptText: promptTextField,
         tabId: tabIdField,
         fields: z
           .array(
@@ -141,6 +161,8 @@ export function registerActTools(
     async (args) =>
       text(
         await callBridge(bridge, "act.fillForm", {
+          dialog: args.dialog,
+          promptText: args.promptText,
           tabId: args.tabId,
           fields: args.fields,
           generation: args.generation,
@@ -246,6 +268,8 @@ export function registerActTools(
         "buttons/links or submits a form field, Space toggles/activates, printable keys and Backspace/Delete edit text fields, " +
         "arrows/PageUp/PageDown/Home/End scroll, Ctrl+A selects all. Browser shortcuts (Ctrl+T, Ctrl+L…) aren't possible. Result `effect` says what happened.",
       inputSchema: {
+        dialog: dialogField,
+        promptText: promptTextField,
         tabId: tabIdField,
         key: z.string().describe("Key to press, e.g. 'Enter', 'Escape', 'Tab', 'a'"),
         modifiers: z
@@ -257,6 +281,8 @@ export function registerActTools(
     async (args) =>
       text(
         await callBridge(bridge, "act.key", {
+          dialog: args.dialog,
+          promptText: args.promptText,
           tabId: args.tabId,
           key: args.key,
           modifiers: args.modifiers,

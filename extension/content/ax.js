@@ -61,7 +61,12 @@ function errToObj(e) {
 /* The parent in the flat tree: shadow roots hand over to their host. */
 function flatParent(n) {
   if (n.parentNode && n.parentNode.nodeType === 11 && n.parentNode.host) return n.parentNode.host;
-  return n.parentElement || (n.parentNode && n.parentNode.host) || null;
+  var p = n.parentElement || (n.parentNode && n.parentNode.host) || null;
+  if (!p && n.ownerDocument && n === n.ownerDocument.documentElement) {
+    // The top of a same-origin frame's document: carry on from the <iframe> in the page around it.
+    try { p = n.ownerDocument.defaultView.frameElement || null; } catch (e) { p = null; }
+  }
+  return p;
 }
 
 /* Hidden from assistive tech by an ancestor (aria-hidden, inert)? */
@@ -73,7 +78,7 @@ function axHidden(el) {
 }
 
 function visible(el) {
-  if (!(el instanceof Element)) return false;
+  if (!el || el.nodeType !== 1) return false; // not instanceof: elements in iframes come from another realm
   if (el.hasAttribute('hidden')) return false;
   if (axHidden(el)) return false;
   return rendered(el, 0);
@@ -81,7 +86,7 @@ function visible(el) {
 
 function rendered(el, depth) {
   var cs;
-  try { cs = window.getComputedStyle(el); } catch (e) { return true; }
+  try { cs = (el.ownerDocument.defaultView || window).getComputedStyle(el); } catch (e) { return true; }
   if (!cs || cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse') return false;
   // display:contents has no box of its own; it shows if any child does.
   if (cs.display === 'contents') {
@@ -101,7 +106,7 @@ function rendered(el, depth) {
   // Zero-rect but focusable/fixed elements (e.g. position:fixed) still count.
   try {
     if (cs.position === 'fixed') return true;
-    if (el === document.activeElement) return true;
+    if (el === el.ownerDocument.activeElement) return true;
   } catch (e) {}
   return false;
 }
@@ -141,6 +146,7 @@ function tagRole(el, compact) {
   if (tag === 'DETAILS') return 'group';
   if (tag === 'FIELDSET') return 'group';
   if (tag === 'OPTION') return 'option';
+  if (tag === 'IFRAME' || tag === 'FRAME') return 'iframe';
   var m = HEADING_RE.exec(tag);
   if (m) return 'heading';
   if (el.isContentEditable) return 'textbox';
@@ -151,7 +157,7 @@ function isInteresting(el) {
   var tag = el.tagName;
   if (tag === 'A' || tag === 'BUTTON' || tag === 'INPUT' || tag === 'SELECT' ||
       tag === 'TEXTAREA' || tag === 'FORM' || tag === 'TABLE' || tag === 'IMG' ||
-      tag === 'SUMMARY' || tag === 'LABEL' || tag === 'LI' || tag === 'DETAILS') return true;
+      tag === 'SUMMARY' || tag === 'LABEL' || tag === 'LI' || tag === 'DETAILS' || tag === 'IFRAME' || tag === 'FRAME') return true;
   if (HEADING_RE.test(tag)) return true;
   if (el.hasAttribute && (el.hasAttribute('role') || el.hasAttribute('tabindex') ||
       el.hasAttribute('onclick') || el.isContentEditable)) return true;
@@ -176,6 +182,11 @@ function textOf(el) {
   } catch (e) { return ''; }
 }
 
+/* A same-origin frame's document, or null (cross-origin, not loaded yet). */
+function frameDoc(el) {
+  try { var d = el.contentDocument; return d && d.documentElement ? d : null; } catch (e) { return null; }
+}
+
 function computeName(el, tag) {
   var labelledby = el.getAttribute && el.getAttribute('aria-labelledby');
   if (labelledby) {
@@ -190,6 +201,10 @@ function computeName(el, tag) {
   }
   var aria = el.getAttribute && el.getAttribute('aria-label');
   if (aria && aria.trim()) return aria.trim().slice(0, 100);
+  if (tag === 'IFRAME' || tag === 'FRAME') {
+    var ft = el.getAttribute('title') || el.getAttribute('name') || '';
+    return ft.trim().slice(0, 100);
+  }
   if (tag === 'IMG' || tag === 'INPUT') {
     var alt = el.getAttribute && el.getAttribute('alt');
     if (alt && alt.trim()) return alt.trim().slice(0, 100);
@@ -254,6 +269,8 @@ function buildSnapshot(compact, maxChars) {
   while (el) {
     var tag = el.tagName;
     if (el.shadowRoot) stack.push(el.shadowRoot);
+    var fdoc = (tag === 'IFRAME' || tag === 'FRAME') ? frameDoc(el) : null;
+    if (fdoc && fdoc.body && visible(el)) stack.push(fdoc.body);
     if (tag && !SKIP_TAGS[tag]) {
       var interesting = isInteresting(el);
       var include = interesting || (!compact && hasDirectText(el));
@@ -264,7 +281,7 @@ function buildSnapshot(compact, maxChars) {
           var node = { ref: 0, role: role, name: name };
           var flags = [];
           if (isDisabled(el)) { node.disabled = true; flags.push('[disabled]'); }
-          else if (el.getAttribute && el.getAttribute('aria-disabled') === 'true') { node.disabled = true; flags.push('[disabled]'); }
+          else if (ariaDisabled(el)) { node.disabled = true; flags.push('[disabled]'); }
           if (tag === 'INPUT') {
             var it = String(el.type || 'text').toLowerCase();
             if ((it === 'checkbox' || it === 'radio')) {
@@ -301,6 +318,10 @@ function buildSnapshot(compact, maxChars) {
           var hm = HEADING_RE.exec(tag);
           if (hm) node.level = Number(hm[1]);
           if (tag === 'A' && el.href) node.href = shortHref(el.href);
+          if (role === 'iframe') {
+            node.href = shortHref(el.src || '');
+            if (!frameDoc(el)) node.crossOrigin = true;
+          }
           var ref = refFor(el);
           node.ref = ref;
           var line = '[ref=' + ref + '] ' + role + (name ? ' ' + JSON.stringify(name) : '');
@@ -310,6 +331,8 @@ function buildSnapshot(compact, maxChars) {
           if (node.level) line += ' [h' + node.level + ']';
           if (node.href) line += ' -> ' + node.href;
           if (flags.length) line += ' ' + flags.join(' ');
+          if (node.crossOrigin) line += ' [cross-origin: its content isn\'t in this snapshot; open its URL in a tab to read it]';
+          else if (role === 'iframe') line += ' [its content follows]';
           var add = line.length + (lines.length ? 1 : 0);
           if (len + add > maxChars) { truncated = true; break outer; }
           len += add;
@@ -595,8 +618,8 @@ function fireChange(el) {
 
 function nativeSetValue(el, text) {
   try {
-    var proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype
-      : el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+    var proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype
+      : el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
     var desc = proto && Object.getOwnPropertyDescriptor(proto, 'value');
     if (desc && desc.set) desc.set.call(el, text);
     else el.value = text;
@@ -1078,8 +1101,12 @@ function normalizeMods(mods) {
 /* The focused element, inside open shadow roots too. */
 function deepActive() {
   var a = document.activeElement;
-  while (a && a.shadowRoot && a.shadowRoot.activeElement) a = a.shadowRoot.activeElement;
-  return a;
+  for (;;) {
+    if (a && a.shadowRoot && a.shadowRoot.activeElement) { a = a.shadowRoot.activeElement; continue; }
+    var inner = a && (a.tagName === 'IFRAME' || a.tagName === 'FRAME') ? frameDoc(a) : null;
+    if (inner && inner.activeElement && inner.activeElement !== inner.body) { a = inner.activeElement; continue; }
+    return a;
+  }
 }
 
 /* Would a real keystroke edit el now? (The page's handlers may have moved
@@ -1514,6 +1541,101 @@ function cursorCommand(msg) {
   }
 }
 
+/* ---------------------------------------------------------------- dialogs */
+
+/* alert/confirm/prompt stop the page until someone answers, which would freeze an action half-way
+ * (the click never returns) and leave the dialog up for the user. While the AI acts, and briefly
+ * after, the page's dialogs are answered here instead: alert is acknowledged; confirm and prompt
+ * are cancelled unless the call asked for dialog:"accept". The result says what the page asked.
+ * Dialogs answered after an action returned are reported with the next one. */
+var DIALOG_GRACE_MS = 1500;
+var dialogDepth = 0, dialogRestore = null, dialogTimer = 0;
+var dialogPolicy = { accept: false, promptText: undefined };
+var dialogLog = [];
+
+function installDialogs() {
+  if (dialogRestore || typeof exportFunction !== 'function' || !window.wrappedJSObject) return;
+  var page = window.wrappedJSObject;
+  var saved = {};
+  ['alert', 'confirm', 'prompt'].forEach(function (type) {
+    var own = false;
+    try { own = Object.prototype.hasOwnProperty.call(page, type); } catch (e) {}
+    saved[type] = { own: own, fn: own ? page[type] : null };
+    try {
+      page[type] = exportFunction(function (message, dflt) {
+        var text = String(message === undefined ? '' : message).slice(0, 300);
+        var accept = dialogPolicy.accept;
+        var answer = type === 'alert' ? undefined
+          : type === 'confirm' ? accept
+          : accept ? String(dialogPolicy.promptText !== undefined ? dialogPolicy.promptText : (dflt === undefined ? '' : dflt)) : null;
+        dialogLog.push({ type: type, message: text, answered: type === 'alert' ? 'ok' : accept ? 'accepted' : 'cancelled' });
+        return answer;
+      }, window);
+    } catch (e) {}
+  });
+  dialogRestore = function () {
+    Object.keys(saved).forEach(function (type) {
+      try {
+        if (saved[type].own) page[type] = saved[type].fn;
+        else delete page[type];
+      } catch (e) {}
+    });
+  };
+}
+
+function beginDialogs(msg) {
+  dialogDepth += 1;
+  clearTimeout(dialogTimer);
+  dialogPolicy = { accept: msg.dialog === 'accept', promptText: msg.promptText };
+  installDialogs();
+}
+
+function endDialogs() {
+  dialogDepth = Math.max(0, dialogDepth - 1);
+  if (dialogDepth) return;
+  clearTimeout(dialogTimer);
+  // A page often asks a moment later (after a fetch, a timer); keep answering for a little while.
+  dialogTimer = setTimeout(function () {
+    if (dialogDepth || !dialogRestore) return;
+    dialogRestore();
+    dialogRestore = null;
+  }, DIALOG_GRACE_MS);
+}
+
+/* Attach the dialogs the page showed (since the last report) to a result. */
+function withDialogLog(result) {
+  if (!dialogLog.length) return result;
+  var shown = dialogLog.splice(0, dialogLog.length);
+  var out = (result && typeof result === 'object' && !Array.isArray(result)) ? result : { result: result };
+  out.dialogs = shown;
+  var asked = shown.filter(function (d) { return d.type !== 'alert' && d.answered === 'cancelled'; });
+  out.dialogNote = 'The page showed ' + shown.map(function (d) { return d.type + '(' + JSON.stringify(d.message) + ')'; }).join(', ') +
+    '. ' + (asked.length ? 'It was answered "Cancel"; to answer "OK" instead, repeat the action with dialog:"accept".' : 'It was acknowledged.');
+  return out;
+}
+
+/* ---------------------------------------------------------------- settle */
+
+/* Wait until the page stops changing (apps render after the load event), up to maxMs. */
+function settle(maxMs, quietMs) {
+  quietMs = quietMs || 300;
+  return new Promise(function (resolve) {
+    var start = Date.now(), last = start, mo = null;
+    try {
+      mo = new MutationObserver(function () { last = Date.now(); });
+      mo.observe(document.documentElement || document, { subtree: true, childList: true, characterData: true });
+    } catch (e) { resolve(); return; }
+    (function tick() {
+      var now = Date.now();
+      // A document still loading counts as changing.
+      if ((now - last >= quietMs && document.readyState !== 'loading') || now - start >= maxMs) {
+        mo.disconnect();
+        resolve();
+      } else setTimeout(tick, 50);
+    })();
+  });
+}
+
 /* ------------------------------------------------------------------ dispatch */
 
 async function handleMessage(msg) {
@@ -1524,25 +1646,31 @@ async function handleMessage(msg) {
     return { ok: true };
   }
   checkCancel(msg);
-  if (msg.cursor) await cursorBefore(msg);
+  var acts = /^act-/.test(msg.kind);
+  if (acts) beginDialogs(msg);
   try {
+    if (msg.cursor) await cursorBefore(msg);
     checkCancel(msg); // the glide takes a moment
     var result = await dispatch(msg);
     if (msg.cursor) cursorAfter(msg, result, null);
-    return result;
+    return withDialogLog(result);
   } catch (e) {
     if (msg.cursor) cursorAfter(msg, null, e);
     throw e;
+  } finally {
+    if (acts) endDialogs();
   }
 }
 
 async function dispatch(msg) {
   switch (msg.kind) {
     case 'ax-snapshot': {
+      await settle(1500);
       var maxChars = (msg.maxChars !== undefined && Number.isFinite(Number(msg.maxChars))) ? Number(msg.maxChars) : 50000;
       return buildSnapshot(msg.compact !== false, maxChars);
     }
     case 'page-text': {
+      await settle(1500);
       var mc = (msg.maxChars !== undefined && Number.isFinite(Number(msg.maxChars))) ? Number(msg.maxChars) : 50000;
       var t = '';
       try {
@@ -1579,7 +1707,7 @@ async function dispatch(msg) {
     case 'act-scroll': return doScroll(msg);
     case 'act-key': return await doKey(msg);
     case 'act-wait': return await doWait(msg);
-    case 'act-find': return doFind(msg);
+    case 'act-find': await settle(1500); return doFind(msg);
     default:
       throw be('UNKNOWN_METHOD', 'Unknown content kind: ' + msg.kind);
   }

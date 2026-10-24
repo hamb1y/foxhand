@@ -296,15 +296,42 @@ async function sendToPage(tabId, p, msg) {
 async function actOn(tabId, p, ctx, msg) {
   if (ctx.signal.aborted) throw be('CANCELLED', 'The command was cancelled.');
   msg.opId = ctx.id;
+  if (p.dialog === 'accept' || p.dialog === 'dismiss') msg.dialog = p.dialog;
+  if (typeof p.promptText === 'string') msg.promptText = p.promptText.slice(0, 1000);
+  // Tabs this action opens (target=_blank links, window.open) are reported, so the agent can follow them.
+  var opened = [];
+  var onCreated = function (t) { if (t && t.openerTabId === tabId) opened.push(t.id); };
+  try { B.tabs.onCreated.addListener(onCreated); } catch (e) {}
   var stop = function () {
     try { call(B.tabs, 'sendMessage', tabId, { kind: 'cancel', opId: ctx.id }).catch(function () {}); } catch (e) {}
   };
   ctx.signal.addEventListener('abort', stop);
   try {
-    return await sendToPage(tabId, p, msg);
+    var result = await sendToPage(tabId, p, msg);
+    if (OPENS_TABS.test(msg.kind)) {
+      await sleep(250); // the new tab is created just after the click returns
+      if (opened.length) result = await withOpenedTabs(result, opened);
+    }
+    return result;
   } finally {
     ctx.signal.removeEventListener('abort', stop);
+    try { B.tabs.onCreated.removeListener(onCreated); } catch (e) {}
   }
+}
+
+var OPENS_TABS = /^act-(click|key|type|fillForm)$/;
+
+async function withOpenedTabs(result, ids) {
+  var tabs = [];
+  for (var i = 0; i < ids.length; i++) {
+    try { var t = await call(B.tabs, 'get', ids[i]); tabs.push({ tabId: t.id, url: t.url || '', active: !!t.active }); } catch (e) {}
+  }
+  if (!tabs.length) return result;
+  var out = (result && typeof result === 'object' && !Array.isArray(result)) ? result : { result: result };
+  out.openedTabs = tabs;
+  out.openedNote = 'This opened ' + (tabs.length === 1 ? 'a new tab (tabId ' + tabs[0].tabId + ')' : tabs.length + ' new tabs') +
+    '. Pass its tabId to act there; the original tab is unchanged.';
+  return out;
 }
 
 /* One screenshot at a time: two that each switch tabs would otherwise hand

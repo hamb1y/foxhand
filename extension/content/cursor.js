@@ -153,8 +153,17 @@ function place(p) {
 
 function pointFor(el) {
   var r = el.getBoundingClientRect();
-  var x = r.left + Math.min(r.width / 2, Math.max(r.width - 6, 6));
-  var y = r.top + Math.min(r.height / 2, Math.max(r.height - 6, 6));
+  // An element inside a same-origin frame measures from the frame's corner: add the frames' offsets.
+  var ox = 0, oy = 0;
+  try {
+    for (var w = el.ownerDocument.defaultView; w && w !== window && w.frameElement; w = w.parent) {
+      var fe = w.frameElement, fr = fe.getBoundingClientRect();
+      ox += fr.left + fe.clientLeft;
+      oy += fr.top + fe.clientTop;
+    }
+  } catch (e) {}
+  var x = ox + r.left + Math.min(r.width / 2, Math.max(r.width - 6, 6));
+  var y = oy + r.top + Math.min(r.height / 2, Math.max(r.height - 6, 6));
   return {
     x: Math.max(4, Math.min(window.innerWidth - 4, x)),
     y: Math.max(4, Math.min(window.innerHeight - 4, y))
