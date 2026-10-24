@@ -206,6 +206,10 @@ var AMO_RE = /^https:\/\/addons\.mozilla\.org\//i;
 
 function assertContentAllowed(tab) {
   var url = String((tab && tab.url) || '');
+  if (/\.pdf([?#]|$)/i.test(url) || /\.pdf$/i.test(String((tab && tab.title) || ''))) {
+    throw be('RESTRICTED_PAGE', 'This tab shows a PDF in Firefox\'s built-in viewer, which add-ons can\'t read or click in. ' +
+      'Use screenshot to look at it, or open the PDF in another app.');
+  }
   if (RESTRICTED_RE.test(url)) {
     throw be('RESTRICTED_PAGE', 'Content scripting is forbidden on this page: ' + (url || '(no url yet)'));
   }
@@ -242,7 +246,22 @@ function unwrapContentResponse(res) {
 /* Send a message to a tab's content script, re-injecting once on failure.
  * p is the command's params: when the AI cursor is on, the model's `thought`
  * rides along so the page can show it next to the cursor. */
+/* A discarded (sleeping) tab has no page loaded: load it before talking to its content script. */
+async function wake(tabId) {
+  var tab;
+  try { tab = await call(B.tabs, 'get', tabId); } catch (e) { return; }
+  if (!tab || !tab.discarded) return;
+  try { await call(B.tabs, 'reload', tabId); } catch (e) { return; }
+  // A waking tab doesn't always report 'loading' first, so watch its state rather than events.
+  for (var end = Date.now() + 20000; Date.now() < end;) {
+    await sleep(150);
+    try { tab = await call(B.tabs, 'get', tabId); } catch (e) { return; }
+    if (!tab.discarded && tab.status === 'complete') return;
+  }
+}
+
 async function sendToTab(tabId, p, msg) {
+  await wake(tabId);
   if (CFG.showCursor && msg.kind !== 'cursor') {
     msg.cursor = { note: typeof p.thought === 'string' ? p.thought.slice(0, 300) : '' };
   }
@@ -457,6 +476,18 @@ function tabLoadWaiter(timeoutMs, signal, wantUrl) {
   };
 }
 
+/* A URL as people (and models) type it: "github.com/x" -> https://github.com/x, "localhost:3000" ->
+ * http://localhost:3000. Without this Firefox resolves it against the add-on's own origin. */
+var LOCAL_HOST_RE = /^(localhost|127(\.\d{1,3}){3}|\d{1,3}(\.\d{1,3}){3}|\[[0-9a-f:.]+\]|[\w-]+\.(local|localhost|internal|lan|test))(:\d+)?([/?#]|$)/i;
+function fixUrl(u) {
+  var s = String(u).trim();
+  if (!s) return s;
+  if (LOCAL_HOST_RE.test(s)) return 'http://' + s;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(s) && !/^[^/:]+:\d+([/?#]|$)/.test(s)) return s; // has a scheme (about:, https:, ...)
+  if (s.indexOf('//') === 0) return 'https:' + s;
+  return 'https://' + s;
+}
+
 /* Same page apart from the #fragment, which navigates without loading. */
 function sameDocument(from, to) {
   var a = String(from || ''), b = String(to || '');
@@ -541,7 +572,7 @@ var handlers = {
   /* ---- tab management ---- */
   'tab.create': async function (p, ctx) {
     var details = {};
-    if (p.url !== undefined) details.url = String(p.url);
+    if (p.url !== undefined) details.url = fixUrl(p.url);
     if (p.active !== undefined) details.active = !!p.active;
     var waiter = details.url && p.waitForLoad ? tabLoadWaiter(num(p.timeoutMs, 20000), ctx.signal, details.url) : null;
     var created;
@@ -563,7 +594,7 @@ var handlers = {
   'tab.update': async function (p, ctx) {
     var tab = await resolveTab(p.tabId);
     var props = {};
-    if (p.url !== undefined) props.url = String(p.url);
+    if (p.url !== undefined) props.url = fixUrl(p.url);
     if (p.active !== undefined) props.active = !!p.active;
     if (p.pinned !== undefined) props.pinned = !!p.pinned;
     var updated = tab;
@@ -647,7 +678,7 @@ var handlers = {
 
   /* ---- windows ---- */
   'window.create': async function (p) {
-    var w = await call(B.windows, 'create', p.url ? { url: String(p.url) } : {});
+    var w = await call(B.windows, 'create', p.url ? { url: fixUrl(p.url) } : {});
     return {
       id: w.id,
       focused: !!w.focused,
@@ -833,7 +864,8 @@ var handlers = {
   },
   'history.search': async function (p) {
     var h = { text: p.query !== undefined ? String(p.query) : '', maxResults: num(p.maxResults, 20) };
-    if (p.startTime !== undefined) h.startTime = Number(p.startTime);
+    // Firefox searches only the last 24 hours unless told otherwise; "that page from last week" needs all of it.
+    h.startTime = p.startTime !== undefined ? Number(p.startTime) : 0;
     return await call(B.history, 'search', h);
   },
   'downloads.list': async function (p) {

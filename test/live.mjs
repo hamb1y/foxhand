@@ -85,6 +85,11 @@ function fixtureServer() {
   const srv = createServer((req, res) => {
     const pth = new URL(req.url, 'http://x').pathname;
     if (pth === '/file.txt') { res.writeHead(200, { 'content-type': 'text/plain', 'content-disposition': 'attachment; filename="webmcp-live.txt"' }); res.end('hello'); return; }
+    if (pth === '/doc.pdf') {
+      // Smallest valid one-page PDF.
+      const pdf = '%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF';
+      res.writeHead(200, { 'content-type': 'application/pdf' }); res.end(pdf); return;
+    }
     if (pth === '/slow') { setTimeout(() => { res.writeHead(200, { 'content-type': 'text/html' }); res.end('<title>Slow</title>slow'); }, 3000); return; }
     const body = PAGES[pth];
     if (!body) { res.writeHead(404); res.end('nope'); return; }
@@ -469,6 +474,62 @@ async function edges() {
   ok('after a client cancels, the next command is not stuck behind it', t.ms < 3000 && !t.isError, `${t.ms}ms ${t.text}`);
 }
 
+async function robustness() {
+  // A URL typed the way people type them.
+  let t = await tool('tab_create', { url: `127.0.0.1:${fixtures.address().port}/`, waitForLoad: true });
+  ok('tab_create accepts a URL without a scheme', t.json?.loadComplete === true && /^http:/.test(t.json?.url || ''), t.text);
+  const tabId = t.json?.id;
+  t = await tool('tab_navigate', { tabId, url: 'example.invalid', waitForLoad: true, timeoutMs: 10000 });
+  ok('tab_navigate without a scheme is understood', !/Illegal|invalid url/i.test(t.text), t.text);
+
+  // PDF in Firefox's viewer: add-ons can't script it; say so plainly.
+  t = await tool('tab_navigate', { tabId, url: F('/doc.pdf'), waitForLoad: true });
+  t = await tool('snapshot_ax', { tabId });
+  ok('PDF tab gives a clear error', t.isError && /pdf/i.test(t.text), t.text);
+
+  // A discarded (sleeping) tab.
+  t = await tool('tab_create', { url: F('/'), waitForLoad: true, active: false });
+  const sleepy = t.json?.id;
+  await ext(`browser.tabs.discard(${sleepy})`);
+  await sleep(500);
+  if (process.env.DEBUG_DISCARD) {
+    console.log('after discard', JSON.stringify(await ext(`browser.tabs.get(${sleepy}).then(t => ({ d: t.discarded, s: t.status, u: t.url }))`)));
+    console.log('reload ->', JSON.stringify(await ext(`browser.tabs.reload(${sleepy}).then(() => 'ok', e => String(e))`)));
+    await sleep(1500);
+    console.log('after reload', JSON.stringify(await ext(`browser.tabs.get(${sleepy}).then(t => ({ d: t.discarded, s: t.status, u: t.url }))`)));
+  }
+  t = await tool('snapshot_ax', { tabId: sleepy });
+  ok('snapshot of a discarded tab wakes it and works', !t.isError && /Click me/.test(t.text), t.text.slice(0, 300));
+
+  // Several commands at once, on different tabs.
+  const many = await Promise.all([1, 2, 3, 4, 5].map(() => tool('snapshot_ax', { tabId: sleepy })).concat([tool('tabs_list'), tool('page_info', { tabId: sleepy })]));
+  ok('parallel commands all succeed', many.every((x) => !x.isError), many.filter((x) => x.isError).map((x) => x.text).join(' | '));
+
+  // Text too big for one native message.
+  await tool('tab_navigate', { tabId: sleepy, url: F('/chat'), waitForLoad: true });
+  const cs = (await tool('snapshot_ax', { tabId: sleepy })).text;
+  t = await tool('act_type', { tabId: sleepy, ref: refOf(cs, 'textbox "Message"'), text: 'x'.repeat(1_200_000) });
+  ok('oversized input is refused with a clear error', t.isError && /too large|1 MB|PAYLOAD/i.test(t.text), t.text.slice(0, 300));
+
+  // A new token: the old one stops working at once, the new one works.
+  const oldToken = (await ext(`browser.runtime.sendMessage({ type: 'get-status' })`)).token;
+  const st = await ext(`browser.runtime.sendMessage({ type: 'regenerate-token' })`);
+  const res = await fetch(st.url, { method: 'POST', headers: { Authorization: `Bearer ${oldToken}`, 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) });
+  ok('old token is refused after regenerating', res.status === 401, res.status);
+  await client.close();
+  client = new Client({ name: 'live-test', version: '1' });
+  await client.connect(new StreamableHTTPClientTransport(new URL(st.url), { requestInit: { headers: { Authorization: `Bearer ${st.token}` } } }));
+  t = await tool('tabs_list');
+  ok('new token works', !t.isError, t.text);
+
+  // The helper dies: Firefox starts it again and the same URL and token work.
+  if (!flag('--installed') && process.platform !== 'win32') {
+    spawnSync('pkill', ['-f', `${path.join(root, 'mcp-server/dist/host.js')}`]);
+    const back = await until(async () => { const r = await tool('tabs_list').catch((e) => ({ isError: true, text: String(e) })); return !r.isError && r; }, 30000, 'helper back').catch((e) => ({ isError: true, text: String(e) }));
+    ok('helper restarts after a crash and keeps serving', !back.isError, back.text);
+  }
+}
+
 async function realSites() {
   let t = await tool('tab_create', { url: 'https://en.wikipedia.org/wiki/Main_Page', waitForLoad: true, timeoutMs: 30000 });
   const tabId = t.json?.id;
@@ -513,6 +574,7 @@ try {
   } else {
     await scenario();
     await edges();
+    await robustness();
     if (flag('--real')) await realSites();
   }
 } catch (e) {

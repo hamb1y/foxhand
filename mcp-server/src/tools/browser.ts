@@ -76,7 +76,7 @@ export function registerBrowserTools(
   server.registerTool(
     "history_search",
     {
-      description: "Search browsing history.",
+      description: "Search browsing history (all of it unless startTime is given).",
       inputSchema: {
         query: z.string().describe("Search text matched against history titles and URLs"),
         maxResults: z.number().int().positive().optional().describe("Max results (default 20)"),
@@ -85,7 +85,7 @@ export function registerBrowserTools(
           .int()
           .positive()
           .optional()
-          .describe("Only entries visited after this ms-epoch timestamp"),
+          .describe("Only entries visited after this ms-epoch timestamp (default: all history)"),
       },
     },
     async (args) =>
