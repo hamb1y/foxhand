@@ -1,4 +1,4 @@
-/* WebMCP Controller — the "AI cursor": shows the user where the model is
+/* Foxhand — the "AI cursor": shows the user where the model is
  * acting and what it says it's doing. Purely visual: pointer-events are off,
  * so it never intercepts real input.
  *
@@ -16,7 +16,8 @@ if (window.__fxmcpCursor) return;
 var IDLE_DIM_MS = 8000;    // fade to a ghost after this long without activity
 var IDLE_HIDE_MS = 30000;  // then disappear
 var SIZE = 32;             // drawn size of the 256-unit Bibata shapes
-var LIME = '#D7F75B', INK = '#0a0a0a';
+// Firefox orange: the AI's bubble and click ripple. Dark text on it reads at about 7.7:1.
+var ORANGE = '#FF7139', INK = '#0a0a0a';
 var reduceMotion = false;
 try { reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
 
@@ -116,7 +117,7 @@ function build() {
   bubble = css(document.createElement('div'), {
     position: 'absolute', left: '22px', top: '30px', display: 'flex', 'align-items': 'center', gap: '8px',
     'max-width': '300px', width: 'max-content', padding: '8px 14px', 'border-radius': '999px',
-    background: LIME, color: INK, 'box-shadow': '0 0 0 1.5px ' + INK + ', 0 6px 18px rgba(0,0,0,.22)',
+    background: ORANGE, color: INK, 'box-shadow': '0 0 0 1.5px ' + INK + ', 0 6px 18px rgba(0,0,0,.22)',
     font: '500 13px/1.35 "Google Sans Flex", system-ui, -apple-system, "Segoe UI", sans-serif',
     'white-space': 'normal', 'overflow-wrap': 'anywhere',
     transition: 'opacity .25s ease', opacity: '0'
@@ -233,7 +234,7 @@ function click() {
     glyphs[shape].animate([{ transform: 'scale(1)' }, { transform: 'scale(.85)' }, { transform: 'scale(1)' }], { duration: 220, easing: 'ease-out' });
     var ring = css(document.createElement('div'), {
       position: 'absolute', left: '-18px', top: '-18px', width: '36px', height: '36px', 'box-sizing': 'border-box',
-      'border-radius': '50%', border: '3px solid ' + LIME, 'box-shadow': '0 0 0 1px ' + INK + ', inset 0 0 0 1px ' + INK
+      'border-radius': '50%', border: '3px solid ' + ORANGE, 'box-shadow': '0 0 0 1px ' + INK + ', inset 0 0 0 1px ' + INK
     });
     wrap.insertBefore(ring, wrap.firstChild);
     var a = ring.animate([{ transform: 'scale(.3)', opacity: 1 }, { transform: 'scale(1.6)', opacity: 0 }], { duration: 520, easing: 'ease-out' });

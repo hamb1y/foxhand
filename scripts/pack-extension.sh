@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Package extension/ into webmcp-controller.zip for sideloading / AMO upload.
+# Package extension/ into foxhand.zip for sideloading / AMO upload.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-OUT="webmcp-controller.zip"
+OUT="foxhand.zip"
 rm -f "$OUT"
 
 # Only what the add-on ships: never local files such as .amo-upload-uuid or README-INSTALL.md.
@@ -13,7 +13,8 @@ python3 - "$OUT" <<'EOF2'
 import os, sys, zipfile
 out = sys.argv[1]
 SHIP = ["manifest.json", "background.js", "common.js", "ui.css", "popup.html", "popup.js",
-        "options.html", "options.js", "content", "icons", "fonts", "cursors"]
+        "options.html", "options.js", "onboarding.html", "onboarding.js", "_locales",
+        "content", "icons", "fonts", "cursors"]
 files = []
 for entry in SHIP:
     full = os.path.join("extension", entry)
@@ -31,10 +32,10 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
 print(f"wrote {out} ({len(files)} files)")
 EOF2
 
-echo "[webmcp] contents:"
+echo "[foxhand] contents:"
 unzip -l "$OUT" 2>/dev/null || python3 -c "import zipfile,sys; print('\n'.join(zipfile.ZipFile(sys.argv[1]).namelist()))" "$OUT"
 
-echo "[webmcp] packed $OUT"
+echo "[foxhand] packed $OUT"
 echo "Next steps:"
 echo "  - Temporary install: Firefox > about:debugging > Load Temporary Add-on > extension/manifest.json"
 echo "  - AMO signing: submit $OUT at https://addons.mozilla.org/developers/ to get a signed .xpi"

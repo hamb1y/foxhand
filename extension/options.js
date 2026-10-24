@@ -1,9 +1,11 @@
-/* WebMCP Controller — options page logic (plain classic script). */
+/* Foxhand — settings page logic (plain classic script). */
 (function () {
 'use strict';
 
 var B = (typeof browser !== 'undefined') ? browser : chrome;
 var F = window.FxMcp;
+var t = F.t;
+F.localize();
 
 var $ = function (id) { return document.getElementById(id); };
 var tokenEl = $('token'), portEl = $('port'), bindEl = $('bind'), saveEl = $('save'), formErr = $('formErr');
@@ -43,10 +45,10 @@ function where() { return inWslEl.checked ? 'wsl' : 'local'; }
 
 function since(ts) {
   var m = Math.max(0, Math.round((Date.now() - ts) / 60000));
-  if (m < 1) return 'just now';
-  if (m < 60) return m + ' min';
+  if (m < 1) return t('justNow');
+  if (m < 60) return t('minutesShort', m);
   var h = Math.floor(m / 60);
-  return h + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : '');
+  return m % 60 ? t('hoursMinutes', [h, m % 60]) : t('hoursShort', h);
 }
 
 /* ---- rendering ---- */
@@ -56,14 +58,14 @@ function renderStatus(st) {
   $('dot').className = 'dot ' + sum.cls;
   setText($('stateTxt'), sum.text);
   setText($('stateErr'), st.listening ? '' : ((st.host && st.host.error) || (st.hostMissing ? '' : st.lastError) || ''));
-  setText($('factHelper'), st.host && st.host.version ? 'v' + st.host.version : st.hostMissing ? 'Not installed' : '—');
-  setText($('factUp'), st.listening && st.connectedAt ? since(st.connectedAt) + ' · ' + (st.commands || 0) + ' commands' : '—');
+  setText($('factHelper'), st.host && st.host.version ? 'v' + st.host.version : st.hostMissing ? t('notInstalled') : '—');
+  setText($('factUp'), st.listening && st.connectedAt ? since(st.connectedAt) + ' · ' + t('nCommands', st.commands || 0) : '—');
   setText($('factAddr'), st.listening ? F.mcpUrl(st).replace(/^http:\/\//, '').replace(/\/mcp$/, '') : '—');
-  setText($('addonVer'), 'Add-on v' + (st.version || '?') + ' · ');
+  setText($('addonVer'), t('addonV', st.version || '?') + ' · ');
   setHidden($('retry'), !!st.listening);
   if (!pausing) {
     setHidden($('pause'), !st.listening && !st.paused);
-    setText($('pause'), st.paused ? 'Resume AI' : 'Pause AI');
+    setText($('pause'), st.paused ? t('resumeAI') : t('pauseAI'));
   }
 }
 
@@ -71,9 +73,9 @@ function renderInstall(st) {
   var need = F.setupNeed(st);
   var s = F.hostSetup(st.platform);
   var installed = st.host && st.host.version;
-  setText($('installTitle'), need ? need.title : 'Helper app');
-  setText($('helperInfo'), (installed ? 'v' + st.host.version + ' installed on ' : 'For ') + s.os +
-    (st.host && st.host.extraUrls && st.host.extraUrls.length ? ' · also on ' + st.host.extraUrls.join(', ') + ' for WSL' : ''));
+  setText($('installTitle'), need ? need.title : t('helperApp'));
+  setText($('helperInfo'), (installed ? t('helperInstalledOn', [st.host.version, s.os]) : t('helperFor', s.os)) +
+    (st.host && st.host.extraUrls && st.host.extraUrls.length ? ' · ' + t('alsoWsl', st.host.extraUrls.join(', ')) : ''));
   setText($('uninstallCmd'), s.uninstall);
   // Missing or too old: steps up front. An optional update sits further down. Otherwise tucked away.
   setHidden($('install'), !need);
@@ -108,13 +110,13 @@ function renderConnect(st) {
   var ws = $('wslState');
   if (!st.allowWsl) {
     ws.className = 'warn';
-    setText(ws, 'Off: AIs in WSL can’t reach Firefox until you turn this on.');
+    setText(ws, t('wslOff'));
   } else if (extra.length) {
     ws.className = 'ok';
-    setText(ws, '✓ WSL can connect at ' + extra.join(', '));
+    setText(ws, t('wslOk', extra.join(', ')));
   } else {
     ws.className = 'warn';
-    setText(ws, st.listening ? 'No WSL network adapter found. Is WSL running?' : 'Starting…');
+    setText(ws, st.listening ? t('wslNoAdapter') : t('starting'));
   }
 }
 
@@ -164,7 +166,7 @@ function renderActivity(st) {
     ul.textContent = '';
     if (!evs.length) {
       var li0 = document.createElement('li');
-      li0.appendChild(span('empty', 'Nothing yet.'));
+      li0.appendChild(span('empty', t('nothingYet')));
       ul.appendChild(li0);
     }
     evs.slice().reverse().forEach(function (e) {
@@ -189,8 +191,8 @@ function renderActivity(st) {
 function render(st) {
   if (!st) {
     $('dot').className = 'dot off';
-    setText($('stateTxt'), 'The add-on didn’t answer');
-    setText($('stateErr'), 'Reload this page. If it keeps happening, restart Firefox.');
+    setText($('stateTxt'), t('noAnswer'));
+    setText($('stateErr'), t('reloadHint'));
     setHidden($('retry'), false);
     return;
   }
@@ -206,7 +208,7 @@ function render(st) {
 function refresh() {
   return send({ type: 'get-status' }).then(render).catch(function (e) {
     $('dot').className = 'dot off';
-    setText($('stateTxt'), 'Can’t reach the add-on');
+    setText($('stateTxt'), t('cantReach'));
     setText($('stateErr'), errText(e));
   });
 }
@@ -222,7 +224,7 @@ $('pause').addEventListener('click', function () {
     render(st);
   }).catch(function (e) {
     pausing = false;
-    toast('Couldn’t pause: ' + errText(e), true);
+    toast(t('couldntPause', errText(e)), true);
   });
 });
 
@@ -235,7 +237,7 @@ $('copyToken').addEventListener('click', function () { copyFrom(tokenEl.value, t
 $('reveal').addEventListener('click', function () {
   var show = tokenEl.type === 'password';
   tokenEl.type = show ? 'text' : 'password';
-  this.textContent = show ? 'Hide' : 'Show';
+  this.textContent = show ? t('hide') : t('show');
 });
 
 pickKind(F.configKind());
@@ -266,11 +268,11 @@ Object.keys(toggles).forEach(function (k) {
       if (res && res.error) throw new Error(res.error);
       pending[k] = false;
       render(res);
-      toast(k === 'allowWsl' && res.allowWsl ? 'WSL access turned on' : 'Saved');
+      toast(k === 'allowWsl' && res.allowWsl ? t('wslOn') : t('saved'));
     }).catch(function (e) {
       pending[k] = false;
       if (last) toggles[k].checked = last[k];
-      toast('Couldn’t save: ' + errText(e), true);
+      toast(t('couldntSave', errText(e)), true);
     });
   });
 });
@@ -281,17 +283,17 @@ $('regen').addEventListener('click', function () {
   var btn = this;
   if (!btn.classList.contains('danger')) {
     btn.classList.add('danger');
-    btn.textContent = 'Click again to replace';
-    regenTimer = setTimeout(function () { btn.classList.remove('danger'); btn.textContent = 'New token'; }, 4000);
+    btn.textContent = t('clickAgain');
+    regenTimer = setTimeout(function () { btn.classList.remove('danger'); btn.textContent = t('newToken'); }, 4000);
     return;
   }
   clearTimeout(regenTimer);
   btn.classList.remove('danger');
-  btn.textContent = 'New token';
+  btn.textContent = t('newToken');
   send({ type: 'regenerate-token' }).then(function (st) {
     render(st);
-    toast('New token active. Copy the config into your AI again.');
-  }).catch(function (e) { toast('Couldn’t make a new token: ' + errText(e), true); });
+    toast(t('newTokenActive'));
+  }).catch(function (e) { toast(t('couldntToken', errText(e)), true); });
 });
 
 [portEl, bindEl].forEach(function (el) {
@@ -321,7 +323,7 @@ $('form').addEventListener('submit', function (ev) {
   send({ type: 'set-config', port: portEl.value.trim(), bind: bindEl.value.trim() }).then(function (res) {
     if (res && res.error) {
       formErr.textContent = res.error;
-      (/^Port/.test(res.error) ? portEl : bindEl).setAttribute('aria-invalid', 'true');
+      (res.field === 'bind' ? bindEl : portEl).setAttribute('aria-invalid', 'true');
       updateSave();
       return;
     }
@@ -329,9 +331,9 @@ $('form').addEventListener('submit', function (ev) {
     portEl.value = res.port;
     bindEl.value = res.bind;
     render(res);
-    toast('Saved. Copy the config into your AI again if the port changed.');
+    toast(t('savedPort'));
   }).catch(function (e) {
-    formErr.textContent = 'Couldn’t save: ' + errText(e);
+    formErr.textContent = t('couldntSave', errText(e));
     updateSave();
   });
 });

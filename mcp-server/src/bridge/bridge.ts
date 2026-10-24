@@ -189,7 +189,7 @@ export class ExtensionBridge {
         reject(
           new BridgeError(
             "NOT_CONNECTED",
-            "extension not connected — check the WebMCP Controller toolbar icon in Firefox",
+            "extension not connected — check the Foxhand toolbar icon in Firefox",
           ),
         );
         return;

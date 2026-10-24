@@ -551,7 +551,7 @@ async function realSites() {
 
   t = await tool('tab_navigate', { tabId, url: 'https://github.com/hamb1y/webmcp-controller', waitForLoad: true, timeoutMs: 30000 });
   snap = (await tool('snapshot_ax', { tabId })).text;
-  const rel = refOf(snap, 'link "(?:[^"]*v0\\.4\\.0|WebMCP Controller helper)');
+  const rel = refOf(snap, 'link "WebMCP Controller helper v');
   ok('github: release link in snapshot', !!rel, snap.slice(0, 600));
   if (rel) {
     t = await tool('act_click', { tabId, ref: rel });
@@ -572,9 +572,7 @@ try {
     writeFileSync(path.join(tmp, '..', 'webmcp-dump.txt'), snap.text);
     console.log(`wrote ${path.join(tmp, '..', 'webmcp-dump.txt')} (${snap.text.length} chars)`);
   } else {
-    await scenario();
-    await edges();
-    await robustness();
+    if (!process.env.ONLY_REAL) { await scenario(); await edges(); await robustness(); }
     if (flag('--real')) await realSites();
   }
 } catch (e) {

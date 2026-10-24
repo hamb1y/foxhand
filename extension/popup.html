@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>WebMCP Controller</title>
+<title>Foxhand</title>
 <link rel="stylesheet" href="ui.css">
 <style>
   body { width: 360px; }
@@ -30,19 +30,20 @@
   label.toggle { display: flex; align-items: center; justify-content: space-between; min-height: 44px; font-size: 15px; cursor: pointer; }
   footer { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); }
   footer a { text-decoration: none; }
+  footer .links { display: flex; gap: 14px; }
 </style>
 </head>
 <body>
 <main>
 <header>
-  <span class="brand"><img src="icons/icon.svg" width="24" height="24" alt="">WebMCP</span>
-  <button id="gear" type="button" aria-label="Settings" title="Settings">
+  <span class="brand"><img src="icons/icon.svg" width="24" height="24" alt="">Foxhand</span>
+  <button id="gear" type="button" data-i18n-attr="aria-label:settings;title:settings">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f5f5f5" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
   </button>
 </header>
 
 <div class="status" role="status">
-  <div class="head"><span id="dot" class="dot"></span><span id="state">Checking…</span></div>
+  <div class="head"><span id="dot" class="dot"></span><span id="state" data-i18n="checking">Checking…</span></div>
   <div id="detail"></div>
   <div id="err"></div>
 </div>
@@ -50,7 +51,7 @@
 <div id="setup" hidden></div>
 
 <div id="now" hidden>
-  <div id="nowLbl">Now</div>
+  <div id="nowLbl" data-i18n="now">Now</div>
   <div id="nowText"></div>
   <div id="nowSite"></div>
 </div>
@@ -58,17 +59,17 @@
 <div class="buttons">
   <button id="pause" type="button" class="lime" hidden>
     <svg width="16" height="16" viewBox="0 0 24 24" fill="#0a0a0a" aria-hidden="true"><g id="pauseIcon"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></g><path id="playIcon" d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z" style="display:none"/></svg>
-    <span id="pauseTxt">Pause AI</span>
+    <span id="pauseTxt" data-i18n="pauseAI">Pause AI</span>
   </button>
-  <button id="copy" type="button" hidden>Copy MCP config</button>
-  <button id="retry" type="button" hidden>Retry</button>
+  <button id="copy" type="button" hidden data-i18n="copyConfig">Copy MCP config</button>
+  <button id="retry" type="button" hidden data-i18n="retry">Retry</button>
 </div>
 
-<label class="toggle">Show AI cursor <input type="checkbox" id="cursor" class="switch"></label>
+<label class="toggle"><span data-i18n="showCursor">Show AI cursor</span> <input type="checkbox" id="cursor" class="switch"></label>
 
 <footer>
   <span id="shortcut"></span>
-  <a id="open" href="#">Settings →</a>
+  <span class="links"><a id="guide" href="#" hidden data-i18n="setupGuideLink">Setup guide</a> <a id="open" href="#" data-i18n="settingsLink">Settings →</a></span>
 </footer>
 </main>
 <script src="common.js"></script>

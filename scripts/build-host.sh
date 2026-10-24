@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build single-file webmcp-host binaries for every desktop platform.
-# Output: dist/host/webmcp-host-<os>-<arch>[.exe]
+# Build single-file foxhand-host binaries for every desktop platform.
+# Output: dist/host/foxhand-host-<os>-<arch>[.exe]
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -17,7 +17,7 @@ TARGETS="${TARGETS:-windows-x64 windows-arm64 darwin-arm64 darwin-x64 linux-x64 
 built=()
 for t in $TARGETS; do
   ext=""; [[ $t == windows-* ]] && ext=".exe"
-  name="webmcp-host-$t$ext"
+  name="foxhand-host-$t$ext"
   echo "→ dist/host/$name"
   bun build mcp-server/dist/host.js --compile --minify --target="bun-$t" --outfile "dist/host/$name" >/dev/null
   built+=("$name")

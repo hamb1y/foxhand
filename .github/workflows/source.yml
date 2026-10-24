@@ -21,12 +21,12 @@ jobs:
           TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
-          OUT="webmcp-controller-source-${TAG}.zip"
+          OUT="foxhand-source-${TAG}.zip"
           STAGE="$(mktemp -d)"
           git archive --format=tar HEAD | tar -x -C "$STAGE"
           cat > "$STAGE/build.sh" <<'EOF'
           #!/usr/bin/env bash
-          # Build the WebMCP Controller add-on from this source archive.
+          # Build the Foxhand add-on from this source archive.
           #
           # Requirements:
           #   - Linux, macOS, or Windows with Git Bash or WSL
@@ -35,7 +35,7 @@ jobs:
           #     plus Bun for the single-file binaries
           #
           # Usage:
-          #   bash build.sh              writes webmcp-controller.zip (the add-on)
+          #   bash build.sh              writes foxhand.zip (the add-on)
           #   WITH_HELPER=1 bash build.sh   also builds the helper into dist/host/
           set -euo pipefail
           cd "$(dirname "$0")"
@@ -60,4 +60,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$TAG" "webmcp-controller-source-${TAG}.zip" --clobber
+        run: gh release upload "$TAG" "foxhand-source-${TAG}.zip" --clobber

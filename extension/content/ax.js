@@ -1,4 +1,4 @@
-/* WebMCP Controller — content script (isolated world).
+/* Foxhand — content script (isolated world).
  * Plain classic script (no modules). Idempotent: safe to re-inject.
  * Owns AX `ref` numbering. A ref names one element for the life of the
  * document and is never reused; each document starts numbering at a random
@@ -1440,6 +1440,18 @@ function shortName(el) {
   return n.length > 40 ? n.slice(0, 39) + '…' : n;
 }
 
+/* Cursor narration in the browser's language. key + "Named" takes the element's name. */
+function say(key, name) {
+  var full = name ? key + 'Named' : key;
+  var m = '';
+  try { m = B.i18n.getMessage(full, name ? [String(name)] : undefined); } catch (e) {}
+  return m || (name ? key + ' “' + name + '”' : key);
+}
+function clip(s) {
+  s = String(s || '').replace(/\s+/g, ' ').trim();
+  return s.length > 40 ? s.slice(0, 39) + '…' : s;
+}
+
 function quoted(s) {
   s = String(s || '').replace(/\s+/g, ' ').trim();
   if (s.length > 40) s = s.slice(0, 39) + '…';
@@ -1487,23 +1499,24 @@ async function cursorBefore(msg) {
   var name = el ? shortName(el) : '';
   var dflt;
   switch (msg.kind) {
-    case 'act-click': dflt = 'Clicking' + quoted(name); break;
+    case 'act-click': dflt = say('curClick', name); break;
     case 'act-type': {
       var field = null;
       try { field = el && editableTarget(el); } catch (e) {}
-      dflt = !el ? 'Typing' : (isSecret(el) || isSecret(field)) ? 'Typing a password' : 'Typing' + quoted(msg.text);
+      dflt = !el ? say('curType') : (isSecret(el) || isSecret(field)) ? say('curTypePassword') : say('curType', clip(msg.text));
       break;
     }
-    case 'act-fillForm': dflt = 'Filling in a form'; break;
-    case 'act-select': dflt = 'Choosing' + quoted((msg.values || []).join(', ')); break;
-    case 'act-hover': dflt = 'Hovering over' + quoted(name); break;
+    case 'act-fillForm': dflt = say('curFillForm'); break;
+    case 'act-select': dflt = say('curChoose', clip((msg.values || []).join(', '))); break;
+    case 'act-hover': dflt = say('curHover', name); break;
     case 'act-scroll':
-      dflt = el ? 'Scrolling to' + quoted(name) : msg.to ? 'Scrolling to the ' + msg.to : 'Scrolling ' + String(msg.direction || 'down');
+      dflt = el ? say('curScrollTo', name) : msg.to === 'top' ? say('curScrollTop') : msg.to === 'bottom' ? say('curScrollBottom')
+        : say({ up: 'curScrollUp', left: 'curScrollLeft', right: 'curScrollRight' }[String(msg.direction || '').toLowerCase()] || 'curScrollDown');
       break;
-    case 'act-key': dflt = isSecret(deepActive()) ? 'Pressing a key' : 'Pressing ' + String(msg.key); break;
-    case 'act-wait': dflt = 'Waiting for' + (quoted(msg.text || msg.selector) || ' the page'); break;
-    case 'act-find': dflt = 'Looking for' + quoted(msg.query); break;
-    default: dflt = 'Reading the page';
+    case 'act-key': dflt = isSecret(deepActive()) ? say('curKey') : say('curKey', String(msg.key)); break;
+    case 'act-wait': dflt = (msg.text || msg.selector) ? say('curWait', clip(msg.text || msg.selector)) : say('curWait'); break;
+    case 'act-find': dflt = say('curFind', clip(msg.query)); break;
+    default: dflt = say('curRead');
   }
   var shape = msg.kind === 'act-click' ? 'hand'
     : (msg.kind === 'act-type' || msg.kind === 'act-fillForm') ? 'text'
@@ -1521,7 +1534,7 @@ function cursorAfter(msg, result, err) {
   if (!msg.cursor || !C) return;
   try {
     // Don't leave "Clicking …" up when nothing was clicked.
-    if (err) C.say(err.code === 'CANCELLED' ? 'Stopped' : 'That didn’t work', 'arrow');
+    if (err) C.say(err.code === 'CANCELLED' ? say('curStopped') : say('curFailed'), 'arrow');
     else if (msg.kind === 'act-click' && result && result.clicked) C.click();
   } catch (e) {} // the overlay must never fail an action
 }

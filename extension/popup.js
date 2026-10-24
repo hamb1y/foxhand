@@ -1,4 +1,4 @@
-/* WebMCP Controller — toolbar popup logic (plain classic script). */
+/* Foxhand — toolbar popup logic (plain classic script). */
 (function () {
 'use strict';
 
@@ -15,12 +15,8 @@ var busy = false; // a pause/resume is in flight
 function send(msg) { return Promise.resolve(B.runtime.sendMessage(msg)); }
 function setText(el, text) { if (el.textContent !== text) el.textContent = text; }
 
-function ago(ts) {
-  var s = Math.max(0, Math.round((Date.now() - ts) / 1000));
-  if (s < 60) return s + ' s';
-  if (s < 3600) return Math.round(s / 60) + ' min';
-  return Math.round(s / 3600) + ' h';
-}
+var t = F.t, ago = F.ago;
+F.localize();
 
 function renderSteps(st, need) {
   var key = JSON.stringify(st.platform) + need.intro;
@@ -43,14 +39,14 @@ function renderNow(st) {
   $('now').hidden = !st.listening || !n;
   if (!n) return;
   $('nowLbl').className = n.active ? 'live' : '';
-  setText($('nowLbl'), n.active ? 'Now' : 'Last · ' + ago(n.at) + ' ago');
+  setText($('nowLbl'), n.active ? t('now') : t('lastAgo', ago(n.at)));
   setText($('nowText'), n.text);
   setText($('nowSite'), n.site || '');
 }
 
 function renderPause(st) {
   pauseBtn.hidden = !st.listening && !st.paused;
-  setText($('pauseTxt'), st.paused ? 'Resume AI' : 'Pause AI');
+  setText($('pauseTxt'), st.paused ? t('resumeAI') : t('pauseAI'));
   $('pauseIcon').style.display = st.paused ? 'none' : '';
   $('playIcon').style.display = st.paused ? '' : 'none';
 }
@@ -68,12 +64,13 @@ function render(st) {
   autoRetry(st);
   copyBtn.hidden = !st.listening;
   $('retry').hidden = !!st.listening;
+  $('guide').hidden = !!st.listening;
   if (!busy) renderPause(st);
   renderNow(st);
   if (document.activeElement !== cursorEl) cursorEl.checked = st.showCursor !== false;
   var bits = [];
-  if (st.host && st.host.version) bits.push('Helper v' + st.host.version);
-  if (st.listening) bits.push('up ' + ago(st.connectedAt), (st.commands || 0) + ' commands');
+  if (st.host && st.host.version) bits.push(t('helperV', st.host.version));
+  if (st.listening) bits.push(t('upFor', ago(st.connectedAt)), t('nCommands', st.commands || 0));
   setText(detailEl, bits.join(' · '));
 }
 
@@ -81,7 +78,7 @@ function poll() {
   send({ type: 'get-status' })
     .then(render)
     .catch(function (e) {
-      setText(stateEl, 'Status error');
+      setText(stateEl, t('statusError'));
       setText(errEl, String((e && e.message) || e));
     });
 }
@@ -103,7 +100,7 @@ cursorEl.addEventListener('change', function () {
 });
 
 $('retry').addEventListener('click', function () {
-  setText(stateEl, 'Retrying…');
+  setText(stateEl, t('retrying'));
   send({ type: 'reconnect' }).then(render).catch(function () {});
 });
 
@@ -114,14 +111,14 @@ function openSettings(ev) {
 }
 $('open').addEventListener('click', openSettings);
 $('gear').addEventListener('click', openSettings);
+$('guide').addEventListener('click', function (ev) {
+  ev.preventDefault();
+  B.tabs.create({ url: B.runtime.getURL('onboarding.html') });
+  window.close();
+});
 
 /* Show the real pause shortcut, which the user may have changed in about:addons. */
-Promise.resolve(B.commands && B.commands.getAll ? B.commands.getAll() : [])
-  .then(function (cmds) {
-    var c = (cmds || []).filter(function (x) { return x.name === 'toggle-pause'; })[0];
-    if (c && c.shortcut) setText($('shortcut'), 'Shortcut: ' + c.shortcut.replace(/Period$/, '.') + ' pauses');
-  })
-  .catch(function () {});
+F.pauseShortcut().then(function (k) { if (k) setText($('shortcut'), t('shortcutPauses', k)); });
 
 poll();
 setInterval(poll, 1000);

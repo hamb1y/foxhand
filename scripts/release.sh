@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-REPO="${REPO:-hamb1y/webmcp-controller}"
+REPO="${REPO:-hamb1y/foxhand}"
 TAG="v$(node -p 'require("./package.json").version')"
 ALL_TARGETS="windows-x64 windows-arm64 darwin-arm64 darwin-x64 linux-x64 linux-arm64"
 
@@ -22,40 +22,44 @@ trap 'rm -rf "$OUT"' EXIT
 ASSETS=()
 for t in $ALL_TARGETS; do
   ext=""; [[ $t == windows-* ]] && ext=".exe"
+  ASSETS+=("foxhand-host-$t$ext")
+  cp "dist/host/foxhand-host-$t$ext" "$OUT/"
+  # Same file under its pre-rename name, for download links in WebMCP Controller <= 0.4.
   ASSETS+=("webmcp-host-$t$ext")
-  cp "dist/host/webmcp-host-$t$ext" "$OUT/"
+  cp "dist/host/foxhand-host-$t$ext" "$OUT/webmcp-host-$t$ext"
 done
-cp scripts/install.sh scripts/install.ps1 webmcp-controller.zip "$OUT/"
-ASSETS+=(install.sh install.ps1 webmcp-controller.zip)
+cp scripts/install.sh scripts/install.ps1 foxhand.zip "$OUT/"
+ASSETS+=(install.sh install.ps1 foxhand.zip)
 (cd "$OUT" && sha256 "${ASSETS[@]}" > SHA256SUMS)
 ASSETS+=(SHA256SUMS)
 FILES=()
 for a in "${ASSETS[@]}"; do FILES+=("$OUT/$a"); done
 
 NOTES="$(cat <<MD
-Helper app for the **WebMCP Controller** add-on.
+Helper app for the **Foxhand** add-on (formerly WebMCP Controller).
 
-**Windows** — open PowerShell or Command Prompt and paste:
-\`\`\`bat
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/$REPO/releases/latest/download/install.ps1 | iex"
+**Windows**: open PowerShell and paste:
+\`\`\`powershell
+irm https://hamb1y.github.io/foxhand/ps | iex
 \`\`\`
 
-**macOS / Linux** — open Terminal and paste:
+**macOS / Linux**: open Terminal and paste:
 \`\`\`sh
-curl -fsSL https://github.com/$REPO/releases/latest/download/install.sh | sh
+curl -fsSL https://hamb1y.github.io/foxhand/sh | sh
 \`\`\`
 
 Already installed? Run the same command again to update: Firefox switches to the
 new helper by itself within a few seconds.
 
 Then click **Retry** in the add-on popup. Manual: download the file for your
-system below and run it with \`install\` (Windows: double-click the .exe).
+system below and run it with \`install\` (Windows: double-click the .exe; macOS: run
+\`xattr -c\` on it first). The \`webmcp-host-*\` files are the same programs under their old names.
 MD
 )"
 
 if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
   gh release upload "$TAG" --repo "$REPO" --clobber "${FILES[@]}"
 else
-  gh release create "$TAG" --repo "$REPO" --title "WebMCP Controller helper $TAG" --notes "$NOTES" "${FILES[@]}"
+  gh release create "$TAG" --repo "$REPO" --title "Foxhand helper $TAG" --notes "$NOTES" "${FILES[@]}"
 fi
-echo "[webmcp] released $TAG → https://github.com/$REPO/releases/tag/$TAG"
+echo "[foxhand] released $TAG → https://github.com/$REPO/releases/tag/$TAG"

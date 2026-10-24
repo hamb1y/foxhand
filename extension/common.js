@@ -1,9 +1,45 @@
-/* WebMCP Controller — helpers shared by popup + options (plain classic script). */
+/* Foxhand — helpers shared by the popup, settings and onboarding pages (plain classic script). */
 (function () {
 'use strict';
 
-var BIN = 'webmcp-host';
-var DOWNLOAD = 'https://github.com/hamb1y/webmcp-controller/releases/latest/download/';
+var B = (typeof browser !== 'undefined') ? browser : (typeof chrome !== 'undefined' ? chrome : {});
+var BIN = 'foxhand-host';
+var SITE = 'https://hamb1y.github.io/foxhand/';
+var DOWNLOAD = 'https://github.com/hamb1y/foxhand/releases/latest/download/';
+
+/* ------------------------------------------------------------ i18n */
+
+/* A UI string in the browser's language (falls back to English, then to the key). */
+function t(key, subs) {
+  var m = '';
+  try { m = B.i18n.getMessage(key, subs === undefined ? undefined : [].concat(subs).map(String)); } catch (e) {}
+  return m || key;
+}
+
+/* Fill [data-i18n] text and [data-i18n-attr="attr:key;attr:key"] attributes. */
+function localize(root) {
+  root = root || document;
+  try { document.documentElement.lang = B.i18n.getUILanguage(); } catch (e) {}
+  Array.prototype.forEach.call(root.querySelectorAll('[data-i18n]'), function (el) {
+    el.textContent = t(el.getAttribute('data-i18n'));
+  });
+  Array.prototype.forEach.call(root.querySelectorAll('[data-i18n-attr]'), function (el) {
+    el.getAttribute('data-i18n-attr').split(';').forEach(function (pair) {
+      var kv = pair.split(':');
+      if (kv.length === 2) el.setAttribute(kv[0].trim(), t(kv[1].trim()));
+    });
+  });
+}
+
+/* "3 s" / "4 min" / "2 h" since a timestamp. */
+function ago(ts) {
+  var s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return t('secondsShort', s);
+  if (s < 3600) return t('minutesShort', Math.round(s / 60));
+  return t('hoursShort', Math.round(s / 3600));
+}
+
+/* ------------------------------------------------------------ helper install */
 
 /* runtime.getPlatformInfo() -> download + one-line install for this computer. */
 function hostSetup(platform) {
@@ -13,23 +49,31 @@ function hostSetup(platform) {
   if (os === 'win') {
     return {
       os: 'Windows',
-      open: 'Open PowerShell or Command Prompt (Start menu → type “powershell” → Enter) and paste:',
-      cmd: 'powershell -ExecutionPolicy Bypass -c "irm ' + DOWNLOAD + 'install.ps1 | iex"',
+      open: t('openPowerShell'),
+      cmd: 'irm ' + SITE + 'ps | iex',
       file: BIN + '-windows-' + a + '.exe',
-      uninstall: '& "$env:LOCALAPPDATA\\webmcp-controller\\webmcp-host.exe" uninstall',
-      manual: 'or download the app and double-click it (SmartScreen: More info → Run anyway)'
+      uninstall: '& "$env:LOCALAPPDATA\\foxhand\\' + BIN + '.exe" uninstall',
+      manual: t('manualWin')
     };
   }
   var mac = os === 'mac';
   var file = BIN + '-' + (mac ? 'darwin' : 'linux') + '-' + a;
   return {
     os: mac ? 'macOS' : 'Linux',
-    open: mac ? 'Open Terminal (⌘ Space → type “terminal” → Enter) and paste:' : 'Open a terminal and paste:',
-    cmd: 'curl -fsSL ' + DOWNLOAD + 'install.sh | sh',
+    open: mac ? t('openTerminalMac') : t('openTerminal'),
+    cmd: 'curl -fsSL ' + SITE + 'sh | sh',
     file: file,
-    uninstall: (mac ? '~/Library/Application\\ Support' : '~/.local/share') + '/webmcp-controller/webmcp-host uninstall',
-    manual: 'or download the app, then run: chmod +x ' + file + ' && ./' + file + ' install'
+    uninstall: (mac ? '~/Library/Application\\ Support' : '~/.local/share') + '/foxhand/' + BIN + ' uninstall',
+    // A browser download is quarantined on macOS: clear that first, or Gatekeeper blocks it.
+    manual: t('manualUnix', (mac ? 'xattr -c ' + file + ' && ' : '') + 'chmod +x ' + file + ' && ./' + file + ' install')
   };
+}
+
+function el(tag, cls, text) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
 }
 
 /* Install instructions as DOM: command + Copy, direct download link.
@@ -38,38 +82,24 @@ function hostSetup(platform) {
 function renderSetup(container, platform, intro, installed) {
   var s = hostSetup(platform);
   container.textContent = '';
-  if (intro) {
-    var i = document.createElement('div');
-    i.className = 'intro';
-    i.textContent = intro;
-    container.appendChild(i);
-  }
-  var p = document.createElement('div');
-  p.textContent = s.open;
-  var pre = document.createElement('pre');
-  pre.className = 'cmd';
-  pre.textContent = s.cmd;
-  var row = document.createElement('div');
-  row.className = 'row';
-  var btn = document.createElement('button');
+  if (intro) container.appendChild(el('div', 'intro', intro));
+  var pre = el('pre', 'cmd', s.cmd);
+  var row = el('div', 'row');
+  var btn = el('button', 'lime', t('copyCommand'));
   btn.type = 'button';
-  btn.className = 'lime';
-  btn.textContent = 'Copy command';
   btn.addEventListener('click', function () { copy(s.cmd, btn).catch(function () {}); });
-  var dl = document.createElement('a');
+  var dl = el('a', 'button', t('downloadApp'));
   dl.href = DOWNLOAD + s.file;
-  dl.className = 'button';
-  dl.textContent = 'Download app';
   dl.target = '_blank';
   dl.rel = 'noopener';
   row.appendChild(btn);
   row.appendChild(dl);
-  var m = document.createElement('div');
-  m.className = 'sub';
-  m.textContent = s.manual + (installed ? '.' : '. This page turns green by itself once it’s installed.');
-  [p, pre, row, m].forEach(function (el) { container.appendChild(el); });
+  var m = el('div', 'sub', s.manual + (installed ? '' : ' ' + t('turnsGreen')));
+  [el('div', '', s.open), pre, row, m].forEach(function (x) { container.appendChild(x); });
   return s;
 }
+
+/* ------------------------------------------------------------ MCP config */
 
 function mcpUrl(st) {
   if (st && st.url) return st.url;
@@ -78,12 +108,16 @@ function mcpUrl(st) {
   return 'http://' + host + ':' + ((st && st.port) || 8901) + '/mcp';
 }
 
-/* `claude mcp add` / `gemini mcp add` refuse a name that already exists, so drop any old "firefox"
- * entry first (e.g. one holding a token from before a reinstall). User scope: works from every folder. */
+/* `claude mcp add` / `gemini mcp add` refuse a name that already exists, so the first line drops any
+ * old "firefox" entry (e.g. one holding a token from before a reinstall). User scope: works in every folder. */
 function cliAdd(cli, url, auth, shell) {
   var quiet = shell === 'powershell' ? ' 2>$null' : ' 2>/dev/null';
-  return cli + ' mcp remove --scope user firefox' + quiet + '; ' + cli + ' mcp add --scope user --transport http firefox "' +
-    url + '" --header "Authorization: ' + auth + '"';
+  if (cli === 'claude') {
+    return 'claude mcp remove -s user firefox' + quiet + '\n' +
+      'claude mcp add -s user -t http firefox "' + url + '" -H "Authorization: ' + auth + '"';
+  }
+  return cli + ' mcp remove --scope user firefox' + quiet + '\n' +
+    cli + ' mcp add --scope user --transport http firefox "' + url + '" --header "Authorization: ' + auth + '"';
 }
 
 var HARNESSES = ['claude', 'codex', 'gemini', 'opencode', 'claude-app', 'json'];
@@ -130,24 +164,20 @@ function mcpConfig(st, harness, where) {
 
 /* What to do with the snippet. */
 function configHint(st, harness, where) {
-  if (harness === 'claude-app') {
-    return 'Add this to claude_desktop_config.json (Claude app → Settings → Developer → Edit Config), then restart the Claude app. Needs Node.js.';
-  }
+  if (harness === 'claude-app') return t('hintClaudeApp');
   var wsl = where === 'wsl' && canWsl(st);
   var win = !!(st && st.platform && st.platform.os === 'win');
-  var term = wsl ? 'your WSL terminal' : win ? 'PowerShell' : 'a terminal';
   var name = { claude: 'Claude Code', gemini: 'Gemini CLI' }[harness];
-  var h = name ? 'Run this in ' + term + '. It replaces any “firefox” server ' + name + ' already has.'
-    : harness === 'codex' ? 'Add this to ~/.codex/config.toml' + (wsl ? ' inside WSL' : '') + ', replacing any [mcp_servers.firefox] section already there.'
-    : harness === 'opencode' ? 'Merge this into opencode.json (in your project, or ~/.config/opencode/' + (wsl ? ' inside WSL' : '') + ').'
-    : 'Add this to your client’s MCP config file' + (wsl ? ' inside WSL' : '') + ', next to any servers already there.';
+  var h = name ? t('hintRunIn', [wsl ? t('termWsl') : win ? t('termPowerShell') : t('termTerminal'), name])
+    : harness === 'codex' ? t(wsl ? 'hintCodexWsl' : 'hintCodex')
+    : harness === 'opencode' ? t(wsl ? 'hintOpencodeWsl' : 'hintOpencode')
+    : t(wsl ? 'hintOtherWsl' : 'hintOther');
   if (wsl && !name) {
-    h += (st.host && st.host.wslAddress)
-      ? ' The Windows address in it changes when Windows restarts: copy this again if your AI stops connecting.'
-      : ' Replace WINDOWS-IP with the output of: ip route show default | awk \'{print $3}\'';
+    h += ' ' + ((st.host && st.host.wslAddress) ? t('wslAddrChanges') : t('wslReplaceIp', 'ip route show default | awk \'{print $3}\''));
   }
   return h;
 }
+
 function copy(text, btn) {
   var write = navigator.clipboard && navigator.clipboard.writeText
     ? navigator.clipboard.writeText(text)
@@ -163,11 +193,11 @@ function copy(text, btn) {
     var ok = false;
     try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
     ta.remove();
-    if (!ok) throw new Error('Copy failed — select the text and press Ctrl+C');
+    if (!ok) throw new Error(t('copyFailed'));
   }).then(function () {
     if (!btn) return;
     var old = btn.textContent;
-    btn.textContent = 'Copied ✓';
+    btn.textContent = t('copied');
     btn.classList.add('copied');
     setTimeout(function () { btn.textContent = old; btn.classList.remove('copied'); }, 1200);
   });
@@ -177,13 +207,9 @@ function copy(text, btn) {
 function setupNeed(st) {
   st = st || {};
   var c = st.compat || {};
-  if (st.hostMissing) return { title: 'Install the helper app', intro: '' };
-  if (c.state === 'helper-old') {
-    return { title: 'Update the helper app', intro: 'Your helper app (v' + c.helper + ') is too old for this add-on (v' + c.addon + '). Run this again:' };
-  }
-  if (c.state === 'helper-update') {
-    return { title: 'Helper update available', intro: 'Helper v' + c.helper + ' works, but v' + c.addon + ' is out. To update, run this again:', soft: true };
-  }
+  if (st.hostMissing) return { title: t('needInstall'), intro: '' };
+  if (c.state === 'helper-old') return { title: t('needUpdate'), intro: t('needUpdateIntro', [c.helper, c.addon]) };
+  if (c.state === 'helper-update') return { title: t('softUpdate'), intro: t('softUpdateIntro', [c.helper, c.addon]), soft: true };
   return null;
 }
 
@@ -191,18 +217,18 @@ function setupNeed(st) {
 function summarize(st) {
   st = st || {};
   var c = (st.compat && st.compat.state) || '';
-  if (st.listening && st.paused) return { cls: 'paused', text: 'Paused' };
-  if (st.listening) return { cls: 'on', text: c === 'helper-update' ? 'Ready · helper update available' : 'Ready' };
-  if (st.hostMissing) return { cls: 'warn', text: 'Helper app not installed' };
-  if (c === 'helper-old') return { cls: 'warn', text: 'Helper app needs an update' };
-  if (c === 'addon-old') return { cls: 'warn', text: 'Add-on needs an update' };
-  if (st.starting) return { cls: 'wait', text: 'Starting helper…' };
-  if (st.connected && st.host && st.host.error) return { cls: 'off', text: 'Helper can’t open its port' };
-  if (st.connected) return { cls: 'wait', text: 'Starting MCP server…' };
-  return { cls: 'off', text: 'Helper not running' };
+  if (st.listening && st.paused) return { cls: 'paused', text: t('stPaused') };
+  if (st.listening) return { cls: 'on', text: c === 'helper-update' ? t('stReadyUpdate') : t('stReady') };
+  if (st.hostMissing) return { cls: 'warn', text: t('stNoHelper') };
+  if (c === 'helper-old') return { cls: 'warn', text: t('stHelperOld') };
+  if (c === 'addon-old') return { cls: 'warn', text: t('stAddonOld') };
+  if (st.starting) return { cls: 'wait', text: t('stStarting') };
+  if (st.connected && st.host && st.host.error) return { cls: 'off', text: t('stPortProblem') };
+  if (st.connected) return { cls: 'wait', text: t('stStartingMcp') };
+  return { cls: 'off', text: t('stNotRunning') };
 }
 
-/* Last harness and place picked in settings; the popup's Copy button uses them too. */
+/* Last harness and place picked; the popup's Copy button and onboarding use them too. */
 function pref(key, set, fallback, allowed) {
   try {
     if (set) localStorage.setItem(key, set);
@@ -221,9 +247,20 @@ function migrateKind() {
 function configKind(set) { migrateKind(); return pref('fxmcp.kind', set, 'json', HARNESSES); }
 function configWhere(set) { migrateKind(); return pref('fxmcp.where', set, 'local', ['local', 'wsl']); }
 
+/* The pause shortcut as the user set it (about:addons can change it), e.g. "Ctrl+Shift+.". */
+function pauseShortcut() {
+  return Promise.resolve(B.commands && B.commands.getAll ? B.commands.getAll() : [])
+    .then(function (cmds) {
+      var c = (cmds || []).filter(function (x) { return x.name === 'toggle-pause'; })[0];
+      return c && c.shortcut ? c.shortcut.replace(/Period$/, '.') : '';
+    })
+    .catch(function () { return ''; });
+}
+
 window.FxMcp = {
+  t: t, localize: localize, ago: ago,
   hostSetup: hostSetup, renderSetup: renderSetup, setupNeed: setupNeed, mcpUrl: mcpUrl,
   mcpConfig: mcpConfig, configHint: configHint, configKind: configKind, configWhere: configWhere, canWsl: canWsl,
-  copy: copy, summarize: summarize
+  copy: copy, summarize: summarize, pauseShortcut: pauseShortcut, HARNESSES: HARNESSES
 };
 })();

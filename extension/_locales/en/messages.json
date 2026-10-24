@@ -1,0 +1,1050 @@
+{
+  "extName": {
+    "message": "Foxhand"
+  },
+  "extDescription": {
+    "message": "Let your own AI agent (Claude Code, Codex, Gemini CLI or any MCP client) use this Firefox, with your tabs and logins. Runs on your computer. Needs a small helper app."
+  },
+  "cmdPause": {
+    "message": "Pause or resume the AI"
+  },
+  "settings": {
+    "message": "Settings"
+  },
+  "settingsLink": {
+    "message": "Settings →"
+  },
+  "setupGuideLink": {
+    "message": "Setup guide"
+  },
+  "checking": {
+    "message": "Checking…"
+  },
+  "now": {
+    "message": "Now"
+  },
+  "lastAgo": {
+    "message": "Last · $P1$ ago",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "pauseAI": {
+    "message": "Pause AI"
+  },
+  "resumeAI": {
+    "message": "Resume AI"
+  },
+  "copyConfig": {
+    "message": "Copy MCP config"
+  },
+  "retry": {
+    "message": "Retry"
+  },
+  "retrying": {
+    "message": "Retrying…"
+  },
+  "showCursor": {
+    "message": "Show AI cursor"
+  },
+  "shortcutPauses": {
+    "message": "$P1$ pauses the AI",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "helperV": {
+    "message": "Helper v$P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "upFor": {
+    "message": "up $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "nCommands": {
+    "message": "$P1$ commands",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "statusError": {
+    "message": "Status error"
+  },
+  "secondsShort": {
+    "message": "$P1$ s",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "minutesShort": {
+    "message": "$P1$ min",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "hoursShort": {
+    "message": "$P1$ h",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "hoursMinutes": {
+    "message": "$P1$ h $P2$ min",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "justNow": {
+    "message": "just now"
+  },
+  "stPaused": {
+    "message": "Paused"
+  },
+  "stReady": {
+    "message": "Ready"
+  },
+  "stReadyUpdate": {
+    "message": "Ready · helper update available"
+  },
+  "stNoHelper": {
+    "message": "Helper app not installed"
+  },
+  "stHelperOld": {
+    "message": "Helper app needs an update"
+  },
+  "stAddonOld": {
+    "message": "Add-on needs an update"
+  },
+  "stStarting": {
+    "message": "Starting helper…"
+  },
+  "stPortProblem": {
+    "message": "Helper can’t open its port"
+  },
+  "stStartingMcp": {
+    "message": "Starting MCP server…"
+  },
+  "stNotRunning": {
+    "message": "Helper not running"
+  },
+  "needInstall": {
+    "message": "Install the helper app"
+  },
+  "needUpdate": {
+    "message": "Update the helper app"
+  },
+  "needUpdateIntro": {
+    "message": "Your helper app (v$P1$) is too old for this add-on (v$P2$). Run this again:",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "softUpdate": {
+    "message": "Helper update available"
+  },
+  "softUpdateIntro": {
+    "message": "Helper v$P1$ works, but v$P2$ is out. To update, run this again:",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "openPowerShell": {
+    "message": "Open PowerShell (Start menu → type “powershell” → Enter) and paste:"
+  },
+  "openTerminalMac": {
+    "message": "Open Terminal (⌘ Space → type “terminal” → Enter) and paste:"
+  },
+  "openTerminal": {
+    "message": "Open a terminal and paste:"
+  },
+  "manualWin": {
+    "message": "Or download the app and double-click it (if SmartScreen warns: More info → Run anyway)."
+  },
+  "manualUnix": {
+    "message": "Or download the app, then run: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "copyCommand": {
+    "message": "Copy command"
+  },
+  "downloadApp": {
+    "message": "Download app"
+  },
+  "turnsGreen": {
+    "message": "This page turns green by itself once it’s installed."
+  },
+  "copied": {
+    "message": "Copied ✓"
+  },
+  "copyFailed": {
+    "message": "Copy failed: select the text and press Ctrl+C"
+  },
+  "hintClaudeApp": {
+    "message": "Add this to claude_desktop_config.json (Claude app → Settings → Developer → Edit Config), then restart the Claude app. Needs Node.js."
+  },
+  "hintRunIn": {
+    "message": "Run this in $P1$. It replaces any “firefox” server $P2$ already has.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "termWsl": {
+    "message": "your WSL terminal"
+  },
+  "termPowerShell": {
+    "message": "PowerShell"
+  },
+  "termTerminal": {
+    "message": "a terminal"
+  },
+  "hintCodex": {
+    "message": "Add this to ~/.codex/config.toml, replacing any [mcp_servers.firefox] section already there."
+  },
+  "hintCodexWsl": {
+    "message": "Add this to ~/.codex/config.toml inside WSL, replacing any [mcp_servers.firefox] section already there."
+  },
+  "hintOpencode": {
+    "message": "Merge this into opencode.json (in your project, or in ~/.config/opencode/)."
+  },
+  "hintOpencodeWsl": {
+    "message": "Merge this into opencode.json inside WSL (in your project, or in ~/.config/opencode/)."
+  },
+  "hintOther": {
+    "message": "Add this to your client’s MCP config file, next to any servers already there."
+  },
+  "hintOtherWsl": {
+    "message": "Add this to your client’s MCP config file inside WSL, next to any servers already there."
+  },
+  "wslAddrChanges": {
+    "message": "The Windows address in it changes when Windows restarts: copy this again if your AI stops connecting."
+  },
+  "wslReplaceIp": {
+    "message": "Replace WINDOWS-IP with the output of: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "loading": {
+    "message": "Loading…"
+  },
+  "factHelper": {
+    "message": "Helper"
+  },
+  "factUp": {
+    "message": "Up"
+  },
+  "factAddress": {
+    "message": "Address"
+  },
+  "connectAI": {
+    "message": "Connect your AI"
+  },
+  "yourAI": {
+    "message": "Your AI"
+  },
+  "chipClaudeApp": {
+    "message": "Claude app"
+  },
+  "chipOther": {
+    "message": "Other"
+  },
+  "configToCopy": {
+    "message": "Config to copy"
+  },
+  "copy": {
+    "message": "Copy"
+  },
+  "aiInWsl": {
+    "message": "My AI runs inside WSL"
+  },
+  "letWsl": {
+    "message": "Let AIs in WSL connect"
+  },
+  "firewallNote": {
+    "message": "The first time, Windows may ask to let foxhand-host through the firewall: tick Private networks and click Allow."
+  },
+  "whileWorks": {
+    "message": "While the AI works"
+  },
+  "showCursorLong": {
+    "message": "Show the AI cursor"
+  },
+  "askBeforeClosing": {
+    "message": "Ask before closing tabs or deleting"
+  },
+  "activity": {
+    "message": "Activity"
+  },
+  "nothingYet": {
+    "message": "Nothing yet."
+  },
+  "helperApp": {
+    "message": "Helper app"
+  },
+  "logLabel": {
+    "message": "Log:"
+  },
+  "tokenAndPort": {
+    "message": "Token and port"
+  },
+  "accessToken": {
+    "message": "Access token"
+  },
+  "show": {
+    "message": "Show"
+  },
+  "hide": {
+    "message": "Hide"
+  },
+  "newToken": {
+    "message": "New token"
+  },
+  "clickAgain": {
+    "message": "Click again to replace"
+  },
+  "newTokenNote": {
+    "message": "A new token locks out every AI using the old one until you copy the config again."
+  },
+  "port": {
+    "message": "Port"
+  },
+  "listenOn": {
+    "message": "Listen on"
+  },
+  "bindNote": {
+    "message": "127.0.0.1 = this computer only. 0.0.0.0 = your whole network, protected only by the token."
+  },
+  "save": {
+    "message": "Save"
+  },
+  "resetDefaults": {
+    "message": "Reset to defaults"
+  },
+  "reinstall": {
+    "message": "Reinstall, update or uninstall"
+  },
+  "toUninstall": {
+    "message": "To uninstall, run"
+  },
+  "allDownloads": {
+    "message": "All downloads"
+  },
+  "source": {
+    "message": "Source"
+  },
+  "addonV": {
+    "message": "Add-on v$P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "notInstalled": {
+    "message": "Not installed"
+  },
+  "helperInstalledOn": {
+    "message": "v$P1$ installed on $P2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "helperFor": {
+    "message": "For $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "alsoWsl": {
+    "message": "also on $P1$ for WSL",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "wslOff": {
+    "message": "Off: AIs in WSL can’t reach Firefox until you turn this on."
+  },
+  "wslOk": {
+    "message": "✓ WSL can connect at $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "wslNoAdapter": {
+    "message": "No WSL network adapter found. Is WSL running?"
+  },
+  "starting": {
+    "message": "Starting…"
+  },
+  "noAnswer": {
+    "message": "The add-on didn’t answer"
+  },
+  "reloadHint": {
+    "message": "Reload this page. If it keeps happening, restart Firefox."
+  },
+  "cantReach": {
+    "message": "Can’t reach the add-on"
+  },
+  "couldntPause": {
+    "message": "Couldn’t pause: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "wslOn": {
+    "message": "WSL access turned on"
+  },
+  "saved": {
+    "message": "Saved"
+  },
+  "couldntSave": {
+    "message": "Couldn’t save: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "newTokenActive": {
+    "message": "New token active. Copy the config into your AI again."
+  },
+  "couldntToken": {
+    "message": "Couldn’t make a new token: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "savedPort": {
+    "message": "Saved. Copy the config into your AI again if the port changed."
+  },
+  "errPort": {
+    "message": "Port must be a number between 1024 and 65535"
+  },
+  "errBind": {
+    "message": "Listen on must be an IP address like 127.0.0.1 or 0.0.0.0"
+  },
+  "evFailed": {
+    "message": "$P1$ failed: $P2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "evHelperRunning": {
+    "message": "Helper v$P1$ running",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evListening": {
+    "message": "Listening on $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evHelperUpdated": {
+    "message": "Helper updated to v$P1$, restarting it",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evHelperShuttingDown": {
+    "message": "Helper is shutting down"
+  },
+  "evNoAnswer": {
+    "message": "Helper didn’t answer within $P1$ s; starting it again",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evNotFound": {
+    "message": "Helper app not found"
+  },
+  "evStoppedStarting": {
+    "message": "$P1$ (while starting)",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evYouPaused": {
+    "message": "You paused the AI"
+  },
+  "evYouResumed": {
+    "message": "You resumed the AI"
+  },
+  "errHelperOld": {
+    "message": "Helper app v$P1$ is too old for this add-on. Run the install command again.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "errAddonOld": {
+    "message": "This add-on is older than the helper app (v$P1$). Update the add-on.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "errCouldNotStart": {
+    "message": "Could not start the helper: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "errDidntStart": {
+    "message": "Helper didn’t start"
+  },
+  "errStopped": {
+    "message": "Helper stopped"
+  },
+  "errStoppedWhy": {
+    "message": "Helper stopped: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "badgeServing": {
+    "message": "serving $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curClick": {
+    "message": "Clicking"
+  },
+  "curClickNamed": {
+    "message": "Clicking “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curType": {
+    "message": "Typing"
+  },
+  "curTypeNamed": {
+    "message": "Typing “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curTypePassword": {
+    "message": "Typing a password"
+  },
+  "curFillForm": {
+    "message": "Filling in a form"
+  },
+  "curChoose": {
+    "message": "Choosing an option"
+  },
+  "curChooseNamed": {
+    "message": "Choosing “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curHover": {
+    "message": "Pointing at something"
+  },
+  "curHoverNamed": {
+    "message": "Pointing at “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curScrollTo": {
+    "message": "Scrolling"
+  },
+  "curScrollToNamed": {
+    "message": "Scrolling to “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curScrollTop": {
+    "message": "Scrolling to the top"
+  },
+  "curScrollBottom": {
+    "message": "Scrolling to the bottom"
+  },
+  "curScrollUp": {
+    "message": "Scrolling up"
+  },
+  "curScrollDown": {
+    "message": "Scrolling down"
+  },
+  "curScrollLeft": {
+    "message": "Scrolling left"
+  },
+  "curScrollRight": {
+    "message": "Scrolling right"
+  },
+  "curKey": {
+    "message": "Pressing a key"
+  },
+  "curKeyNamed": {
+    "message": "Pressing $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curWait": {
+    "message": "Waiting for the page"
+  },
+  "curWaitNamed": {
+    "message": "Waiting for “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curFind": {
+    "message": "Looking for something"
+  },
+  "curFindNamed": {
+    "message": "Looking for “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curRead": {
+    "message": "Reading the page"
+  },
+  "curStopped": {
+    "message": "Stopped"
+  },
+  "curFailed": {
+    "message": "That didn’t work"
+  },
+  "lblTabsListNow": {
+    "message": "Listing tabs"
+  },
+  "lblTabsListPast": {
+    "message": "Listed tabs"
+  },
+  "lblTabsQueryNow": {
+    "message": "Looking through tabs"
+  },
+  "lblTabsQueryPast": {
+    "message": "Looked through tabs"
+  },
+  "lblWindowsListNow": {
+    "message": "Listing windows"
+  },
+  "lblWindowsListPast": {
+    "message": "Listed windows"
+  },
+  "lblActiveTabNow": {
+    "message": "Checking the current tab"
+  },
+  "lblActiveTabPast": {
+    "message": "Checked the current tab"
+  },
+  "lblTabCreateNow": {
+    "message": "Opening a tab"
+  },
+  "lblTabCreatePast": {
+    "message": "Opened a tab"
+  },
+  "lblTabUpdateNow": {
+    "message": "Opening a page"
+  },
+  "lblTabUpdatePast": {
+    "message": "Opened a page"
+  },
+  "lblTabCloseNow": {
+    "message": "Closing a tab"
+  },
+  "lblTabClosePast": {
+    "message": "Closed a tab"
+  },
+  "lblTabDuplicateNow": {
+    "message": "Duplicating a tab"
+  },
+  "lblTabDuplicatePast": {
+    "message": "Duplicated a tab"
+  },
+  "lblTabMoveNow": {
+    "message": "Moving a tab"
+  },
+  "lblTabMovePast": {
+    "message": "Moved a tab"
+  },
+  "lblTabPinNow": {
+    "message": "Pinning a tab"
+  },
+  "lblTabPinPast": {
+    "message": "Pinned a tab"
+  },
+  "lblTabUnpinNow": {
+    "message": "Unpinning a tab"
+  },
+  "lblTabUnpinPast": {
+    "message": "Unpinned a tab"
+  },
+  "lblTabMuteNow": {
+    "message": "Muting a tab"
+  },
+  "lblTabMutePast": {
+    "message": "Changed a tab’s sound"
+  },
+  "lblWindowCreateNow": {
+    "message": "Opening a window"
+  },
+  "lblWindowCreatePast": {
+    "message": "Opened a window"
+  },
+  "lblWindowFocusNow": {
+    "message": "Switching windows"
+  },
+  "lblWindowFocusPast": {
+    "message": "Switched windows"
+  },
+  "lblWindowRemoveNow": {
+    "message": "Closing a window"
+  },
+  "lblWindowRemovePast": {
+    "message": "Closed a window"
+  },
+  "lblNavBackNow": {
+    "message": "Going back"
+  },
+  "lblNavBackPast": {
+    "message": "Went back"
+  },
+  "lblNavForwardNow": {
+    "message": "Going forward"
+  },
+  "lblNavForwardPast": {
+    "message": "Went forward"
+  },
+  "lblNavReloadNow": {
+    "message": "Reloading"
+  },
+  "lblNavReloadPast": {
+    "message": "Reloaded"
+  },
+  "lblPageSnapshotNow": {
+    "message": "Reading the page"
+  },
+  "lblPageSnapshotPast": {
+    "message": "Read the page"
+  },
+  "lblPageTextNow": {
+    "message": "Reading the page"
+  },
+  "lblPageTextPast": {
+    "message": "Read the page"
+  },
+  "lblPageHtmlNow": {
+    "message": "Reading the page source"
+  },
+  "lblPageHtmlPast": {
+    "message": "Read the page source"
+  },
+  "lblPageShotNow": {
+    "message": "Taking a screenshot"
+  },
+  "lblPageShotPast": {
+    "message": "Took a screenshot"
+  },
+  "lblPageInfoNow": {
+    "message": "Checking the page"
+  },
+  "lblPageInfoPast": {
+    "message": "Checked the page"
+  },
+  "lblActClickNow": {
+    "message": "Clicking"
+  },
+  "lblActClickPast": {
+    "message": "Clicked"
+  },
+  "lblActTypeNow": {
+    "message": "Typing"
+  },
+  "lblActTypePast": {
+    "message": "Typed"
+  },
+  "lblActFillFormNow": {
+    "message": "Filling in a form"
+  },
+  "lblActFillFormPast": {
+    "message": "Filled in a form"
+  },
+  "lblActSelectNow": {
+    "message": "Choosing an option"
+  },
+  "lblActSelectPast": {
+    "message": "Chose an option"
+  },
+  "lblActHoverNow": {
+    "message": "Pointing at something"
+  },
+  "lblActHoverPast": {
+    "message": "Pointed at something"
+  },
+  "lblActScrollNow": {
+    "message": "Scrolling"
+  },
+  "lblActScrollPast": {
+    "message": "Scrolled"
+  },
+  "lblActKeyNow": {
+    "message": "Pressing a key"
+  },
+  "lblActKeyPast": {
+    "message": "Pressed a key"
+  },
+  "lblActWaitNow": {
+    "message": "Waiting for the page"
+  },
+  "lblActWaitPast": {
+    "message": "Waited for the page"
+  },
+  "lblActFindNow": {
+    "message": "Searching the page"
+  },
+  "lblActFindPast": {
+    "message": "Searched the page"
+  },
+  "lblBookmarksSearchNow": {
+    "message": "Searching bookmarks"
+  },
+  "lblBookmarksSearchPast": {
+    "message": "Searched bookmarks"
+  },
+  "lblBookmarksCreateNow": {
+    "message": "Adding a bookmark"
+  },
+  "lblBookmarksCreatePast": {
+    "message": "Added a bookmark"
+  },
+  "lblBookmarksRemoveNow": {
+    "message": "Removing a bookmark"
+  },
+  "lblBookmarksRemovePast": {
+    "message": "Removed a bookmark"
+  },
+  "lblHistorySearchNow": {
+    "message": "Searching history"
+  },
+  "lblHistorySearchPast": {
+    "message": "Searched history"
+  },
+  "lblDownloadsListNow": {
+    "message": "Checking downloads"
+  },
+  "lblDownloadsListPast": {
+    "message": "Checked downloads"
+  },
+  "lblCookiesForTabNow": {
+    "message": "Reading cookies"
+  },
+  "lblCookiesForTabPast": {
+    "message": "Read cookies"
+  },
+  "lblSessionsRecentlyClosedNow": {
+    "message": "Checking closed tabs"
+  },
+  "lblSessionsRecentlyClosedPast": {
+    "message": "Checked closed tabs"
+  },
+  "lblSessionsRestoreNow": {
+    "message": "Reopening a tab"
+  },
+  "lblSessionsRestorePast": {
+    "message": "Reopened a tab"
+  },
+  "lblCursorSayNow": {
+    "message": "Talking"
+  },
+  "lblCursorSayPast": {
+    "message": "Said something"
+  },
+  "obTitle": {
+    "message": "Welcome to Foxhand"
+  },
+  "obIntro": {
+    "message": "Foxhand lets your AI agent use this Firefox, with your tabs and your logins, through MCP. Everything stays on your computer. Setup takes about a minute."
+  },
+  "obRenamed": {
+    "message": "WebMCP Controller is now called Foxhand. Same add-on, same settings. If step 1 asks, run the install command once more to update the helper."
+  },
+  "obChecking": {
+    "message": "Checking…"
+  },
+  "ob1": {
+    "message": "Install the helper app"
+  },
+  "ob1Why": {
+    "message": "Firefox add-ons can’t open network ports, so a small helper app serves MCP for Foxhand. It only listens on this computer."
+  },
+  "ob1Done": {
+    "message": "Helper v$P1$ is running.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "ob2": {
+    "message": "Connect your AI"
+  },
+  "ob2Pick": {
+    "message": "Which AI do you use?"
+  },
+  "ob2Waiting": {
+    "message": "Waiting for your AI’s first command…"
+  },
+  "ob2Done": {
+    "message": "Connected. Your AI just did: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "obWslNote": {
+    "message": "AI running inside WSL? Set that up in Settings → Connect your AI."
+  },
+  "ob3": {
+    "message": "Try it"
+  },
+  "ob3Intro": {
+    "message": "Ask your AI something like:"
+  },
+  "obTry1": {
+    "message": "Look at my open tabs and group them by topic."
+  },
+  "obTry2": {
+    "message": "Open github.com/hamb1y/foxhand and tell me what changed in the latest release."
+  },
+  "obTry3": {
+    "message": "Search my history for the last article I read about Firefox and summarize it."
+  },
+  "obTips": {
+    "message": "Good to know"
+  },
+  "obTipCursor": {
+    "message": "A cursor shows where the AI is acting, with an orange bubble saying what it’s doing."
+  },
+  "obTipPause": {
+    "message": "Press $P1$ (or Pause AI in the toolbar popup) to stop every command at once.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "obTipSafety": {
+    "message": "The AI has to confirm before closing tabs or deleting bookmarks, and it can’t read your saved passwords."
+  },
+  "obSettings": {
+    "message": "All settings"
+  },
+  "obDocs": {
+    "message": "Documentation"
+  },
+  "obHelp": {
+    "message": "Get help"
+  }
+}

@@ -1,4 +1,4 @@
-/* WebMCP Controller — background page.
+/* Foxhand (formerly WebMCP Controller) — background page.
  * Plain classic script (no modules). Firefox launches the companion helper
  * (native messaging host "webmcp_controller") on connectNative(); the helper
  * serves MCP over HTTP to your AI harness and relays tool calls here.
@@ -20,6 +20,7 @@
 var B = (typeof browser !== 'undefined') ? browser : chrome;
 var HAS_PROMISES = (typeof browser !== 'undefined');
 var EXT_VERSION = (function () { try { return B.runtime.getManifest().version; } catch (e) { return '0.0.0'; } })();
+// The ID predates the rename to Foxhand; changing it would make AMO treat this as a new add-on.
 var EXT_ID_FALLBACK = 'webmcp-controller@hamb1y.github.io';
 // Breaking wire-protocol version; keep in sync with PROTOCOL in shared/src/protocol.ts.
 var PROTOCOL = 1;
@@ -99,6 +100,13 @@ function compat() {
   if (hp > PROTOCOL) return { state: 'addon-old', helper: hv, addon: EXT_VERSION };
   if (cmpVersion(hv, EXT_VERSION) < 0) return { state: 'helper-update', helper: hv, addon: EXT_VERSION };
   return { state: 'ok', helper: hv, addon: EXT_VERSION };
+}
+
+/* A UI string in the browser's language. Messages for the AI itself stay in English. */
+function t(key, subs) {
+  var m = '';
+  try { m = B.i18n.getMessage(key, subs === undefined ? undefined : [].concat(subs).map(String)); } catch (e) {}
+  return m || key;
 }
 
 function log() {
@@ -950,6 +958,14 @@ var LABELS = {
   'sessions.recentlyClosed': ['Checking closed tabs', 'Checked closed tabs'], 'sessions.restore': ['Reopening a tab', 'Reopened a tab'],
   'cursor.say': ['Talking', 'Said something']
 };
+/* "tabs.list" -> i18n keys "lblTabsListNow" / "lblTabsListPast". */
+function labelsFor(method) {
+  var base = 'lbl' + method.split('.').map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join('');
+  var en = LABELS[method] || [method, method];
+  var now0 = t(base + 'Now'), past = t(base + 'Past');
+  return [now0 === base + 'Now' ? en[0] : now0, past === base + 'Past' ? en[1] : past];
+}
+
 /* Methods that act on one tab, so "Now" can say which. */
 var TAB_METHODS = /^(page\.|act\.|nav\.|cookies\.|tab\.(update|close|duplicate|move|pin|unpin|mute)$|cursor\.say$)/;
 var now = null; // { text, past, site, tabId, at, done }
@@ -963,7 +979,7 @@ async function onCommand(cmd, ctx) {
   if (!handler) throw be('UNKNOWN_METHOD', 'Unknown method: ' + cmd.method);
   var params = (cmd.params && typeof cmd.params === 'object') ? cmd.params : {};
   cmdCount += 1;
-  var label = LABELS[cmd.method] || [cmd.method, cmd.method];
+  var label = labelsFor(cmd.method);
   var cur = now = { text: label[0], past: label[1], site: '', tabId: null, at: Date.now(), done: false };
   if (TAB_METHODS.test(cmd.method)) {
     resolveTab(params.tabId).then(function (t) { cur.site = siteOf(t.url); cur.tabId = t.id; }).catch(function () {});
@@ -973,7 +989,7 @@ async function onCommand(cmd, ctx) {
     var result = await handler(params, ctx);
   } catch (e) {
     var be0 = toBridgeError(e);
-    if (be0.code !== 'CANCELLED') note(label[0] + ' failed: ' + be0.message, 'bad', cur.site);
+    if (be0.code !== 'CANCELLED') note(t('evFailed', [label[0], be0.message]), 'bad', cur.site);
     throw e;
   } finally {
     cur.done = true;
@@ -999,13 +1015,13 @@ async function handleIncoming(msg) {
   if (msg.hostStatus && typeof msg.hostStatus === 'object') {
     var prev = hostStatus;
     hostStatus = msg.hostStatus;
-    if (!prev) note('Helper v' + (hostStatus.version || '?') + ' running');
+    if (!prev) note(t('evHelperRunning', hostStatus.version || '?'));
     if (hostStatus.error && (!prev || prev.error !== hostStatus.error)) note(hostStatus.error, 'bad');
-    else if (hostStatus.listening && (!prev || !prev.listening || prev.url !== hostStatus.url)) note('Listening on ' + hostStatus.url, 'ok');
+    else if (hostStatus.listening && (!prev || !prev.listening || prev.url !== hostStatus.url)) note(t('evListening', hostStatus.url), 'ok');
     lastError = hostStatus.error || '';
     var c = compat();
-    if (c.state === 'helper-old') lastError = 'Helper app v' + c.helper + ' is too old for this add-on — run the install command again';
-    if (c.state === 'addon-old') lastError = 'This add-on is older than the helper app (v' + c.helper + ') — update the add-on';
+    if (c.state === 'helper-old') lastError = t('errHelperOld', c.helper);
+    if (c.state === 'addon-old') lastError = t('errAddonOld', c.helper);
     updateBadge();
     return;
   }
@@ -1013,9 +1029,7 @@ async function handleIncoming(msg) {
     // Expected exit (e.g. its binary was just updated): relaunch quickly, no error.
     hostRestarting = true;
     log('helper exiting: ' + (msg.hostExit.reason || '?'));
-    note(msg.hostExit.reason === 'updated'
-      ? 'Helper updated' + (msg.hostExit.version ? ' to v' + msg.hostExit.version : '') + ', restarting it'
-      : 'Helper is shutting down');
+    note(msg.hostExit.reason === 'updated' ? t('evHelperUpdated', msg.hostExit.version || '?') : t('evHelperShuttingDown'));
     return;
   }
   if (typeof msg.cancel === 'string') {
@@ -1031,7 +1045,7 @@ async function handleIncoming(msg) {
       return;
     }
     if (paused) {
-      send({ id: msg.id, ok: false, error: { code: 'PAUSED', message: 'The user paused AI control in WebMCP Controller. Ask them to resume it (toolbar button → Resume AI), then try again.' } });
+      send({ id: msg.id, ok: false, error: { code: 'PAUSED', message: 'The user paused AI control in Foxhand. Ask them to resume it (toolbar button → Resume AI), then try again.' } });
       return;
     }
     var ac = new AbortController();
@@ -1131,7 +1145,7 @@ function connect() {
     p = B.runtime.connectNative(NATIVE_HOST);
   } catch (e) {
     hostMissing = true;
-    lastError = 'Could not start the helper: ' + (e.message || e);
+    lastError = t('errCouldNotStart', e.message || e);
     note(lastError, 'bad');
     updateBadge();
     scheduleReconnect();
@@ -1145,10 +1159,10 @@ function connect() {
   startTimer = setTimeout(function () {
     startTimer = null;
     if (p !== port || connectedAt) return;
-    note('Helper didn’t answer within ' + (START_TIMEOUT_MS / 1000) + ' s; starting it again', 'bad');
+    note(t('evNoAnswer', START_TIMEOUT_MS / 1000), 'bad');
     port = null;
     try { p.disconnect(); } catch (e) {}
-    lastError = 'Helper didn’t start';
+    lastError = t('errDidntStart');
     updateBadge();
     scheduleReconnect();
   }, START_TIMEOUT_MS);
@@ -1177,13 +1191,13 @@ function connect() {
       hostMissing = false;
       lastError = '';
     } else if (!wasUp && (isMissingHostError(err) || !err)) {
-      if (!hostMissing) note('Helper app not found', 'bad');
+      if (!hostMissing) note(t('evNotFound'), 'bad');
       hostMissing = true;
-      lastError = 'Helper app not installed';
+      lastError = t('stNoHelper');
     } else {
       hostMissing = false;
-      lastError = 'Helper stopped' + (err ? ': ' + err : '');
-      note(lastError + (wasUp ? '' : ' while starting'), 'bad');
+      lastError = err ? t('errStoppedWhy', err) : t('errStopped');
+      note(wasUp ? lastError : t('evStoppedStarting', lastError), 'bad');
     }
     updateBadge();
     scheduleReconnect();
@@ -1220,16 +1234,16 @@ function updateBadge() {
   var on = isListening();
   var update = on && compat().state === 'helper-update';
   var busy = on && inflight.size > 0;
-  var why = paused ? 'AI paused'
-    : on ? (busy && now ? now.text : 'serving ' + hostStatus.url) + (update ? ' (helper update available)' : '')
-    : (lastError || (port ? 'starting helper…' : 'not connected'));
+  var why = paused ? t('stPaused')
+    : on ? (busy && now ? now.text : t('badgeServing', hostStatus.url)) + (update ? ' · ' + t('softUpdate') : '')
+    : (lastError || (port ? t('stStarting') : t('stNotRunning')));
   var text = paused ? 'II' : !on ? '!' : busy ? '●' : update ? '↑' : '';
   var bg = paused ? '#f5f5f5' : !on ? (hostMissing ? '#8a8a8a' : '#c50042') : '#D7F75B';
   try {
     ba.setBadgeText({ text: text });
     ba.setBadgeBackgroundColor({ color: bg });
     if (ba.setBadgeTextColor) ba.setBadgeTextColor({ color: !on && !paused ? '#ffffff' : '#0a0a0a' });
-    ba.setTitle({ title: 'WebMCP Controller — ' + why });
+    ba.setTitle({ title: 'Foxhand — ' + why });
   } catch (e) {}
 }
 
@@ -1384,7 +1398,7 @@ var cfgQueue = Promise.resolve();
 function queued(fn) {
   var r = cfgQueue.then(fn);
   cfgQueue = r.catch(function () {});
-  return r.catch(function (e) { return { error: 'Couldn’t save settings: ' + ((e && e.message) || e) }; });
+  return r.catch(function (e) { return { error: t('couldntSave', (e && e.message) || e) }; });
 }
 
 function setPaused(v) {
@@ -1392,7 +1406,7 @@ function setPaused(v) {
     await call(B.storage.local, 'set', { mcpPaused: v });
     if (paused === v) return statusSnapshot();
     paused = v;
-    note(v ? 'You paused the AI' : 'You resumed the AI', v ? 'bad' : 'ok');
+    note(v ? t('evYouPaused') : t('evYouResumed'), v ? 'bad' : 'ok');
     if (v) { abortInflight(); hideCursors(); }
     updateBadge();
     return statusSnapshot();
@@ -1427,9 +1441,9 @@ if (B.runtime && B.runtime.onMessage) {
       // Validate everything before changing anything, so a bad field can't leave half a config applied.
       var data = {};
       var p = msg.port !== undefined ? validPort(msg.port) : 0;
-      if (msg.port !== undefined && !p) return Promise.resolve({ error: 'Port must be a number between 1024 and 65535' });
+      if (msg.port !== undefined && !p) return Promise.resolve({ error: t('errPort'), field: 'port' });
       var b = msg.bind !== undefined ? validBind(msg.bind) : '';
-      if (msg.bind !== undefined && !b) return Promise.resolve({ error: 'Bind address must be an IP like 127.0.0.1 or 0.0.0.0' });
+      if (msg.bind !== undefined && !b) return Promise.resolve({ error: t('errBind'), field: 'bind' });
       if (p) data.mcpPort = p;
       if (b) data.mcpBind = b;
       if (typeof msg.allowWsl === 'boolean') data.mcpAllowWsl = msg.allowWsl;
@@ -1465,6 +1479,16 @@ if (B.runtime && B.runtime.onMessage) {
     }
     if (type === 'set-paused') return setPaused(msg.paused === true);
     return undefined;
+  });
+}
+
+/* First install: walk through setup. Updating from WebMCP Controller (< 0.5): say it's Foxhand now. */
+if (B.runtime && B.runtime.onInstalled) {
+  B.runtime.onInstalled.addListener(function (d) {
+    if (!d || d.temporary) return;
+    var page = d.reason === 'install' ? 'onboarding.html'
+      : d.reason === 'update' && cmpVersion(d.previousVersion, '0.5.0') < 0 ? 'onboarding.html#renamed' : '';
+    if (page) { try { B.tabs.create({ url: B.runtime.getURL(page) }); } catch (e) {} }
   });
 }
 

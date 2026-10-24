@@ -3,6 +3,7 @@
 // background.js sends.
 //   npx playwright install firefox   (once)
 //   node test/content.mjs
+import { I18N_SHIM } from "./i18n-mock.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +12,7 @@ import { firefox } from "playwright";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const AX = fs.readFileSync(path.join(root, "extension/content/ax.js"), "utf8");
 // Stand-in for the WebExtension runtime: window.__send(msg) acts like tabs.sendMessage.
-const SHIM = `window.browser = { runtime: { onMessage: { addListener(f) { window.__send = (m) => f(m, {}, undefined); } } } };`;
+const SHIM = `window.browser = { runtime: { onMessage: { addListener(f) { window.__send = (m) => f(m, {}, undefined); } } } };` + I18N_SHIM;
 
 let failures = 0;
 const check = (name, ok, extra = "") => {

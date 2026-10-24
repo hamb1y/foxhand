@@ -89,6 +89,8 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 export class McpHttp {
   /** The main listener, and WSL extras by address. */
   private main: Server | null = null;
+  /** IPv6 loopback twin of a 127.0.0.1 listener, so "localhost" works whichever address a client tries first. */
+  private v6: Server | null = null;
   private extras = new Map<string, Server>();
   private app: express.Express | null = null;
   private config: ServerConfig | null = null;
@@ -171,8 +173,9 @@ export class McpHttp {
   }
 
   private async closeAll(): Promise<void> {
-    const servers = [...(this.main ? [this.main] : []), ...this.extras.values()];
+    const servers = [...(this.main ? [this.main] : []), ...(this.v6 ? [this.v6] : []), ...this.extras.values()];
     this.main = null;
+    this.v6 = null;
     this.extras.clear();
     this.active = null;
     this.wanted = null;
@@ -211,7 +214,7 @@ export class McpHttp {
   private async listen(config: ServerConfig): Promise<void> {
     const app = (this.app ??= this.buildApp());
     const wildcard = isWildcard(config.bind);
-    // 127.0.0.1, not "localhost": some clients resolve localhost to ::1 first.
+    // 127.0.0.1 until the ::1 twin is up: some clients resolve localhost to ::1 first.
     const host = wildcard ? "127.0.0.1" : config.bind;
     this.state = {
       ...this.state,
@@ -225,7 +228,7 @@ export class McpHttp {
 
     const { srv, err } = await this.listenOne(app, config.port, config.bind);
     if (!srv) {
-      if (err !== this.lastLogged) console.error(`[webmcp] ${err}`);
+      if (err !== this.lastLogged) console.error(`[foxhand] ${err}`);
       this.lastLogged = err;
       this.state.error = err;
       this.emit();
@@ -235,6 +238,14 @@ export class McpHttp {
     this.main = srv;
     this.active = config;
     this.state.listening = true;
+    if (config.bind === "127.0.0.1") {
+      // Best effort: IPv6 may be off, or another app may hold [::1]:port. Then URLs keep saying 127.0.0.1.
+      const six = await this.listenOne(app, config.port, "::1");
+      if (six.srv && this.main === srv) {
+        this.v6 = six.srv;
+        this.state.url = urlFor("localhost", config.port);
+      } else if (six.srv) void closeServer(six.srv);
+    }
     await this.syncWsl(config, true);
   }
   private lastLogged = "";
@@ -253,7 +264,7 @@ export class McpHttp {
       for (const [addr, srv] of this.extras) {
         if (want.has(addr)) continue;
         this.extras.delete(addr);
-        console.error(`[webmcp] WSL address ${addr} is gone; stopped listening there`);
+        console.error(`[foxhand] WSL address ${addr} is gone; stopped listening there`);
         void closeServer(srv);
       }
       for (const addr of want) {
@@ -262,7 +273,7 @@ export class McpHttp {
         if (srv && this.main && this.active === config) this.extras.set(addr, srv);
         else if (srv) void closeServer(srv);
         else if (err !== this.lastLogged) {
-          console.error(`[webmcp] WSL listener: ${err}`);
+          console.error(`[foxhand] WSL listener: ${err}`);
           this.lastLogged = err;
         }
       }
@@ -292,7 +303,7 @@ export class McpHttp {
         });
       });
       srv.listen(port, bind, () => {
-        console.error(`[webmcp] MCP listening on ${bind}:${port}`);
+        console.error(`[foxhand] MCP listening on ${bind}:${port}`);
         resolve({ srv, err: "" });
       });
     });
@@ -365,7 +376,7 @@ export class McpHttp {
       res
         .type("text")
         .send(
-          `webmcp-controller ${SERVER_VERSION}\nextension: ${this.bridge.connected ? "connected" : "disconnected"}\n` +
+          `foxhand ${SERVER_VERSION}\nextension: ${this.bridge.connected ? "connected" : "disconnected"}\n` +
             `MCP endpoint: POST /mcp (Streamable HTTP, Authorization: Bearer <token from the add-on popup>)\n`,
         );
     });
@@ -400,7 +411,7 @@ export class McpHttp {
       try {
         // Stateless: one McpServer + transport per request.
         const server = new McpServer(
-          { name: "webmcp-controller", version: SERVER_VERSION },
+          { name: "foxhand", version: SERVER_VERSION },
           { instructions: SERVER_INSTRUCTIONS },
         );
         registerFirefoxTools(server, this.bridge, this.config!);
@@ -413,7 +424,7 @@ export class McpHttp {
         await server.connect(transport);
         await withSignal(ctl.signal, () => transport.handleRequest(req, res, body));
       } catch (err) {
-        console.error(`[webmcp] MCP request failed: ${String(err)}`);
+        console.error(`[foxhand] MCP request failed: ${String(err)}`);
         if (!res.headersSent) rpcError(res, 500, -32603, "internal error");
       }
     };
@@ -436,7 +447,7 @@ export class McpHttp {
       if (err?.type === "entity.too.large" || err?.status === 413) {
         return rpcError(res, 413, -32600, "request body too large (limit 2 MB)");
       }
-      console.error(`[webmcp] HTTP error: ${String(err)}`);
+      console.error(`[foxhand] HTTP error: ${String(err)}`);
       rpcError(res, 500, -32603, "internal error");
     });
     return app;

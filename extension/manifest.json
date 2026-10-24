@@ -1,10 +1,11 @@
 {
   "manifest_version": 2,
-  "name": "WebMCP Controller",
+  "name": "__MSG_extName__",
   "version": "0.4.0",
-  "description": "Let your own AI harness (Claude Code, opencode, Cursor…) read and drive this Firefox over MCP, with a live AI cursor. Needs the small companion helper app.",
+  "default_locale": "en",
+  "description": "__MSG_extDescription__",
   "author": "hamb1y",
-  "homepage_url": "https://github.com/hamb1y/webmcp-controller",
+  "homepage_url": "https://github.com/hamb1y/foxhand",
   "icons": {
     "48": "icons/icon-48.png",
     "96": "icons/icon-96.png",
@@ -58,7 +59,7 @@
     }
   ],
   "browser_action": {
-    "default_title": "WebMCP Controller",
+    "default_title": "__MSG_extName__",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
@@ -72,7 +73,7 @@
       "suggested_key": {
         "default": "Ctrl+Shift+Period"
       },
-      "description": "Pause or resume the AI"
+      "description": "__MSG_cmdPause__"
     }
   },
   "options_ui": {

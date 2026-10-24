@@ -25,7 +25,7 @@ const check = (name, ok, extra = "") => {
 // The helper logs into its install folder: keep that out of the real one.
 const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), "webmcp-test-"));
 const env = { ...process.env, XDG_DATA_HOME: dataHome };
-const LOG = path.join(dataHome, "webmcp-controller", "webmcp-host.log");
+const LOG = path.join(dataHome, "foxhand", "foxhand-host.log");
 const readLog = () => { try { return fs.readFileSync(LOG, "utf8"); } catch { return ""; } };
 
 // ---- fake add-on ----
@@ -231,7 +231,7 @@ if (process.platform !== "win32" && process.argv.length <= 2) {
     stdio: "ignore", env: { ...env, XDG_DATA_HOME: orphanLog },
   });
   await new Promise((res) => sh.once("exit", res));
-  const olog = () => { try { return fs.readFileSync(path.join(orphanLog, "webmcp-controller", "webmcp-host.log"), "utf8"); } catch { return ""; } };
+  const olog = () => { try { return fs.readFileSync(path.join(orphanLog, "foxhand", "foxhand-host.log"), "utf8"); } catch { return ""; } };
   let ok = false;
   for (let t = 0; t < 16000 && !ok; t += 250) { ok = /exiting: Firefox \(pid \d+\) is gone/.test(olog()); if (!ok) await sleep(250); }
   check("helper exits when its parent dies", ok, olog().split("\n").slice(-3).join(" | "));

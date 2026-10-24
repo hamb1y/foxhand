@@ -1,6 +1,6 @@
 /**
  * Shared wire protocol between the Firefox WebExtension and the native host
- * (webmcp-host), which Firefox launches via native messaging and which
+ * (foxhand-host), which Firefox launches via native messaging and which
  * serves MCP over HTTP to the harness.
  *
  * Transport: native messaging stdio (uint32 length prefix + UTF-8 JSON).
@@ -264,6 +264,7 @@ export function isHostConfig(m: unknown): m is HostConfigMessage {
   );
 }
 
+/** Unchanged by the rename to Foxhand: old add-ons and new helpers must keep finding each other. */
 export const NATIVE_HOST_NAME = "webmcp_controller";
 
 export const CMD_TIMEOUT_MS = 30_000;

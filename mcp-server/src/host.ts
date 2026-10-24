@@ -1,5 +1,5 @@
 /**
- * webmcp-host: the native messaging host for the WebMCP Controller add-on.
+ * foxhand-host: the native messaging host for the Foxhand add-on (formerly WebMCP Controller).
  *
  * Two modes, one binary:
  *  - Launched by Firefox (argv = [manifestPath, extensionId], stdin is a pipe):
@@ -35,7 +35,12 @@ import { ExtensionBridge } from "./bridge/bridge.js";
 import { DEFAULT_BIND, DEFAULT_PORT } from "./config.js";
 import { McpHttp, SERVER_VERSION } from "./http.js";
 
+/** The add-on's ID kept its pre-rename value: changing it would make AMO treat Foxhand as a new add-on. */
 const EXTENSION_ID = "webmcp-controller@hamb1y.github.io";
+/** Program name, install folder name, and the folder the helper lived in before the rename. */
+const BIN = "foxhand-host";
+const DIR_NAME = "foxhand";
+const OLD_DIR_NAME = "webmcp-controller";
 /** Pre-0.3.4 native host name; its registration is removed on install so stale helpers can't be launched. */
 const LEGACY_HOST_NAME = "firefox_mcp_bridge";
 
@@ -44,7 +49,7 @@ const LEGACY_HOST_NAME = "firefox_mcp_bridge";
 /** Largest extension -> helper message we'll buffer (screenshots of huge pages are well under this). */
 const MAX_FRAME_BYTES = 64 * 1024 * 1024;
 
-/** Max log size before it's rotated to webmcp-host.log.1. */
+/** Max log size before it's rotated to foxhand-host.log.1. */
 const LOG_MAX_BYTES = 512 * 1024;
 
 /**
@@ -57,7 +62,7 @@ function startLog(): string {
   try {
     const dir = installDir();
     fs.mkdirSync(dir, { recursive: true });
-    file = path.join(dir, "webmcp-host.log");
+    file = path.join(dir, `${BIN}.log`);
     size = fs.statSync(file, { throwIfNoEntry: false })?.size ?? 0;
     if (size > LOG_MAX_BYTES) {
       fs.renameSync(file, `${file}.1`);
@@ -115,8 +120,8 @@ function processGone(pid: number): boolean {
 function runHost(): void {
   const startedAt = Date.now();
   const logFile = startLog();
-  process.on("uncaughtException", (e) => console.error(`[webmcp] uncaught: ${e?.stack ?? e}`));
-  process.on("unhandledRejection", (e) => console.error(`[webmcp] unhandled: ${String(e)}`));
+  process.on("uncaughtException", (e) => console.error(`[foxhand] uncaught: ${e?.stack ?? e}`));
+  process.on("unhandledRejection", (e) => console.error(`[foxhand] unhandled: ${String(e)}`));
 
   let exiting = false;
   const write = (obj: unknown): void => {
@@ -145,7 +150,7 @@ function runHost(): void {
   http.onChange = sendStatus;
   bridge.onStatusChange = (connected, info) => {
     console.error(
-      `[webmcp] extension ${connected ? `connected (v${info?.version}, Firefox ${info?.firefoxVersion})` : "disconnected"}`,
+      `[foxhand] extension ${connected ? `connected (v${info?.version}, Firefox ${info?.firefoxVersion})` : "disconnected"}`,
     );
   };
 
@@ -154,12 +159,12 @@ function runHost(): void {
       const p = msg.hello.protocol ?? 1;
       let refuse: { code: string; message: string } | undefined;
       if (p !== PROTOCOL) {
-        const older = p < PROTOCOL ? "the WebMCP Controller add-on" : "the helper app (rerun the install command from the add-on popup)";
+        const older = p < PROTOCOL ? "the Foxhand add-on" : "the helper app (rerun the install command from the add-on popup)";
         refuse = {
           code: "PROTOCOL_MISMATCH",
           message: `add-on speaks protocol ${p}, helper ${SERVER_VERSION} speaks ${PROTOCOL}: update ${older}`,
         };
-        console.error(`[webmcp] ${refuse.message}`);
+        console.error(`[foxhand] ${refuse.message}`);
       }
       bridge.connect(link, msg.hello, refuse);
       sendStatus();
@@ -170,7 +175,7 @@ function runHost(): void {
       const port = Number.isInteger(c.port) && c.port > 0 && c.port < 65536 ? c.port : DEFAULT_PORT;
       const bind = typeof c.bind === "string" && c.bind.trim() ? c.bind.trim() : DEFAULT_BIND;
       if (typeof c.token !== "string" || c.token.length < 16) {
-        console.error("[webmcp] refusing hostConfig without a token of at least 16 chars");
+        console.error("[foxhand] refusing hostConfig without a token of at least 16 chars");
         return;
       }
       http.apply({
@@ -180,7 +185,7 @@ function runHost(): void {
         confirmDestructive: c.confirmDestructive !== false,
         cmdTimeoutMs: 30_000,
         allowWsl: c.allowWsl === true,
-      }).catch((e) => console.error(`[webmcp] applying settings failed: ${String(e)}`));
+      }).catch((e) => console.error(`[foxhand] applying settings failed: ${String(e)}`));
       return;
     }
     bridge.receive(msg);
@@ -201,7 +206,7 @@ function runHost(): void {
     while (buf.length >= 4) {
       const len = buf.readUInt32LE(0);
       if (len > MAX_FRAME_BYTES) {
-        console.error(`[webmcp] dropping a ${len}-byte message from the extension (limit ${MAX_FRAME_BYTES})`);
+        console.error(`[foxhand] dropping a ${len}-byte message from the extension (limit ${MAX_FRAME_BYTES})`);
         const have = Math.min(buf.length - 4, len);
         skip = len - have;
         buf = buf.subarray(4 + have);
@@ -214,14 +219,14 @@ function runHost(): void {
       try {
         msg = JSON.parse(body);
       } catch {
-        console.error("[webmcp] ignoring non-JSON message from extension");
+        console.error("[foxhand] ignoring non-JSON message from extension");
         continue;
       }
       // One bad message must not take the rest of the stream down with it.
       try {
         onMessage(msg);
       } catch (e) {
-        console.error(`[webmcp] failed to handle a message from the extension: ${String(e)}`);
+        console.error(`[foxhand] failed to handle a message from the extension: ${String(e)}`);
       }
     }
   });
@@ -229,7 +234,7 @@ function runHost(): void {
   const shutdown = (why: string): void => {
     if (exiting) return;
     exiting = true;
-    console.error(`[webmcp] exiting: ${why} (up ${Math.round((Date.now() - startedAt) / 1000)}s)`);
+    console.error(`[foxhand] exiting: ${why} (up ${Math.round((Date.now() - startedAt) / 1000)}s)`);
     bridge.disconnect();
     void http.stop().finally(() => process.exit(0));
     setTimeout(() => process.exit(0), 1000).unref();
@@ -284,10 +289,10 @@ function runHost(): void {
       }
       known = cur;
       if (v === SERVER_VERSION) {
-        console.error(`[webmcp] helper binary changed on disk but is still v${v}; staying up`);
+        console.error(`[foxhand] helper binary changed on disk but is still v${v}; staying up`);
         return;
       }
-      console.error(`[webmcp] helper binary was replaced with v${v}; exiting so Firefox starts it`);
+      console.error(`[foxhand] helper binary was replaced with v${v}; exiting so Firefox starts it`);
       const bye: HostExitMessage = { hostExit: { reason: "updated", version: v } };
       write(bye);
       shutdown(`updated to v${v}`);
@@ -297,8 +302,10 @@ function runHost(): void {
     });
   }
 
+  setTimeout(removeOldInstall, 15_000).unref();
+
   console.error(
-    `[webmcp] host ${SERVER_VERSION} started (pid ${process.pid}, parent ${parent}, ${process.platform}/${process.arch}, ${process.execPath})`,
+    `[foxhand] host ${SERVER_VERSION} started (pid ${process.pid}, parent ${parent}, ${process.platform}/${process.arch}, ${process.execPath})`,
   );
 }
 
@@ -312,15 +319,50 @@ function platform(): Platform {
   return "linux";
 }
 
-function installDir(): string {
+function installDir(name: string = DIR_NAME): string {
   const home = os.homedir();
   switch (platform()) {
     case "win":
-      return path.join(process.env.LOCALAPPDATA ?? path.join(home, "AppData", "Local"), "webmcp-controller");
+      return path.join(process.env.LOCALAPPDATA ?? path.join(home, "AppData", "Local"), name);
     case "mac":
-      return path.join(home, "Library", "Application Support", "webmcp-controller");
+      return path.join(home, "Library", "Application Support", name);
     default:
-      return path.join(process.env.XDG_DATA_HOME ?? path.join(home, ".local", "share"), "webmcp-controller");
+      return path.join(process.env.XDG_DATA_HOME ?? path.join(home, ".local", "share"), name);
+  }
+}
+
+/** The pre-rename helper program, if one is installed. */
+function oldInstalledBinary(): string {
+  const dir = installDir(OLD_DIR_NAME);
+  const exe = path.join(dir, platform() === "win" ? "webmcp-host.exe" : "webmcp-host");
+  return fs.existsSync(exe) ? exe : "";
+}
+
+/**
+ * Moving from WebMCP Controller: a helper started from the old folder may be running. Putting
+ * this binary over the old one makes it see a new version and exit, so Firefox starts this one
+ * (the registration now points here). The old folder is removed by the next helper that starts.
+ */
+function replaceOldInstall(): string {
+  const old = oldInstalledBinary();
+  if (!old || !isCompiled()) return "";
+  try {
+    copySelf(old);
+    return old;
+  } catch {
+    return "";
+  }
+}
+
+/** Delete the pre-rename folder, once nothing runs from it. */
+function removeOldInstall(): void {
+  const dir = installDir(OLD_DIR_NAME);
+  if (!fs.existsSync(dir) || path.resolve(process.execPath).startsWith(path.resolve(dir))) return;
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+    console.error(`[foxhand] removed the old WebMCP Controller helper folder ${dir}`);
+  } catch {
+    /* still in use (Windows); a later start tries again */
   }
 }
 
@@ -363,7 +405,14 @@ function copySelf(dest: string): void {
   const tmp = `${dest}.new-${process.pid}`;
   fs.copyFileSync(src, tmp);
   if (platform() !== "win") fs.chmodSync(tmp, 0o755);
-  if (platform() === "mac") spawnSync("xattr", ["-d", "com.apple.quarantine", tmp], { stdio: "ignore" });
+  if (platform() === "mac") {
+    spawnSync("xattr", ["-d", "com.apple.quarantine", tmp], { stdio: "ignore" });
+    // Apple silicon only runs signed code. Release binaries carry an ad-hoc signature; if this
+    // copy's doesn't verify, sign it again ad hoc (codesign ships with every Mac).
+    if (spawnSync("codesign", ["--verify", tmp], { stdio: "ignore" }).status !== 0) {
+      spawnSync("codesign", ["--force", "--sign", "-", tmp], { stdio: "ignore" });
+    }
+  }
   try {
     fs.renameSync(tmp, dest);
   } catch (e) {
@@ -404,20 +453,20 @@ function cleanupOld(dir: string): void {
 function installExecutable(dir: string): string {
   const win = platform() === "win";
   if (isCompiled()) {
-    const dest = path.join(dir, win ? "webmcp-host.exe" : "webmcp-host");
+    const dest = path.join(dir, win ? `${BIN}.exe` : BIN);
     copySelf(dest);
     return dest;
   }
   // Dev install: `node dist/host.js install` → launcher script pointing at this checkout.
   const script = path.resolve(process.argv[1] ?? "");
   if (win) {
-    const dest = path.join(dir, "webmcp-host.bat");
+    const dest = path.join(dir, `${BIN}.bat`);
     // Paths can't contain quotes on Windows, but a literal % must be doubled in a .bat.
     const bat = (f: string): string => `"${f.replace(/%/g, "%%")}"`;
     fs.writeFileSync(dest, `@echo off\r\n${bat(process.execPath)} ${bat(script)} %*\r\n`);
     return dest;
   }
-  const dest = path.join(dir, "webmcp-host.sh");
+  const dest = path.join(dir, `${BIN}.sh`);
   const sh = (f: string): string => `'${f.replace(/'/g, "'\\''")}'`; // no $, ` or \ expansion inside '…'
   fs.writeFileSync(dest, `#!/bin/sh\nexec ${sh(process.execPath)} ${sh(script)} "$@"\n`);
   fs.chmodSync(dest, 0o755);
@@ -428,7 +477,7 @@ function hostManifest(exe: string, extensionId: string): string {
   return JSON.stringify(
     {
       name: NATIVE_HOST_NAME,
-      description: "WebMCP Controller host: serves MCP to your local AI tools",
+      description: "Foxhand helper: serves MCP to your local AI tools",
       path: exe,
       type: "stdio",
       allowed_extensions: [extensionId],
@@ -481,12 +530,14 @@ function install(extensionId: string): void {
   }
 
   const legacy = removeLegacy();
+  const replaced = replaceOldInstall();
 
-  console.error(`\nWebMCP Controller host ${SERVER_VERSION} installed.\n`);
+  console.error(`\nFoxhand helper ${SERVER_VERSION} installed.\n`);
   console.error(`  program:  ${exe}`);
   for (const w of written) console.error(`  manifest: ${w}`);
   for (const l of legacy) console.error(`  removed old firefox-mcp registration: ${l}`);
-  console.error(`\nDone. The WebMCP Controller toolbar icon turns green within a few seconds`);
+  if (replaced) console.error(`  updated the old WebMCP Controller helper so Firefox switches over: ${replaced}`);
+  console.error(`\nDone. The Foxhand toolbar icon turns green within a few seconds`);
   console.error(`(open its popup to make it instant), then use "Copy MCP config" there.`);
   console.error(`If Firefox was already running an older helper, it switches to this one automatically.\n`);
 }
@@ -505,8 +556,8 @@ function uninstall(): void {
       }
     }
   }
-  const dir = installDir();
-  if (fs.existsSync(dir)) {
+  for (const dir of [installDir(), installDir(OLD_DIR_NAME)]) {
+    if (!fs.existsSync(dir)) continue;
     try {
       fs.rmSync(dir, { recursive: true, force: true });
       removed.push(dir);
@@ -518,7 +569,7 @@ function uninstall(): void {
 }
 
 function status(): void {
-  console.error(`webmcp-host ${SERVER_VERSION} (${process.platform}/${process.arch}, ${isCompiled() ? "binary" : "node"})`);
+  console.error(`${BIN} ${SERVER_VERSION} (${process.platform}/${process.arch}, ${isCompiled() ? "binary" : "node"})`);
   console.error(`install dir: ${installDir()}`);
   if (platform() === "win") {
     const r = spawnSync("reg", ["query", REG_KEY, "/ve"], { encoding: "utf8" });
@@ -532,12 +583,12 @@ function status(): void {
 }
 
 function usage(): void {
-  console.error(`webmcp-host ${SERVER_VERSION}
+  console.error(`${BIN} ${SERVER_VERSION}
 
 Usage:
-  webmcp-host install [--extension-id ID]   register with Firefox (default when double-clicked)
-  webmcp-host uninstall                     remove registration and files
-  webmcp-host status                        show what's installed where
+  ${BIN} install [--extension-id ID]   register with Firefox (default when double-clicked)
+  ${BIN} uninstall                     remove registration and files
+  ${BIN} status                        show what's installed where
 `);
 }
 

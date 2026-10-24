@@ -2,6 +2,7 @@
 // Firefox (Playwright) against a fake background that keeps state like background.js.
 //   npx playwright install firefox   (once)
 //   node test/options.mjs
+import { I18N_SHIM } from "./i18n-mock.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { firefox } from "playwright";
@@ -17,7 +18,7 @@ const check = (name, ok, extra = "") => {
 
 const READY = {
   version: "0.3.7", protocol: 1, compat: { state: "ok" }, platform: { os: "win", arch: "x86-64" }, hostMissing: false,
-  connected: true, starting: false, listening: true, host: { version: "0.3.7", logFile: "C:\\Users\\me\\AppData\\Local\\webmcp-controller\\webmcp-host.log", url: "http://127.0.0.1:8901/mcp", extraUrls: [] },
+  connected: true, starting: false, listening: true, host: { version: "0.3.7", logFile: "C:\\Users\\me\\AppData\\Local\\foxhand\\foxhand-host.log", url: "http://127.0.0.1:8901/mcp", extraUrls: [] },
   url: "http://127.0.0.1:8901/mcp", token: "a".repeat(64), port: 8901, bind: "127.0.0.1", allowWsl: false,
   confirmDestructive: true, showCursor: true, defaults: { port: 8901, bind: "127.0.0.1" }, lastError: "", commands: 3, connectedAt: Date.now() - 12 * 60000,
   events: [
@@ -65,6 +66,7 @@ async function open(state, kind) {
     try { localStorage.clear(); if (k) localStorage.setItem("fxmcp.kind", k); } catch {}
   }, [state, kind]);
   await page.addInitScript(fakeBackground, state);
+  await page.addInitScript({ content: I18N_SHIM });
   await page.goto(PAGE);
   await page.waitForTimeout(300);
   page.errors = errors;
@@ -80,7 +82,7 @@ check("page loads without errors", page.errors.length === 0, page.errors.join(";
 check("status says Ready", (await text(page, "#stateTxt")) === "Ready");
 check("Retry is hidden when ready", !(await visible(page, "#retry")));
 const cmd = await text(page, "#cfg");
-check("Claude Code command replaces an existing entry", /^claude mcp remove --scope user firefox 2>\$null; claude mcp add --scope user /.test(cmd), cmd);
+check("Claude Code command replaces an existing entry", /^claude mcp remove -s user firefox 2>\$null\nclaude mcp add -s user -t http firefox /.test(cmd), cmd);
 check("command carries the token", cmd.includes("Bearer " + "a".repeat(64)));
 check("installed helper is tucked away", !(await visible(page, "#install")) && !(await visible(page, "#setupLaterBody pre")));
 check("status facts filled in", (await text(page, "#factHelper")) === "v0.3.7" && (await text(page, "#factAddr")) === "127.0.0.1:8901" && /3 commands/.test(await text(page, "#factUp")));
@@ -90,7 +92,7 @@ const evs = await page.locator("#events li").allTextContents();
 check("activity lists newest first, with site and count", evs.length === 3 && /Clicked “Sign in” · github\.com/.test(evs[0]) && /Listening.*×2/.test(evs[1]) && /Helper stopped/.test(evs[2]), JSON.stringify(evs));
 check("activity text isn't parsed as HTML", (await page.locator("#events b").count()) === 0);
 await page.locator("#helperDetails summary").click();
-check("helper log path shown", /webmcp-host\.log/.test(await text(page, "#logLine")) && (await visible(page, "#logLine")));
+check("helper log path shown", /foxhand-host\.log/.test(await text(page, "#logLine")) && (await visible(page, "#logLine")));
 
 // ---- pause ----
 check("Pause offered while ready", (await visible(page, "#pause")) && (await text(page, "#pause")) === "Pause AI");
@@ -189,7 +191,7 @@ await page.close();
 page = await open({ ...READY, platform: { os: "linux", arch: "x86-64" }, hostMissing: true, connected: false, listening: false, host: null, url: "" });
 check("missing helper puts install steps first", (await visible(page, "#install")) && await page.locator("#install").evaluate((e) => e.classList.contains("attention") && getComputedStyle(e).order === "-1"));
 check("no Pause while the helper is missing", !(await visible(page, "#pause")));
-check("install command shown", /install\.sh \| sh/.test(await text(page, "#setupNow")) && /turns green/.test(await text(page, "#setupNow")));
+check("install command shown", /foxhand\/sh \| sh/.test(await text(page, "#setupNow")) && /turns green/.test(await text(page, "#setupNow")));
 check("Retry offered", await visible(page, "#retry"));
 check("default harness is JSON", (await page.locator("input[value=json]").isChecked()) && /"mcpServers"/.test(await text(page, "#cfg")));
 await page.waitForTimeout(3500);
@@ -200,6 +202,7 @@ await page.close();
 // ---- background ignores the page (the old sender.tab guard did this to the settings tab) ----
 page = await browser.newPage();
 await page.addInitScript(() => { window.browser = { runtime: { sendMessage: async () => undefined } }; });
+await page.addInitScript({ content: I18N_SHIM });
 await page.goto(PAGE);
 await page.waitForTimeout(300);
 check("a silent background is reported, not left on Loading", /didn’t answer/.test(await text(page, "#stateTxt")), await text(page, "#stateTxt"));

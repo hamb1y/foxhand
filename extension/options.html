@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WebMCP Controller — Settings</title>
+<title>Foxhand</title>
 <link rel="stylesheet" href="ui.css">
 <style>
   main { max-width: 720px; margin: 0 auto; padding: 72px 16px 96px; display: flex; flex-direction: column; gap: 56px; }
@@ -113,107 +113,107 @@
 <main>
 <header>
   <img src="icons/icon.svg" width="44" height="44" alt="">
-  <h1>WebMCP Controller</h1>
+  <h1>Foxhand</h1>
 </header>
 
 <section id="status" class="card" role="status">
   <div class="top">
-    <div class="head"><span id="dot" class="dot"></span><span id="stateTxt">Loading…</span></div>
+    <div class="head"><span id="dot" class="dot"></span><span id="stateTxt" data-i18n="loading">Loading…</span></div>
     <div class="row">
-      <button id="pause" type="button" class="lime" hidden>Pause AI</button>
-      <button id="retry" type="button" hidden>Retry</button>
+      <button id="pause" type="button" class="lime" hidden data-i18n="pauseAI">Pause AI</button>
+      <button id="retry" type="button" hidden data-i18n="retry">Retry</button>
     </div>
   </div>
   <div id="stateErr"></div>
   <dl class="facts">
-    <div><dt>Helper</dt><dd id="factHelper">—</dd></div>
-    <div><dt>Up</dt><dd id="factUp">—</dd></div>
-    <div><dt>Address</dt><dd id="factAddr" class="mono">—</dd></div>
+    <div><dt data-i18n="factHelper">Helper</dt><dd id="factHelper">—</dd></div>
+    <div><dt data-i18n="factUp">Up</dt><dd id="factUp">—</dd></div>
+    <div><dt data-i18n="factAddress">Address</dt><dd id="factAddr" class="mono">—</dd></div>
   </dl>
 </section>
 
 <section id="install" class="card" hidden>
-  <h2 id="installTitle">Install the helper app</h2>
+  <h2 id="installTitle" data-i18n="needInstall">Install the helper app</h2>
   <div id="setupNow"></div>
 </section>
 
 <section id="connect">
-  <h2>Connect your AI</h2>
-  <div class="chips" role="radiogroup" aria-label="Your AI">
+  <h2 data-i18n="connectAI">Connect your AI</h2>
+  <div class="chips" role="radiogroup" data-i18n-attr="aria-label:yourAI">
     <label><input type="radio" name="kind" value="claude"><span>Claude Code</span></label>
     <label><input type="radio" name="kind" value="codex"><span>Codex</span></label>
     <label><input type="radio" name="kind" value="gemini"><span>Gemini CLI</span></label>
     <label><input type="radio" name="kind" value="opencode"><span>opencode</span></label>
-    <label><input type="radio" name="kind" value="claude-app"><span>Claude app</span></label>
-    <label><input type="radio" name="kind" value="json"><span>Other</span></label>
+    <label><input type="radio" name="kind" value="claude-app"><span data-i18n="chipClaudeApp">Claude app</span></label>
+    <label><input type="radio" name="kind" value="json"><span data-i18n="chipOther">Other</span></label>
   </div>
   <p id="kindHint"></p>
-  <pre id="cfg" tabindex="0" aria-label="Config to copy"></pre>
+  <pre id="cfg" tabindex="0" data-i18n-attr="aria-label:configToCopy"></pre>
   <div class="act">
-    <button id="copyCfg" type="button" class="white">Copy</button>
-    <label id="whereRow"><input type="checkbox" id="inWsl"> My AI runs inside WSL</label>
+    <button id="copyCfg" type="button" class="white" data-i18n="copy">Copy</button>
+    <label id="whereRow"><input type="checkbox" id="inWsl"> <span data-i18n="aiInWsl">My AI runs inside WSL</span></label>
   </div>
   <div id="wsl" hidden>
-    <label class="toggle">Let AIs in WSL connect <input type="checkbox" id="allowWsl" class="switch"></label>
+    <label class="toggle"><span data-i18n="letWsl">Let AIs in WSL connect</span> <input type="checkbox" id="allowWsl" class="switch"></label>
     <div id="wslState"></div>
-    <div class="sub">The first time, Windows may ask to let <b>webmcp-host</b> through the firewall: tick
-      <b>Private networks</b> and click <b>Allow</b>.</div>
+    <div class="sub" data-i18n="firewallNote"></div>
   </div>
 </section>
 
 <section class="toggles">
-  <h2>While the AI works</h2>
+  <h2 data-i18n="whileWorks">While the AI works</h2>
   <div>
-    <label class="toggle">Show the AI cursor <input type="checkbox" id="showCursor" class="switch"></label>
-    <label class="toggle">Ask before closing tabs or deleting <input type="checkbox" id="confirmDestructive" class="switch"></label>
+    <label class="toggle"><span data-i18n="showCursorLong">Show the AI cursor</span> <input type="checkbox" id="showCursor" class="switch"></label>
+    <label class="toggle"><span data-i18n="askBeforeClosing">Ask before closing tabs or deleting</span> <input type="checkbox" id="confirmDestructive" class="switch"></label>
   </div>
 </section>
 
 <section id="activity">
-  <h2>Activity</h2>
+  <h2 data-i18n="activity">Activity</h2>
   <ul id="events"></ul>
 </section>
 
 <section class="more">
   <details id="helperDetails">
-    <summary>Helper app</summary>
+    <summary data-i18n="helperApp">Helper app</summary>
     <p id="helperInfo" class="sub"></p>
-    <p id="logLine" class="sub" hidden>Log: <code id="logFile"></code></p>
+    <p id="logLine" class="sub" hidden><span data-i18n="logLabel">Log:</span> <code id="logFile"></code></p>
   </details>
   <details id="tokenDetails">
-    <summary>Token and port</summary>
-    <label class="lbl" for="token">Access token</label>
+    <summary data-i18n="tokenAndPort">Token and port</summary>
+    <label class="lbl" for="token" data-i18n="accessToken">Access token</label>
     <div class="field">
       <input type="password" id="token" readonly autocomplete="off" spellcheck="false">
-      <button id="reveal" type="button">Show</button>
-      <button id="copyToken" type="button">Copy</button>
-      <button id="regen" type="button">New token</button>
+      <button id="reveal" type="button" data-i18n="show">Show</button>
+      <button id="copyToken" type="button" data-i18n="copy">Copy</button>
+      <button id="regen" type="button" data-i18n="newToken">New token</button>
     </div>
-    <div class="sub">A new token locks out every AI using the old one until you copy the config again.</div>
+    <div class="sub" data-i18n="newTokenNote"></div>
     <form id="form" novalidate>
       <div class="grid">
-        <label class="lbl" for="port">Port</label>
-        <label class="lbl" for="bind">Listen on</label>
+        <label class="lbl" for="port" data-i18n="port">Port</label>
+        <label class="lbl" for="bind" data-i18n="listenOn">Listen on</label>
         <input type="number" id="port" min="1024" max="65535" inputmode="numeric">
         <input type="text" id="bind" spellcheck="false" autocomplete="off">
-        <div class="sub"><code>127.0.0.1</code> = this computer only. <code>0.0.0.0</code> = your whole network, protected only by the token.</div>
+        <div class="sub" data-i18n="bindNote"></div>
       </div>
       <div class="actions">
-        <button id="save" type="submit" class="white" disabled>Save</button>
-        <button id="reset" type="button">Reset to defaults</button>
+        <button id="save" type="submit" class="white" disabled data-i18n="save">Save</button>
+        <button id="reset" type="button" data-i18n="resetDefaults">Reset to defaults</button>
         <span id="formErr" class="formErr" role="alert"></span>
       </div>
     </form>
   </details>
   <details id="setupLater">
-    <summary>Reinstall, update or uninstall</summary>
+    <summary data-i18n="reinstall">Reinstall, update or uninstall</summary>
     <div id="setupLaterBody"></div>
-    <div class="sub">To uninstall, run <code id="uninstallCmd"></code>
-      · <a href="https://github.com/hamb1y/webmcp-controller/releases/latest" target="_blank" rel="noopener">All downloads</a></div>
+    <div class="sub"><span data-i18n="toUninstall">To uninstall, run</span> <code id="uninstallCmd"></code>
+      · <a href="https://github.com/hamb1y/foxhand/releases/latest" target="_blank" rel="noopener" data-i18n="allDownloads">All downloads</a>
+      · <a href="onboarding.html" data-i18n="setupGuideLink">Setup guide</a></div>
   </details>
 </section>
 
-<footer><span id="addonVer"></span>MPL 2.0 · <a href="https://github.com/hamb1y/webmcp-controller" target="_blank" rel="noopener">Source</a>
+<footer><span id="addonVer"></span>MPL 2.0 · <a href="https://github.com/hamb1y/foxhand" target="_blank" rel="noopener" data-i18n="source">Source</a>
   · Cursors: <a href="https://github.com/ful1e5/Bibata_Cursor" target="_blank" rel="noopener">Bibata</a> by ful1e5, GPL-3.0
   · Font: Google Sans Flex, OFL</footer>
 </main>

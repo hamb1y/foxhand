@@ -4,6 +4,7 @@
 //   node test/e2e.mjs                       (helper = node mcp-server/dist/host.js)
 //   node test/e2e.mjs path/to/webmcp-host   (test a compiled helper)
 //   MISSING=1 node test/e2e.mjs             (helper-not-installed flow)
+import { getMessage } from "./i18n-mock.mjs";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -60,6 +61,7 @@ const extraTabs = [];
 const onMsg = ev();
 let pageGone = null; // (msg) => true makes the page vanish under that message, like a navigation
 const browser = {
+  i18n: { getMessage, getUILanguage: () => "en" },
   runtime: {
     id: EXT_ID, getManifest: () => manifest, connectNative, onMessage: onMsg, getURL: (p = "") => "moz-extension://test-uuid/" + p,
     getBrowserInfo: async () => ({ version: "150.0" }), getPlatformInfo: async () => ({ os: "linux", arch: "x86-64" }), openOptionsPage() {},

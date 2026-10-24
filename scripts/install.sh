@@ -1,12 +1,13 @@
 #!/bin/sh
-# WebMCP Controller — helper installer for macOS and Linux.
-#   curl -fsSL https://github.com/hamb1y/webmcp-controller/releases/latest/download/install.sh | sh
-# Downloads the right webmcp-host binary, checks it, and registers it with Firefox.
+# Foxhand — helper installer for macOS and Linux.
+#   curl -fsSL https://hamb1y.github.io/foxhand/sh | sh
+# Downloads the right foxhand-host binary, checks it, and registers it with Firefox.
 set -eu
-BASE="${WEBMCP_BASE:-https://github.com/hamb1y/webmcp-controller/releases/latest/download}"
+BASE="${FOXHAND_BASE:-${WEBMCP_BASE:-https://github.com/hamb1y/foxhand/releases/latest/download}}"
+PS_CMD="irm https://hamb1y.github.io/foxhand/ps | iex"
 
 # Inside WSL, Firefox is the Windows one: install the Windows helper from here.
-if [ -z "${WEBMCP_FORCE:-}" ] && grep -qi microsoft /proc/version 2>/dev/null; then
+if [ -z "${FOXHAND_FORCE:-${WEBMCP_FORCE:-}}" ] && grep -qi microsoft /proc/version 2>/dev/null; then
   ps=$(command -v powershell.exe 2>/dev/null || echo /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe)
   if [ -x "$ps" ]; then
     echo "WSL detected: installing the helper for Windows Firefox."
@@ -14,18 +15,18 @@ if [ -z "${WEBMCP_FORCE:-}" ] && grep -qi microsoft /proc/version 2>/dev/null; t
     (cd /mnt/c 2>/dev/null || true; "$ps" -NoProfile -ExecutionPolicy Bypass -Command "irm $BASE/install.ps1 | iex")
     echo
     echo "For a harness inside WSL: add-on Settings > tick \"Allow harnesses inside WSL to connect\","
-    echo "then Format > \"Claude Code inside WSL\". (Firefox inside WSL itself? Re-run with WEBMCP_FORCE=1.)"
+    echo "then Format > \"Claude Code inside WSL\". (Firefox inside WSL itself? Re-run with FOXHAND_FORCE=1.)"
     exit 0
   fi
-  echo "This is WSL, but Windows PowerShell isn't reachable. In Windows, open PowerShell or Command Prompt and paste:" >&2
-  echo "  powershell -ExecutionPolicy Bypass -c \"irm $BASE/install.ps1 | iex\"" >&2
+  echo "This is WSL, but Windows PowerShell isn't reachable. In Windows, open PowerShell and paste:" >&2
+  echo "  $PS_CMD" >&2
   exit 1
 fi
 
 case "$(uname -s)" in
   Darwin) os=darwin ;;
   Linux) os=linux ;;
-  *) echo "Unsupported system: $(uname -s). On Windows run: powershell -ExecutionPolicy Bypass -c \"irm $BASE/install.ps1 | iex\"" >&2; exit 1 ;;
+  *) echo "Unsupported system: $(uname -s). On Windows, run this in PowerShell: $PS_CMD" >&2; exit 1 ;;
 esac
 case "$(uname -m)" in
   x86_64 | amd64) arch=x64 ;;
@@ -37,7 +38,7 @@ if [ "$os" = darwin ] && [ "$arch" = x64 ] && [ "$(sysctl -n sysctl.proc_transla
   arch=arm64
 fi
 
-name="webmcp-host-$os-$arch"
+name="foxhand-host-$os-$arch"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT INT TERM
 
@@ -65,14 +66,20 @@ if [ "$want" != "$got" ]; then
 fi
 
 chmod +x "$tmp/$name"
-if [ "$os" = darwin ]; then xattr -c "$tmp/$name" 2>/dev/null || true; fi
+if [ "$os" = darwin ]; then
+  # No Gatekeeper prompts: curl doesn't mark downloads as quarantined, and this clears it anyway.
+  xattr -c "$tmp/$name" 2>/dev/null || true
+  # Apple silicon runs only signed code; the release binary is signed ad hoc. If that signature
+  # doesn't verify here, sign it again ad hoc (codesign comes with macOS).
+  codesign --verify "$tmp/$name" 2>/dev/null || codesign --force --sign - "$tmp/$name" 2>/dev/null || true
+fi
 "$tmp/$name" install
 
 if [ "$os" = linux ]; then
   if [ -d "$HOME/.var/app/org.mozilla.firefox" ] || [ -d "$HOME/snap/firefox" ]; then
     echo
     echo "Note: a Flatpak or Snap Firefox was found. Sandboxed Firefox builds may not be allowed to start"
-    echo "helper apps. If the add-on stays on \"Helper app not installed\", use Firefox from mozilla.org"
+    echo "helper apps. If Foxhand stays on \"Helper app not installed\", use Firefox from mozilla.org"
     echo "or your distro's regular (non-sandboxed) package."
   fi
 fi
