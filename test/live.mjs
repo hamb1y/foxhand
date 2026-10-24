@@ -176,18 +176,22 @@ async function start() {
     'user_pref("extensions.autoDisableScopes", 0);',
   ].join('\n'));
   // System access lets BiDi open and script the add-on's own pages.
-  const args = ['-profile', profile, '-no-remote', '--remote-debugging-port', '0', '-remote-allow-system-access'];
+  const bidiPort = Number(arg('--bidi-port') ?? 9333);
+  const args = ['-profile', profile, '-no-remote', '--remote-debugging-port', String(bidiPort), '-remote-allow-system-access'];
   if (!flag('--headful')) args.unshift('-headless');
   ff = spawn(findFirefox(), args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
-  const wsUrl = await new Promise((res, rej) => {
-    let buf = '';
-    const on = (d) => { buf += d; const m = /WebDriver BiDi listening on (ws:\/\/\S+)/.exec(buf); if (m) res(m[1]); };
-    ff.stderr.on('data', on); ff.stdout.on('data', on);
-    ff.on('exit', (c) => rej(new Error(`Firefox exited (${c}): ${buf.slice(-2000)}`)));
-    setTimeout(() => rej(new Error(`no BiDi URL: ${buf.slice(-2000)}`)), 60000);
-  });
-  bidi = new Bidi(`${wsUrl}/session`);
-  await bidi.open();
+  // A fixed port rather than parsing Firefox's output: on Windows that output may not reach a pipe.
+  let ffLog = '';
+  ff.stderr.on('data', (d) => { ffLog = (ffLog + d).slice(-4000); });
+  ff.stdout.on('data', (d) => { ffLog = (ffLog + d).slice(-4000); });
+  let exited = null;
+  ff.on('exit', (c) => { exited = c; });
+  await until(async () => {
+    if (exited !== null) throw new Error(`Firefox exited (${exited}): ${ffLog}`);
+    bidi = new Bidi(`ws://127.0.0.1:${bidiPort}/session`);
+    await bidi.open();
+    return true;
+  }, 90000, 'Firefox remote debugging port');
   // Leave page dialogs alone, like a real user who hasn't answered yet (BiDi dismisses them by default).
   await bidi.send('session.new', { capabilities: { alwaysMatch: { unhandledPromptBehavior: { default: 'ignore' } } } });
   await bidi.send('webExtension.install', { extensionData: { type: 'path', path: path.join(root, 'extension') } });

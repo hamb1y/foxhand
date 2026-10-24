@@ -9,7 +9,12 @@ permissions:
   contents: write
 
 jobs:
+  # Install and drive the helper on every platform before anything is published.
+  platforms:
+    uses: ./.github/workflows/platforms.yml
+
   release:
+    needs: platforms
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +25,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: npm ci
       - run: node scripts/set-version.mjs --check "${GITHUB_REF_NAME#v}"
+      - run: node scripts/i18n.mjs --check
       # The same checks as CI: never publish what CI would reject.
       - run: npm run build
       - run: npm run typecheck
@@ -30,6 +36,7 @@ jobs:
       - run: npx playwright install --with-deps firefox
       - run: node test/content.mjs
       - run: node test/options.mjs
+      - run: node test/live.mjs
       - run: npm run release
         env:
           GH_TOKEN: ${{ github.token }}

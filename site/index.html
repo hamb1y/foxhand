@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foxhand</title>
+<meta name="description" content="Let your AI agent use your real Firefox over MCP.">
+<style>
+  :root { --bg: #0a0a0a; --fg: #f5f5f5; --muted: #8a8a8a; --line: #262626; --surface: #141414; --lime: #D7F75B; color-scheme: dark; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, sans-serif; }
+  main { max-width: 680px; margin: 0 auto; padding: 72px 16px; }
+  h1 { font-size: 40px; margin: 0 0 8px; letter-spacing: -0.02em; }
+  p { color: #c8c8c8; }
+  h2 { font-size: 15px; color: var(--muted); font-weight: 500; margin: 32px 0 8px; }
+  pre { margin: 0; padding: 14px 16px; background: var(--surface); border-radius: 12px; overflow-x: auto; font: 14px ui-monospace, monospace; }
+  a { color: var(--lime); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Foxhand</h1>
+  <p>Let your AI agent (Claude Code, Codex, Gemini CLI or any MCP client) use your real Firefox: your tabs, your logins. Runs on your computer.</p>
+  <p><a href="https://addons.mozilla.org/firefox/addon/webmcp-controller/">Get the add-on</a> · <a href="https://github.com/hamb1y/foxhand">Source and docs</a></p>
+  <h2>Helper app: macOS and Linux</h2>
+  <pre>curl -fsSL https://hamb1y.github.io/foxhand/sh | sh</pre>
+  <h2>Helper app: Windows (PowerShell)</h2>
+  <pre>irm https://hamb1y.github.io/foxhand/ps | iex</pre>
+</main>
+</body>
+</html>

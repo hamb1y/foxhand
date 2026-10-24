@@ -1,13 +1,13 @@
-# WebMCP Controller — install notes
+# Foxhand — install notes
 
 The add-on talks to a small helper app over Firefox **native messaging**.
 Firefox starts the helper itself; the helper serves MCP on
-`http://127.0.0.1:8901/mcp` for your AI harness.
+`http://localhost:8901/mcp` for your AI harness.
 
 ## 1. Install the helper (once per computer)
 
-- **Windows:** in PowerShell or Command Prompt: `powershell -ExecutionPolicy Bypass -c "irm https://github.com/hamb1y/webmcp-controller/releases/latest/download/install.ps1 | iex"`
-- **macOS / Linux:** in Terminal: `curl -fsSL https://github.com/hamb1y/webmcp-controller/releases/latest/download/install.sh | sh`
+- **Windows:** in PowerShell: `irm https://hamb1y.github.io/foxhand/ps | iex`
+- **macOS / Linux:** in Terminal: `curl -fsSL https://hamb1y.github.io/foxhand/sh | sh`
 
 The toolbar popup shows the exact file and command for your system when the
 helper is missing. `status` / `uninstall` work the same way.

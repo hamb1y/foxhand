@@ -1,10 +1,15 @@
-<img src="extension/icons/icon.svg" width="96" height="96" alt="WebMCP Controller logo" align="right">
+<img src="extension/icons/icon.svg" width="96" height="96" alt="Foxhand logo" align="right">
 
-# WebMCP Controller
+# Foxhand
 
 Let an AI agent drive the Firefox you already use: your current profile, your
 open tabs, your logins. Any MCP client can connect, including Claude Code,
 Codex, Gemini CLI, opencode and Cursor.
+
+*Formerly WebMCP Controller. Renamed so it isn't confused with
+[WebMCP](https://webmachinelearning.github.io/webmcp/), the proposed standard
+for websites to expose their own tools to agents. Upgrading? See
+[Moving from WebMCP Controller](#moving-from-webmcp-controller).*
 
 There is no server to start by hand. Firefox launches a small helper app (a
 native messaging host) when the add-on loads, and the helper serves MCP on
@@ -16,11 +21,11 @@ your own machine.
 
 - **Your real browser.** Works on your current profile, with your tabs,
   bookmarks, history and logged-in sessions. Not a clean headless browser.
-- **Local by design.** The helper listens on `127.0.0.1` and every request
+- **Local by design.** The helper listens on this computer only (`localhost`) and every request
   needs a 256-bit bearer token. Nothing leaves your machine unless the AI tool
   you connect sends it somewhere.
-- **Visible AI cursor.** While the agent works, a glowing cursor glides to
-  whatever it is clicking or typing into, with a bubble that says what it is
+- **Visible AI cursor.** While the agent works, a cursor glides to whatever it
+  is clicking or typing into, with an orange bubble that says what it is
   doing. Toggle it from the popup.
 - **Pause AI.** The popup button, or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd>,
   stops every command until you resume. The toolbar badge shows `II` while
@@ -28,21 +33,28 @@ your own machine.
 - **44 tools.** Tabs, windows, navigation, page reading, screenshots, form
   filling, clicking, bookmarks, history, downloads and cookies (read-only).
   See [Tools](#tools).
+- **Built for real pages.** Page dialogs (`alert`, `confirm`) never freeze an
+  action, links that open a tab report the new tab, same-origin iframes are
+  readable, and snapshots wait for pages that render after loading.
+- **Guided setup in your language.** A setup page opens on install. The add-on
+  speaks English, Spanish, French, German and Simplified Chinese.
 
 ## Quick start
 
-1. **Install the helper** (once per computer). The add-on's popup shows the
-   right command for your system with a **Copy command** button. See
-   [Installing the helper](#installing-the-helper).
-2. **Install the add-on** from the link above.
-3. **Connect your AI.** Click the toolbar icon, then **Copy MCP config**
-   (a green dot means ready). Paste the config into your AI tool.
+1. **Install the add-on** from the link above. A setup page opens.
+2. **Install the helper** (once per computer), by pasting one line:
+   - macOS and Linux, in Terminal: `curl -fsSL https://hamb1y.github.io/foxhand/sh | sh`
+   - Windows, in PowerShell: `irm https://hamb1y.github.io/foxhand/ps | iex`
+
+   See [Installing the helper](#installing-the-helper).
+3. **Connect your AI.** The setup page (or the toolbar popup's **Copy MCP
+   config**) gives you the exact command or config. It turns green when your
+   AI sends its first command.
 
 Claude Code, for example:
 
 ```bash
-claude mcp add --transport http firefox http://127.0.0.1:8901/mcp \
-  --header "Authorization: Bearer <token>"
+claude mcp add -s user -t http firefox http://localhost:8901/mcp -H "Authorization: Bearer <token>"
 ```
 
 The settings page (toolbar icon → **Settings**) also has commands and snippets
@@ -53,7 +65,7 @@ for the other clients. The generic config looks like this:
   "mcpServers": {
     "firefox": {
       "type": "http",
-      "url": "http://127.0.0.1:8901/mcp",
+      "url": "http://localhost:8901/mcp",
       "headers": { "Authorization": "Bearer <token>" }
     }
   }
@@ -66,20 +78,20 @@ for the other clients. The generic config looks like this:
 - **Codex** (`~/.codex/config.toml`):
   ```toml
   [mcp_servers.firefox]
-  url = "http://127.0.0.1:8901/mcp"
+  url = "http://localhost:8901/mcp"
   http_headers = { Authorization = "Bearer <token>" }
   ```
-- **Gemini CLI:** `gemini mcp add --scope user --transport http firefox http://127.0.0.1:8901/mcp --header "Authorization: Bearer <token>"`
-- **opencode:** `{"mcp":{"firefox":{"type":"remote","url":"http://127.0.0.1:8901/mcp","headers":{"Authorization":"Bearer <token>"}}}}`
-- **stdio-only clients:** `npx -y mcp-remote http://127.0.0.1:8901/mcp --header "Authorization: Bearer <token>"`
+- **Gemini CLI:** `gemini mcp add --scope user --transport http firefox http://localhost:8901/mcp --header "Authorization: Bearer <token>"`
+- **opencode:** `{"mcp":{"firefox":{"type":"remote","url":"http://localhost:8901/mcp","headers":{"Authorization":"Bearer <token>"}}}}`
+- **stdio-only clients:** `npx -y mcp-remote http://localhost:8901/mcp --header "Authorization: Bearer <token>"`
 
 </details>
 
 Check the connection from a shell:
 
 ```bash
-curl http://127.0.0.1:8901/health
-# {"ok":true,"extensionConnected":true,"version":"0.4.0"}
+curl http://localhost:8901/health
+# {"ok":true,"extensionConnected":true,"version":"0.5.0"}
 ```
 
 ## Architecture
@@ -87,15 +99,16 @@ curl http://127.0.0.1:8901/health
 ```text
  Firefox (WebExtension)                 Helper (native messaging host)          AI client
 +----------------------+   stdio     +-----------------------------+   HTTP   +--------------+
-| background.js       | <---------> | webmcp-host                 | <-----> | Claude Code,  |
-| content scripts     |  Firefox    | serves MCP on 127.0.0.1     |  POST   | Codex, ...    |
+| background.js       | <---------> | foxhand-host                | <-----> | Claude Code,  |
+| content scripts     |  Firefox    | serves MCP on localhost     |  POST   | Codex, ...    |
 | (tabs, page, cursor)|  starts it  | Bearer-token authenticated  |  /mcp   |              |
 +----------------------+            +-----------------------------+         +--------------+
 ```
 
 - The add-on owns the settings. It generates the **token** on first run and
   sends `{token, port, bind}` to the helper. Defaults: port **8901**, bind
-  **127.0.0.1**.
+  **127.0.0.1** (the helper also listens on `[::1]`, so `localhost` works
+  whichever address a client tries first).
 - AI clients talk to the helper over MCP Streamable HTTP, `POST /mcp`, with
   `Authorization: Bearer <token>`. Two endpoints need no token: `GET /health`
   and `GET /`.
@@ -109,36 +122,53 @@ the sanctioned way for an add-on to reach a local program.
 
 ## Installing the helper
 
-**Windows**, in PowerShell or Command Prompt:
+**Windows**, in PowerShell:
 
-```bat
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/hamb1y/webmcp-controller/releases/latest/download/install.ps1 | iex"
+```powershell
+irm https://hamb1y.github.io/foxhand/ps | iex
 ```
+
+(In Command Prompt, type `powershell` first.)
 
 **macOS, Linux, WSL**, in a terminal (inside WSL it installs the Windows helper):
 
 ```sh
-curl -fsSL https://github.com/hamb1y/webmcp-controller/releases/latest/download/install.sh | sh
+curl -fsSL https://hamb1y.github.io/foxhand/sh | sh
 ```
 
-The script picks the x64 or arm64 binary, checks its SHA-256 and runs
-`install`. Prefer to do it by hand? Download `webmcp-host-<os>-<arch>` from the
-[releases page](https://github.com/hamb1y/webmcp-controller/releases/latest),
-then run it with `install` (on Windows, double-click the `.exe`).
+The script picks the x64 or arm64 binary, checks its SHA-256 against the
+release's `SHA256SUMS` and runs `install`. On macOS there's no Gatekeeper
+prompt: the binary carries an ad-hoc signature, and the script re-signs it if
+that doesn't verify. These are the same scripts as `install.sh` and
+`install.ps1` in each release, served from this repo's GitHub Pages.
+
+Prefer to do it by hand? Download `foxhand-host-<os>-<arch>` from the
+[releases page](https://github.com/hamb1y/foxhand/releases/latest), then run it
+with `install`: on Windows, double-click the `.exe`; on macOS, run
+`xattr -c foxhand-host-darwin-arm64` first, because a browser download is
+quarantined.
 
 `install` copies the helper to a per-user folder and registers it with Firefox.
 No admin rights needed.
 
 | OS | Helper goes to | Registered via |
 |---|---|---|
-| Windows | `%LOCALAPPDATA%\webmcp-controller\` | `HKCU\Software\Mozilla\NativeMessagingHosts\webmcp_controller` |
-| macOS | `~/Library/Application Support/webmcp-controller/` | `~/Library/Application Support/Mozilla/NativeMessagingHosts/` |
-| Linux | `~/.local/share/webmcp-controller/` | `~/.mozilla/native-messaging-hosts/` (and the Snap path) |
+| Windows | `%LOCALAPPDATA%\foxhand\` | `HKCU\Software\Mozilla\NativeMessagingHosts\webmcp_controller` |
+| macOS | `~/Library/Application Support/foxhand/` | `~/Library/Application Support/Mozilla/NativeMessagingHosts/` |
+| Linux | `~/.local/share/foxhand/` | `~/.mozilla/native-messaging-hosts/` (and the Snap path) |
 
 Other commands: `status`, `uninstall`, `version`, `help`.
 
 **To update**, run the install command again. Firefox switches to the new
 helper within a few seconds, with no restart.
+
+### Moving from WebMCP Controller
+
+Foxhand is the same add-on under a new name: AMO updates it in place and your
+settings and token stay. Run the install command once more. It installs
+`foxhand-host`, makes the running WebMCP Controller helper hand over to it, and
+the old `webmcp-controller` folder is removed shortly after. Your AI's MCP
+config keeps working; re-copying it gives you the shorter `localhost` URL.
 
 ### Running from a source checkout
 
@@ -156,7 +186,7 @@ WSL2's default NAT networking cannot reach Windows' `127.0.0.1`. The easy path:
 
 1. Toolbar icon → **Settings** → **Connect your AI**. Pick your AI, then set
    **Runs in** to **WSL**. This allows AIs in WSL to connect.
-2. If Windows Firewall asks about `webmcp-host`, allow it on **Private networks**.
+2. If Windows Firewall asks about `foxhand-host`, allow it on **Private networks**.
 3. Copy the config and paste it inside WSL. The Claude Code and Gemini commands
    look up the Windows address on each run, so they survive reboots. Config
    files hold the current address, so copy them again if the connection drops
@@ -175,7 +205,7 @@ a bubble next to an animated cursor on the page being driven.
 
 - **Actions** (`act_*`): the cursor glides to the target, then clicks with a
   ripple. Without a `thought`, it shows a default label such as "Clicking
-  “Sign in”". Typed passwords are never echoed.
+  “Sign in”", in the browser's language. Typed passwords are never echoed.
 - **Tab and navigation tools:** the thought appears on the tab they affect.
 - **`cursor_note`:** shows a note without doing anything else.
 - The cursor is drawn in a closed shadow root with `pointer-events: none`. It
@@ -203,7 +233,7 @@ optional `thought` described under [AI cursor](#ai-cursor).
 | `active_tab` | Get the active tab (id, url, title, window). |
 | `tab_create` | Open a new tab, optionally at a URL. |
 | `tab_navigate` | Navigate a tab to a URL (defaults to the active tab). |
-| `tab_close` | Close one or more tabs. Needs `confirm:true`. |
+| `tab_close` | Close one tab (`tabId`), several (`tabIds`) or the active one. Needs `confirm:true`. |
 | `tab_duplicate` | Duplicate a tab (defaults to the active tab). |
 | `tab_move` | Move a tab to a new index, optionally to another window. |
 | `tab_pin` | Pin a tab (defaults to the active tab). |
@@ -225,7 +255,7 @@ optional `thought` described under [AI cursor](#ai-cursor).
 
 | Tool | What it does |
 |---|---|
-| `snapshot_ax` | Accessibility snapshot with `[ref=N]` nodes for the `act_*` tools. |
+| `snapshot_ax` | Accessibility snapshot with `[ref=N]` nodes for the `act_*` tools. Includes same-origin iframes; waits for pages still rendering. |
 | `page_text` | Visible text of the page. |
 | `page_html` | Page HTML, optionally limited to a CSS selector subtree. |
 | `screenshot` | Screenshot of the tab's visible area, returned as an image. |
@@ -238,7 +268,7 @@ optional `thought` described under [AI cursor](#ai-cursor).
 
 | Tool | What it does |
 |---|---|
-| `act_click` | Click an element by snapshot ref or CSS selector. Fails on disabled elements. |
+| `act_click` | Click an element by snapshot ref or CSS selector. Fails on disabled elements. Reports tabs the click opened (`openedTabs`). |
 | `act_type` | Type into a text field, optionally submitting it through its form or composer button, otherwise with Enter. |
 | `act_fill_form` | Fill several fields in one call. Every field is checked first, so one bad field changes nothing. |
 | `act_select` | Choose option(s) in a `<select>`: exact value first, then label. |
@@ -247,6 +277,12 @@ optional `thought` described under [AI cursor](#ai-cursor).
 | `act_key` | Press a key with optional modifiers, such as `Enter` or `a` + Ctrl. |
 | `act_wait` | Wait for text or a selector to appear. `timeoutMs` defaults to 10000, max 60000. |
 | `act_find` | Find text on the page, returning match locations and count. |
+
+Page dialogs never block an action. While the AI acts, `alert()` is
+acknowledged and `confirm()`/`prompt()` are answered **Cancel**; the result
+lists what the page asked (`dialogs`). To answer OK, repeat the action with
+`dialog: "accept"` (and `promptText` for a prompt). `act_click`, `act_type`,
+`act_fill_form` and `act_key` take these options.
 
 </details>
 
@@ -258,7 +294,7 @@ optional `thought` described under [AI cursor](#ai-cursor).
 | `bookmarks_search` | Search bookmarks by title or URL. |
 | `bookmarks_create` | Create a bookmark. |
 | `bookmarks_remove` | Delete a bookmark by id. Needs `confirm:true`. |
-| `history_search` | Search browsing history. |
+| `history_search` | Search browsing history (all of it unless `startTime` is given). |
 | `downloads_list` | List recent downloads (filename, state, progress). |
 | `cookies_for_tab` | Read the cookies a tab's page can see, from its container or private store, including partitioned ones. Read-only. |
 | `sessions_recently_closed` | List recently closed tabs and windows that can be restored. |
@@ -299,7 +335,7 @@ optional `thought` described under [AI cursor](#ai-cursor).
 ## Troubleshooting
 
 - **"Helper app not installed."** The install step didn't run, or it registered
-  somewhere this Firefox doesn't read. Run `webmcp-host status` to see where it
+  somewhere this Firefox doesn't read. Run `foxhand-host status` to see where it
   registered, then press **Retry** in the popup.
   - Snap Firefox on Ubuntu reads `~/snap/firefox/common/.mozilla/native-messaging-hosts`.
     The installer writes there too.
@@ -311,6 +347,8 @@ optional `thought` described under [AI cursor](#ai-cursor).
   `firefox-mcp`. Install the new add-on and run the install command once. The
   installer removes the old registration. Delete the old `firefox-mcp` folder
   after closing Firefox.
+- **A PDF tab says it can't be read.** Firefox's PDF viewer doesn't let add-ons
+  in. Use `screenshot`, or open the PDF in another app.
 - **"Port 8901 is already in use."** Another app, or this add-on in a second
   Firefox profile, holds the port. In Settings, choose another port, save, then
   re-copy the MCP config.
@@ -321,14 +359,15 @@ optional `thought` described under [AI cursor](#ai-cursor).
 - **`RESTRICTED_PAGE`.** Page-content tools (`page_*`, `snapshot_ax`, `act_*`)
   don't run on `about:`, `chrome:`, `resource:`, `moz-extension:`,
   `view-source:`, `jar:`, `data:` or `blob:` pages, or on
-  `addons.mozilla.org`. Firefox doesn't allow scripting there.
+  `addons.mozilla.org`, or in PDFs. Firefox doesn't allow scripting there.
 - **`REF_STALE` or `REF_NOT_FOUND`.** Refs from `snapshot_ax` belong to one
   page load. Pass the snapshot's `generation` with the refs. After the page
   changes or navigates, take a new snapshot.
 - **`PAYLOAD_TOO_LARGE`.** Firefox limits native messages to 1 MB. Ask for less
   text per call.
 - **Helper logs.** The helper writes to stderr, which Firefox shows in the
-  Browser Console (Ctrl+Shift+J) with a `[webmcp]` prefix.
+  Browser Console (Ctrl+Shift+J) with a `[foxhand]` prefix, and to
+  `foxhand-host.log` next to the helper.
 
 ## Development
 
@@ -340,8 +379,27 @@ node test/e2e.mjs                        # real background.js (mocked browser AP
 MISSING=1 node test/e2e.mjs              # the "helper not installed" flow
 node test/host.mjs                       # helper: reconfiguration, Host/Origin checks, size limits, cancellation, protocol mismatch
 npx playwright install firefox && node test/content.mjs   # content scripts in real Firefox
-node test/e2e.mjs dist/host/webmcp-host-linux-x64         # same, against a compiled helper
+node test/e2e.mjs dist/host/foxhand-host-linux-x64        # same, against a compiled helper
+node test/live.mjs                       # real Firefox + this add-on + the helper, all 44 tools over MCP
+node test/live.mjs --real                # ... plus a few real websites
+node scripts/i18n.mjs --check            # every translation complete and generated
 npx web-ext@8 lint -s extension
+```
+
+`test/live.mjs` starts your installed Firefox with a throwaway profile and a
+throwaway home folder (your own profile and helper are untouched), installs the
+add-on over WebDriver BiDi, and drives it through a real MCP client: fixtures
+for forms, chat boxes, dialogs, iframes, shadow DOM, new tabs, sleeping tabs,
+pausing, cancellation and helper crashes. CI runs it on Linux, macOS (Apple
+silicon and Intel) and Windows (x64 and ARM) against the helper installed by
+the one-line installers (`.github/workflows/platforms.yml`).
+
+**Translations.** `i18n/<locale>.json` holds each language's strings
+(`$1` for values). `node scripts/i18n.mjs` writes `extension/_locales`;
+the generated files are committed, so the add-on still has no build step.
+Messages meant for the AI stay in English.
+
+```bash
 ```
 
 The add-on and helper share one version number (`package.json`,
@@ -357,19 +415,21 @@ node scripts/set-version.mjs X.Y.Z   # bumps every version file
 git commit -am "vX.Y.Z" && git tag vX.Y.Z && git push --follow-tags
 ```
 
-Pushing a `v*` tag runs `.github/workflows/release.yml`. It checks that the
-versions match the tag, runs the test suite, builds the helper binaries with
-Bun, and publishes them with the installers, `SHA256SUMS` and the add-on zip
-as a GitHub release. `npm run release` does the same locally and needs Bun and
+Pushing a `v*` tag runs `.github/workflows/release.yml`. It installs and
+drives the helper on every platform first, checks that the versions match the
+tag, runs the test suite, builds the helper binaries with Bun, and publishes
+them with the installers, `SHA256SUMS` and the add-on zip as a GitHub release
+(plus copies under the old `webmcp-host-*` names for older add-ons). `npm run release` does the same locally and needs Bun and
 an authenticated `gh`. The installers always fetch `releases/latest`, so the
 published installers pick up each new release automatically.
 
-Single-file helper binaries are built with `bun build --compile` and are
-unsigned. Windows SmartScreen and macOS Gatekeeper will warn. On macOS,
-`xattr -c <file>` clears the quarantine flag.
+Single-file helper binaries are built with `bun build --compile`. They aren't
+signed with a developer certificate: macOS builds carry an ad-hoc signature,
+which is all Apple silicon needs, and the installers never trigger Gatekeeper.
+A Windows `.exe` downloaded in a browser may get a SmartScreen warning.
 
 Add-on packaging: `bash scripts/pack-extension.sh` writes
-`webmcp-controller.zip`, with `manifest.json` at the root. Upload it at
+`foxhand.zip`, with `manifest.json` at the root. Upload it at
 [addons.mozilla.org/developers](https://addons.mozilla.org/developers/).
 `scripts/amo-sign.sh` signs with the AMO API from the command line.
 
@@ -388,13 +448,13 @@ files into a zip.
 **Steps** (tested with Python 3.14 on Linux)
 
 ```bash
-git clone https://github.com/hamb1y/webmcp-controller.git
-cd webmcp-controller
-git checkout v0.4.0
-bash scripts/pack-extension.sh      # writes webmcp-controller.zip
+git clone https://github.com/hamb1y/foxhand.git
+cd foxhand
+git checkout v0.5.0
+bash scripts/pack-extension.sh      # writes foxhand.zip
 ```
 
-The zip contains the 20 files listed in `scripts/pack-extension.sh`, with
+The zip contains the 27 files listed in `scripts/pack-extension.sh`, with
 `manifest.json` at its root.
 
 **Third-party assets.** The Google Sans Flex font (`extension/fonts/`, SIL OFL
