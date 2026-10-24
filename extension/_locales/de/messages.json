@@ -1,0 +1,1050 @@
+{
+  "extName": {
+    "message": "Foxhand"
+  },
+  "extDescription": {
+    "message": "Lassen Sie Ihren eigenen KI-Agenten (Claude Code, Codex, Gemini CLI oder einen beliebigen MCP-Client) dieses Firefox nutzen, mit Ihren Tabs und Anmeldungen. Läuft auf Ihrem Computer. Benötigt eine kleine Hilfs-App."
+  },
+  "cmdPause": {
+    "message": "KI pausieren oder fortsetzen"
+  },
+  "settings": {
+    "message": "Einstellungen"
+  },
+  "settingsLink": {
+    "message": "Einstellungen →"
+  },
+  "setupGuideLink": {
+    "message": "Einrichtungsanleitung"
+  },
+  "checking": {
+    "message": "Wird geprüft…"
+  },
+  "now": {
+    "message": "Jetzt"
+  },
+  "lastAgo": {
+    "message": "Zuletzt · vor $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "pauseAI": {
+    "message": "KI pausieren"
+  },
+  "resumeAI": {
+    "message": "KI fortsetzen"
+  },
+  "copyConfig": {
+    "message": "MCP-Konfiguration kopieren"
+  },
+  "retry": {
+    "message": "Erneut versuchen"
+  },
+  "retrying": {
+    "message": "Neuer Versuch…"
+  },
+  "showCursor": {
+    "message": "KI-Cursor anzeigen"
+  },
+  "shortcutPauses": {
+    "message": "$P1$ pausiert die KI",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "helperV": {
+    "message": "Hilfs-App v$P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "upFor": {
+    "message": "läuft seit $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "nCommands": {
+    "message": "$P1$ Befehle",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "statusError": {
+    "message": "Statusfehler"
+  },
+  "secondsShort": {
+    "message": "$P1$ s",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "minutesShort": {
+    "message": "$P1$ Min.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "hoursShort": {
+    "message": "$P1$ Std.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "hoursMinutes": {
+    "message": "$P1$ Std. $P2$ Min.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "justNow": {
+    "message": "gerade eben"
+  },
+  "stPaused": {
+    "message": "Pausiert"
+  },
+  "stReady": {
+    "message": "Bereit"
+  },
+  "stReadyUpdate": {
+    "message": "Bereit · Update der Hilfs-App verfügbar"
+  },
+  "stNoHelper": {
+    "message": "Hilfs-App nicht installiert"
+  },
+  "stHelperOld": {
+    "message": "Hilfs-App braucht ein Update"
+  },
+  "stAddonOld": {
+    "message": "Add-on braucht ein Update"
+  },
+  "stStarting": {
+    "message": "Hilfs-App wird gestartet…"
+  },
+  "stPortProblem": {
+    "message": "Hilfs-App kann ihren Port nicht öffnen"
+  },
+  "stStartingMcp": {
+    "message": "MCP-Server wird gestartet…"
+  },
+  "stNotRunning": {
+    "message": "Hilfs-App läuft nicht"
+  },
+  "needInstall": {
+    "message": "Hilfs-App installieren"
+  },
+  "needUpdate": {
+    "message": "Hilfs-App aktualisieren"
+  },
+  "needUpdateIntro": {
+    "message": "Ihre Hilfs-App (v$P1$) ist zu alt für dieses Add-on (v$P2$). Führen Sie Folgendes erneut aus:",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "softUpdate": {
+    "message": "Update der Hilfs-App verfügbar"
+  },
+  "softUpdateIntro": {
+    "message": "Hilfs-App v$P1$ funktioniert, aber v$P2$ ist erschienen. Zum Aktualisieren führen Sie Folgendes erneut aus:",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "openPowerShell": {
+    "message": "Öffnen Sie PowerShell (Startmenü → „powershell“ eingeben → Eingabetaste) und fügen Sie ein:"
+  },
+  "openTerminalMac": {
+    "message": "Öffnen Sie das Terminal (⌘ Leertaste → „terminal“ eingeben → Eingabetaste) und fügen Sie ein:"
+  },
+  "openTerminal": {
+    "message": "Öffnen Sie ein Terminal und fügen Sie ein:"
+  },
+  "manualWin": {
+    "message": "Oder laden Sie die App herunter und doppelklicken Sie darauf (falls SmartScreen warnt: Weitere Informationen → Trotzdem ausführen)."
+  },
+  "manualUnix": {
+    "message": "Oder laden Sie die App herunter und führen Sie dann aus: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "copyCommand": {
+    "message": "Befehl kopieren"
+  },
+  "downloadApp": {
+    "message": "App herunterladen"
+  },
+  "turnsGreen": {
+    "message": "Diese Seite wird von selbst grün, sobald die Installation fertig ist."
+  },
+  "copied": {
+    "message": "Kopiert ✓"
+  },
+  "copyFailed": {
+    "message": "Kopieren fehlgeschlagen: Text markieren und Strg+C drücken"
+  },
+  "hintClaudeApp": {
+    "message": "Fügen Sie dies in claude_desktop_config.json ein (Claude-App → Einstellungen → Entwickler → Konfiguration bearbeiten) und starten Sie die Claude-App neu. Benötigt Node.js."
+  },
+  "hintRunIn": {
+    "message": "Führen Sie dies in $P1$ aus. Es ersetzt einen „firefox“-Server, den $P2$ bereits hat.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "termWsl": {
+    "message": "Ihrem WSL-Terminal"
+  },
+  "termPowerShell": {
+    "message": "PowerShell"
+  },
+  "termTerminal": {
+    "message": "einem Terminal"
+  },
+  "hintCodex": {
+    "message": "Fügen Sie dies in ~/.codex/config.toml ein und ersetzen Sie dabei einen vorhandenen Abschnitt [mcp_servers.firefox]."
+  },
+  "hintCodexWsl": {
+    "message": "Fügen Sie dies in ~/.codex/config.toml innerhalb von WSL ein und ersetzen Sie dabei einen vorhandenen Abschnitt [mcp_servers.firefox]."
+  },
+  "hintOpencode": {
+    "message": "Übernehmen Sie dies in opencode.json (in Ihrem Projekt oder in ~/.config/opencode/)."
+  },
+  "hintOpencodeWsl": {
+    "message": "Übernehmen Sie dies in opencode.json innerhalb von WSL (in Ihrem Projekt oder in ~/.config/opencode/)."
+  },
+  "hintOther": {
+    "message": "Fügen Sie dies in die MCP-Konfigurationsdatei Ihres Clients ein, neben die bereits vorhandenen Server."
+  },
+  "hintOtherWsl": {
+    "message": "Fügen Sie dies in die MCP-Konfigurationsdatei Ihres Clients innerhalb von WSL ein, neben die bereits vorhandenen Server."
+  },
+  "wslAddrChanges": {
+    "message": "Die darin enthaltene Windows-Adresse ändert sich bei jedem Neustart von Windows: Kopieren Sie es erneut, wenn Ihre KI keine Verbindung mehr bekommt."
+  },
+  "wslReplaceIp": {
+    "message": "Ersetzen Sie WINDOWS-IP durch die Ausgabe von: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "loading": {
+    "message": "Wird geladen…"
+  },
+  "factHelper": {
+    "message": "Hilfs-App"
+  },
+  "factUp": {
+    "message": "Läuft seit"
+  },
+  "factAddress": {
+    "message": "Adresse"
+  },
+  "connectAI": {
+    "message": "Ihre KI verbinden"
+  },
+  "yourAI": {
+    "message": "Ihre KI"
+  },
+  "chipClaudeApp": {
+    "message": "Claude-App"
+  },
+  "chipOther": {
+    "message": "Andere"
+  },
+  "configToCopy": {
+    "message": "Zu kopierende Konfiguration"
+  },
+  "copy": {
+    "message": "Kopieren"
+  },
+  "aiInWsl": {
+    "message": "Meine KI läuft in WSL"
+  },
+  "letWsl": {
+    "message": "KIs in WSL die Verbindung erlauben"
+  },
+  "firewallNote": {
+    "message": "Beim ersten Mal fragt Windows eventuell, ob foxhand-host durch die Firewall darf: Haken bei Private Netzwerke setzen und auf Zulassen klicken."
+  },
+  "whileWorks": {
+    "message": "Während die KI arbeitet"
+  },
+  "showCursorLong": {
+    "message": "KI-Cursor anzeigen"
+  },
+  "askBeforeClosing": {
+    "message": "Vor dem Schließen von Tabs oder dem Löschen nachfragen"
+  },
+  "activity": {
+    "message": "Aktivität"
+  },
+  "nothingYet": {
+    "message": "Noch nichts."
+  },
+  "helperApp": {
+    "message": "Hilfs-App"
+  },
+  "logLabel": {
+    "message": "Protokoll:"
+  },
+  "tokenAndPort": {
+    "message": "Token und Port"
+  },
+  "accessToken": {
+    "message": "Zugriffstoken"
+  },
+  "show": {
+    "message": "Anzeigen"
+  },
+  "hide": {
+    "message": "Ausblenden"
+  },
+  "newToken": {
+    "message": "Neues Token"
+  },
+  "clickAgain": {
+    "message": "Zum Ersetzen erneut klicken"
+  },
+  "newTokenNote": {
+    "message": "Ein neues Token sperrt jede KI mit dem alten Token aus, bis Sie die Konfiguration erneut kopieren."
+  },
+  "port": {
+    "message": "Port"
+  },
+  "listenOn": {
+    "message": "Lauschen auf"
+  },
+  "bindNote": {
+    "message": "127.0.0.1 = nur dieser Computer. 0.0.0.0 = Ihr ganzes Netzwerk, nur durch das Token geschützt."
+  },
+  "save": {
+    "message": "Speichern"
+  },
+  "resetDefaults": {
+    "message": "Auf Standardwerte zurücksetzen"
+  },
+  "reinstall": {
+    "message": "Neu installieren, aktualisieren oder deinstallieren"
+  },
+  "toUninstall": {
+    "message": "Zum Deinstallieren ausführen:"
+  },
+  "allDownloads": {
+    "message": "Alle Downloads"
+  },
+  "source": {
+    "message": "Quellcode"
+  },
+  "addonV": {
+    "message": "Add-on v$P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "notInstalled": {
+    "message": "Nicht installiert"
+  },
+  "helperInstalledOn": {
+    "message": "v$P1$ installiert unter $P2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "helperFor": {
+    "message": "Für $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "alsoWsl": {
+    "message": "auch unter $P1$ für WSL",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "wslOff": {
+    "message": "Aus: KIs in WSL erreichen Firefox erst, wenn Sie dies einschalten."
+  },
+  "wslOk": {
+    "message": "✓ WSL kann sich unter $P1$ verbinden",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "wslNoAdapter": {
+    "message": "Kein WSL-Netzwerkadapter gefunden. Läuft WSL?"
+  },
+  "starting": {
+    "message": "Wird gestartet…"
+  },
+  "noAnswer": {
+    "message": "Das Add-on hat nicht geantwortet"
+  },
+  "reloadHint": {
+    "message": "Laden Sie diese Seite neu. Wenn das immer wieder passiert, starten Sie Firefox neu."
+  },
+  "cantReach": {
+    "message": "Das Add-on ist nicht erreichbar"
+  },
+  "couldntPause": {
+    "message": "Pausieren fehlgeschlagen: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "wslOn": {
+    "message": "WSL-Zugriff eingeschaltet"
+  },
+  "saved": {
+    "message": "Gespeichert"
+  },
+  "couldntSave": {
+    "message": "Speichern fehlgeschlagen: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "newTokenActive": {
+    "message": "Neues Token aktiv. Kopieren Sie die Konfiguration erneut in Ihre KI."
+  },
+  "couldntToken": {
+    "message": "Neues Token konnte nicht erstellt werden: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "savedPort": {
+    "message": "Gespeichert. Wenn sich der Port geändert hat, kopieren Sie die Konfiguration erneut in Ihre KI."
+  },
+  "errPort": {
+    "message": "Der Port muss eine Zahl zwischen 1024 und 65535 sein"
+  },
+  "errBind": {
+    "message": "„Lauschen auf“ muss eine IP-Adresse wie 127.0.0.1 oder 0.0.0.0 sein"
+  },
+  "evFailed": {
+    "message": "Fehlgeschlagen ($P1$): $P2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "evHelperRunning": {
+    "message": "Hilfs-App v$P1$ läuft",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evListening": {
+    "message": "Lauscht auf $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evHelperUpdated": {
+    "message": "Hilfs-App auf v$P1$ aktualisiert, wird neu gestartet",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evHelperShuttingDown": {
+    "message": "Hilfs-App wird beendet"
+  },
+  "evNoAnswer": {
+    "message": "Hilfs-App hat nicht innerhalb von $P1$ s geantwortet; wird neu gestartet",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evNotFound": {
+    "message": "Hilfs-App nicht gefunden"
+  },
+  "evStoppedStarting": {
+    "message": "$P1$ (beim Start)",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evYouPaused": {
+    "message": "Sie haben die KI pausiert"
+  },
+  "evYouResumed": {
+    "message": "Sie haben die KI fortgesetzt"
+  },
+  "errHelperOld": {
+    "message": "Hilfs-App v$P1$ ist zu alt für dieses Add-on. Führen Sie den Installationsbefehl erneut aus.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "errAddonOld": {
+    "message": "Dieses Add-on ist älter als die Hilfs-App (v$P1$). Aktualisieren Sie das Add-on.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "errCouldNotStart": {
+    "message": "Hilfs-App konnte nicht gestartet werden: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "errDidntStart": {
+    "message": "Hilfs-App ist nicht gestartet"
+  },
+  "errStopped": {
+    "message": "Hilfs-App wurde beendet"
+  },
+  "errStoppedWhy": {
+    "message": "Hilfs-App wurde beendet: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "badgeServing": {
+    "message": "aktiv unter $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curClick": {
+    "message": "Klicken"
+  },
+  "curClickNamed": {
+    "message": "Klicke auf „$P1$“",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curType": {
+    "message": "Tippen"
+  },
+  "curTypeNamed": {
+    "message": "Tippe „$P1$“",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curTypePassword": {
+    "message": "Tippe ein Passwort"
+  },
+  "curFillForm": {
+    "message": "Fülle ein Formular aus"
+  },
+  "curChoose": {
+    "message": "Wähle eine Option"
+  },
+  "curChooseNamed": {
+    "message": "Wähle „$P1$“",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curHover": {
+    "message": "Zeige auf etwas"
+  },
+  "curHoverNamed": {
+    "message": "Zeige auf „$P1$“",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curScrollTo": {
+    "message": "Scrollen"
+  },
+  "curScrollToNamed": {
+    "message": "Scrolle zu „$P1$“",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curScrollTop": {
+    "message": "Scrolle nach ganz oben"
+  },
+  "curScrollBottom": {
+    "message": "Scrolle nach ganz unten"
+  },
+  "curScrollUp": {
+    "message": "Scrolle nach oben"
+  },
+  "curScrollDown": {
+    "message": "Scrolle nach unten"
+  },
+  "curScrollLeft": {
+    "message": "Scrolle nach links"
+  },
+  "curScrollRight": {
+    "message": "Scrolle nach rechts"
+  },
+  "curKey": {
+    "message": "Drücke eine Taste"
+  },
+  "curKeyNamed": {
+    "message": "Drücke $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curWait": {
+    "message": "Warte auf die Seite"
+  },
+  "curWaitNamed": {
+    "message": "Warte auf „$P1$“",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curFind": {
+    "message": "Suche etwas"
+  },
+  "curFindNamed": {
+    "message": "Suche „$P1$“",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curRead": {
+    "message": "Lese die Seite"
+  },
+  "curStopped": {
+    "message": "Angehalten"
+  },
+  "curFailed": {
+    "message": "Das hat nicht geklappt"
+  },
+  "lblTabsListNow": {
+    "message": "Listet Tabs auf"
+  },
+  "lblTabsListPast": {
+    "message": "Tabs aufgelistet"
+  },
+  "lblTabsQueryNow": {
+    "message": "Durchsucht Tabs"
+  },
+  "lblTabsQueryPast": {
+    "message": "Tabs durchsucht"
+  },
+  "lblWindowsListNow": {
+    "message": "Listet Fenster auf"
+  },
+  "lblWindowsListPast": {
+    "message": "Fenster aufgelistet"
+  },
+  "lblActiveTabNow": {
+    "message": "Prüft den aktuellen Tab"
+  },
+  "lblActiveTabPast": {
+    "message": "Aktuellen Tab geprüft"
+  },
+  "lblTabCreateNow": {
+    "message": "Öffnet einen Tab"
+  },
+  "lblTabCreatePast": {
+    "message": "Tab geöffnet"
+  },
+  "lblTabUpdateNow": {
+    "message": "Öffnet eine Seite"
+  },
+  "lblTabUpdatePast": {
+    "message": "Seite geöffnet"
+  },
+  "lblTabCloseNow": {
+    "message": "Schließt einen Tab"
+  },
+  "lblTabClosePast": {
+    "message": "Tab geschlossen"
+  },
+  "lblTabDuplicateNow": {
+    "message": "Dupliziert einen Tab"
+  },
+  "lblTabDuplicatePast": {
+    "message": "Tab dupliziert"
+  },
+  "lblTabMoveNow": {
+    "message": "Verschiebt einen Tab"
+  },
+  "lblTabMovePast": {
+    "message": "Tab verschoben"
+  },
+  "lblTabPinNow": {
+    "message": "Heftet einen Tab an"
+  },
+  "lblTabPinPast": {
+    "message": "Tab angeheftet"
+  },
+  "lblTabUnpinNow": {
+    "message": "Löst einen angehefteten Tab"
+  },
+  "lblTabUnpinPast": {
+    "message": "Tab gelöst"
+  },
+  "lblTabMuteNow": {
+    "message": "Schaltet einen Tab stumm"
+  },
+  "lblTabMutePast": {
+    "message": "Ton eines Tabs geändert"
+  },
+  "lblWindowCreateNow": {
+    "message": "Öffnet ein Fenster"
+  },
+  "lblWindowCreatePast": {
+    "message": "Fenster geöffnet"
+  },
+  "lblWindowFocusNow": {
+    "message": "Wechselt das Fenster"
+  },
+  "lblWindowFocusPast": {
+    "message": "Fenster gewechselt"
+  },
+  "lblWindowRemoveNow": {
+    "message": "Schließt ein Fenster"
+  },
+  "lblWindowRemovePast": {
+    "message": "Fenster geschlossen"
+  },
+  "lblNavBackNow": {
+    "message": "Geht zurück"
+  },
+  "lblNavBackPast": {
+    "message": "Zurückgegangen"
+  },
+  "lblNavForwardNow": {
+    "message": "Geht vorwärts"
+  },
+  "lblNavForwardPast": {
+    "message": "Vorwärtsgegangen"
+  },
+  "lblNavReloadNow": {
+    "message": "Lädt neu"
+  },
+  "lblNavReloadPast": {
+    "message": "Neu geladen"
+  },
+  "lblPageSnapshotNow": {
+    "message": "Liest die Seite"
+  },
+  "lblPageSnapshotPast": {
+    "message": "Seite gelesen"
+  },
+  "lblPageTextNow": {
+    "message": "Liest die Seite"
+  },
+  "lblPageTextPast": {
+    "message": "Seite gelesen"
+  },
+  "lblPageHtmlNow": {
+    "message": "Liest den Seitenquelltext"
+  },
+  "lblPageHtmlPast": {
+    "message": "Seitenquelltext gelesen"
+  },
+  "lblPageShotNow": {
+    "message": "Macht ein Bildschirmfoto"
+  },
+  "lblPageShotPast": {
+    "message": "Bildschirmfoto gemacht"
+  },
+  "lblPageInfoNow": {
+    "message": "Prüft die Seite"
+  },
+  "lblPageInfoPast": {
+    "message": "Seite geprüft"
+  },
+  "lblActClickNow": {
+    "message": "Klickt"
+  },
+  "lblActClickPast": {
+    "message": "Geklickt"
+  },
+  "lblActTypeNow": {
+    "message": "Tippt"
+  },
+  "lblActTypePast": {
+    "message": "Getippt"
+  },
+  "lblActFillFormNow": {
+    "message": "Füllt ein Formular aus"
+  },
+  "lblActFillFormPast": {
+    "message": "Formular ausgefüllt"
+  },
+  "lblActSelectNow": {
+    "message": "Wählt eine Option"
+  },
+  "lblActSelectPast": {
+    "message": "Option gewählt"
+  },
+  "lblActHoverNow": {
+    "message": "Zeigt auf etwas"
+  },
+  "lblActHoverPast": {
+    "message": "Auf etwas gezeigt"
+  },
+  "lblActScrollNow": {
+    "message": "Scrollt"
+  },
+  "lblActScrollPast": {
+    "message": "Gescrollt"
+  },
+  "lblActKeyNow": {
+    "message": "Drückt eine Taste"
+  },
+  "lblActKeyPast": {
+    "message": "Taste gedrückt"
+  },
+  "lblActWaitNow": {
+    "message": "Wartet auf die Seite"
+  },
+  "lblActWaitPast": {
+    "message": "Auf die Seite gewartet"
+  },
+  "lblActFindNow": {
+    "message": "Durchsucht die Seite"
+  },
+  "lblActFindPast": {
+    "message": "Seite durchsucht"
+  },
+  "lblBookmarksSearchNow": {
+    "message": "Durchsucht Lesezeichen"
+  },
+  "lblBookmarksSearchPast": {
+    "message": "Lesezeichen durchsucht"
+  },
+  "lblBookmarksCreateNow": {
+    "message": "Legt ein Lesezeichen an"
+  },
+  "lblBookmarksCreatePast": {
+    "message": "Lesezeichen angelegt"
+  },
+  "lblBookmarksRemoveNow": {
+    "message": "Entfernt ein Lesezeichen"
+  },
+  "lblBookmarksRemovePast": {
+    "message": "Lesezeichen entfernt"
+  },
+  "lblHistorySearchNow": {
+    "message": "Durchsucht die Chronik"
+  },
+  "lblHistorySearchPast": {
+    "message": "Chronik durchsucht"
+  },
+  "lblDownloadsListNow": {
+    "message": "Prüft Downloads"
+  },
+  "lblDownloadsListPast": {
+    "message": "Downloads geprüft"
+  },
+  "lblCookiesForTabNow": {
+    "message": "Liest Cookies"
+  },
+  "lblCookiesForTabPast": {
+    "message": "Cookies gelesen"
+  },
+  "lblSessionsRecentlyClosedNow": {
+    "message": "Prüft geschlossene Tabs"
+  },
+  "lblSessionsRecentlyClosedPast": {
+    "message": "Geschlossene Tabs geprüft"
+  },
+  "lblSessionsRestoreNow": {
+    "message": "Öffnet einen Tab wieder"
+  },
+  "lblSessionsRestorePast": {
+    "message": "Tab wieder geöffnet"
+  },
+  "lblCursorSayNow": {
+    "message": "Spricht"
+  },
+  "lblCursorSayPast": {
+    "message": "Etwas gesagt"
+  },
+  "obTitle": {
+    "message": "Willkommen bei Foxhand"
+  },
+  "obIntro": {
+    "message": "Mit Foxhand kann Ihr KI-Agent dieses Firefox nutzen, mit Ihren Tabs und Anmeldungen, über MCP. Alles bleibt auf Ihrem Computer. Die Einrichtung dauert etwa eine Minute."
+  },
+  "obRenamed": {
+    "message": "WebMCP Controller heißt jetzt Foxhand. Gleiches Add-on, gleiche Einstellungen. Falls Schritt 1 danach fragt, führen Sie den Installationsbefehl noch einmal aus, um die Hilfs-App zu aktualisieren."
+  },
+  "obChecking": {
+    "message": "Wird geprüft…"
+  },
+  "ob1": {
+    "message": "Hilfs-App installieren"
+  },
+  "ob1Why": {
+    "message": "Firefox-Add-ons können keine Netzwerk-Ports öffnen, deshalb stellt eine kleine Hilfs-App MCP für Foxhand bereit. Sie lauscht nur auf diesem Computer."
+  },
+  "ob1Done": {
+    "message": "Hilfs-App v$P1$ läuft.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "ob2": {
+    "message": "Ihre KI verbinden"
+  },
+  "ob2Pick": {
+    "message": "Welche KI nutzen Sie?"
+  },
+  "ob2Waiting": {
+    "message": "Warte auf den ersten Befehl Ihrer KI…"
+  },
+  "ob2Done": {
+    "message": "Verbunden. Ihre KI hat gerade: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "obWslNote": {
+    "message": "Läuft Ihre KI in WSL? Richten Sie das unter Einstellungen → Ihre KI verbinden ein."
+  },
+  "ob3": {
+    "message": "Ausprobieren"
+  },
+  "ob3Intro": {
+    "message": "Bitten Sie Ihre KI zum Beispiel:"
+  },
+  "obTry1": {
+    "message": "Sieh dir meine offenen Tabs an und gruppiere sie nach Thema."
+  },
+  "obTry2": {
+    "message": "Öffne github.com/hamb1y/foxhand und sag mir, was sich in der neuesten Version geändert hat."
+  },
+  "obTry3": {
+    "message": "Such in meiner Chronik den letzten Artikel, den ich über Firefox gelesen habe, und fasse ihn zusammen."
+  },
+  "obTips": {
+    "message": "Gut zu wissen"
+  },
+  "obTipCursor": {
+    "message": "Ein Cursor zeigt, wo die KI gerade handelt, mit einer orangen Sprechblase, die sagt, was sie tut."
+  },
+  "obTipPause": {
+    "message": "Drücken Sie $P1$ (oder „KI pausieren“ im Symbolleisten-Menü), um alle Befehle auf einmal anzuhalten.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "obTipSafety": {
+    "message": "Die KI muss bestätigen, bevor sie Tabs schließt oder Lesezeichen löscht, und sie kann Ihre gespeicherten Passwörter nicht lesen."
+  },
+  "obSettings": {
+    "message": "Alle Einstellungen"
+  },
+  "obDocs": {
+    "message": "Dokumentation"
+  },
+  "obHelp": {
+    "message": "Hilfe erhalten"
+  }
+}

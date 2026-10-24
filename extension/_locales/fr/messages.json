@@ -1,0 +1,1050 @@
+{
+  "extName": {
+    "message": "Foxhand"
+  },
+  "extDescription": {
+    "message": "Laissez votre propre agent IA (Claude Code, Codex, Gemini CLI ou tout client MCP) utiliser ce Firefox, avec vos onglets et vos sessions ouvertes. Fonctionne sur votre ordinateur. Nécessite une petite application d’assistance."
+  },
+  "cmdPause": {
+    "message": "Mettre en pause ou reprendre l’IA"
+  },
+  "settings": {
+    "message": "Paramètres"
+  },
+  "settingsLink": {
+    "message": "Paramètres →"
+  },
+  "setupGuideLink": {
+    "message": "Guide d’installation"
+  },
+  "checking": {
+    "message": "Vérification…"
+  },
+  "now": {
+    "message": "En cours"
+  },
+  "lastAgo": {
+    "message": "Dernière action · il y a $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "pauseAI": {
+    "message": "Mettre l’IA en pause"
+  },
+  "resumeAI": {
+    "message": "Reprendre l’IA"
+  },
+  "copyConfig": {
+    "message": "Copier la configuration MCP"
+  },
+  "retry": {
+    "message": "Réessayer"
+  },
+  "retrying": {
+    "message": "Nouvelle tentative…"
+  },
+  "showCursor": {
+    "message": "Afficher le curseur de l’IA"
+  },
+  "shortcutPauses": {
+    "message": "$P1$ met l’IA en pause",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "helperV": {
+    "message": "Assistant v$P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "upFor": {
+    "message": "actif depuis $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "nCommands": {
+    "message": "$P1$ commandes",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "statusError": {
+    "message": "Erreur d’état"
+  },
+  "secondsShort": {
+    "message": "$P1$ s",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "minutesShort": {
+    "message": "$P1$ min",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "hoursShort": {
+    "message": "$P1$ h",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "hoursMinutes": {
+    "message": "$P1$ h $P2$ min",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "justNow": {
+    "message": "à l’instant"
+  },
+  "stPaused": {
+    "message": "En pause"
+  },
+  "stReady": {
+    "message": "Prêt"
+  },
+  "stReadyUpdate": {
+    "message": "Prêt · mise à jour de l’assistant disponible"
+  },
+  "stNoHelper": {
+    "message": "L’assistant n’est pas installé"
+  },
+  "stHelperOld": {
+    "message": "L’assistant doit être mis à jour"
+  },
+  "stAddonOld": {
+    "message": "L’extension doit être mise à jour"
+  },
+  "stStarting": {
+    "message": "Démarrage de l’assistant…"
+  },
+  "stPortProblem": {
+    "message": "L’assistant ne peut pas ouvrir son port"
+  },
+  "stStartingMcp": {
+    "message": "Démarrage du serveur MCP…"
+  },
+  "stNotRunning": {
+    "message": "L’assistant ne fonctionne pas"
+  },
+  "needInstall": {
+    "message": "Installer l’application d’assistance"
+  },
+  "needUpdate": {
+    "message": "Mettre à jour l’application d’assistance"
+  },
+  "needUpdateIntro": {
+    "message": "Votre assistant (v$P1$) est trop ancien pour cette extension (v$P2$). Exécutez de nouveau ceci :",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "softUpdate": {
+    "message": "Mise à jour de l’assistant disponible"
+  },
+  "softUpdateIntro": {
+    "message": "L’assistant v$P1$ fonctionne, mais la v$P2$ est sortie. Pour mettre à jour, exécutez de nouveau ceci :",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "openPowerShell": {
+    "message": "Ouvrez PowerShell (menu Démarrer → tapez « powershell » → Entrée) et collez :"
+  },
+  "openTerminalMac": {
+    "message": "Ouvrez le Terminal (⌘ Espace → tapez « terminal » → Entrée) et collez :"
+  },
+  "openTerminal": {
+    "message": "Ouvrez un terminal et collez :"
+  },
+  "manualWin": {
+    "message": "Ou téléchargez l’application et double-cliquez dessus (si SmartScreen vous avertit : Informations complémentaires → Exécuter quand même)."
+  },
+  "manualUnix": {
+    "message": "Ou téléchargez l’application, puis exécutez : $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "copyCommand": {
+    "message": "Copier la commande"
+  },
+  "downloadApp": {
+    "message": "Télécharger l’application"
+  },
+  "turnsGreen": {
+    "message": "Cette page passe au vert toute seule une fois l’installation terminée."
+  },
+  "copied": {
+    "message": "Copié ✓"
+  },
+  "copyFailed": {
+    "message": "La copie a échoué : sélectionnez le texte et appuyez sur Ctrl+C"
+  },
+  "hintClaudeApp": {
+    "message": "Ajoutez ceci à claude_desktop_config.json (application Claude → Paramètres → Développeur → Modifier la configuration), puis redémarrez l’application Claude. Nécessite Node.js."
+  },
+  "hintRunIn": {
+    "message": "Exécutez ceci dans $P1$. Cela remplace tout serveur « firefox » que $P2$ possède déjà.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "termWsl": {
+    "message": "votre terminal WSL"
+  },
+  "termPowerShell": {
+    "message": "PowerShell"
+  },
+  "termTerminal": {
+    "message": "un terminal"
+  },
+  "hintCodex": {
+    "message": "Ajoutez ceci à ~/.codex/config.toml, en remplaçant toute section [mcp_servers.firefox] existante."
+  },
+  "hintCodexWsl": {
+    "message": "Ajoutez ceci à ~/.codex/config.toml dans WSL, en remplaçant toute section [mcp_servers.firefox] existante."
+  },
+  "hintOpencode": {
+    "message": "Fusionnez ceci dans opencode.json (dans votre projet ou dans ~/.config/opencode/)."
+  },
+  "hintOpencodeWsl": {
+    "message": "Fusionnez ceci dans opencode.json dans WSL (dans votre projet ou dans ~/.config/opencode/)."
+  },
+  "hintOther": {
+    "message": "Ajoutez ceci au fichier de configuration MCP de votre client, à côté des serveurs déjà présents."
+  },
+  "hintOtherWsl": {
+    "message": "Ajoutez ceci au fichier de configuration MCP de votre client dans WSL, à côté des serveurs déjà présents."
+  },
+  "wslAddrChanges": {
+    "message": "L’adresse Windows qu’il contient change au redémarrage de Windows : copiez-le de nouveau si votre IA ne se connecte plus."
+  },
+  "wslReplaceIp": {
+    "message": "Remplacez WINDOWS-IP par le résultat de : $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "loading": {
+    "message": "Chargement…"
+  },
+  "factHelper": {
+    "message": "Assistant"
+  },
+  "factUp": {
+    "message": "Actif"
+  },
+  "factAddress": {
+    "message": "Adresse"
+  },
+  "connectAI": {
+    "message": "Connecter votre IA"
+  },
+  "yourAI": {
+    "message": "Votre IA"
+  },
+  "chipClaudeApp": {
+    "message": "Application Claude"
+  },
+  "chipOther": {
+    "message": "Autre"
+  },
+  "configToCopy": {
+    "message": "Configuration à copier"
+  },
+  "copy": {
+    "message": "Copier"
+  },
+  "aiInWsl": {
+    "message": "Mon IA fonctionne dans WSL"
+  },
+  "letWsl": {
+    "message": "Autoriser les IA dans WSL à se connecter"
+  },
+  "firewallNote": {
+    "message": "La première fois, Windows peut vous demander d’autoriser foxhand-host dans le pare-feu : cochez Réseaux privés et cliquez sur Autoriser."
+  },
+  "whileWorks": {
+    "message": "Pendant que l’IA travaille"
+  },
+  "showCursorLong": {
+    "message": "Afficher le curseur de l’IA"
+  },
+  "askBeforeClosing": {
+    "message": "Demander avant de fermer des onglets ou de supprimer"
+  },
+  "activity": {
+    "message": "Activité"
+  },
+  "nothingYet": {
+    "message": "Rien pour l’instant."
+  },
+  "helperApp": {
+    "message": "Application d’assistance"
+  },
+  "logLabel": {
+    "message": "Journal :"
+  },
+  "tokenAndPort": {
+    "message": "Jeton et port"
+  },
+  "accessToken": {
+    "message": "Jeton d’accès"
+  },
+  "show": {
+    "message": "Afficher"
+  },
+  "hide": {
+    "message": "Masquer"
+  },
+  "newToken": {
+    "message": "Nouveau jeton"
+  },
+  "clickAgain": {
+    "message": "Cliquez de nouveau pour remplacer"
+  },
+  "newTokenNote": {
+    "message": "Un nouveau jeton bloque toutes les IA qui utilisent l’ancien jusqu’à ce que vous copiiez de nouveau la configuration."
+  },
+  "port": {
+    "message": "Port"
+  },
+  "listenOn": {
+    "message": "Écouter sur"
+  },
+  "bindNote": {
+    "message": "127.0.0.1 = cet ordinateur uniquement. 0.0.0.0 = tout votre réseau, protégé uniquement par le jeton."
+  },
+  "save": {
+    "message": "Enregistrer"
+  },
+  "resetDefaults": {
+    "message": "Rétablir les valeurs par défaut"
+  },
+  "reinstall": {
+    "message": "Réinstaller, mettre à jour ou désinstaller"
+  },
+  "toUninstall": {
+    "message": "Pour désinstaller, exécutez"
+  },
+  "allDownloads": {
+    "message": "Tous les téléchargements"
+  },
+  "source": {
+    "message": "Code source"
+  },
+  "addonV": {
+    "message": "Extension v$P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "notInstalled": {
+    "message": "Non installé"
+  },
+  "helperInstalledOn": {
+    "message": "v$P1$ installée sur $P2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "helperFor": {
+    "message": "Pour $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "alsoWsl": {
+    "message": "aussi sur $P1$ pour WSL",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "wslOff": {
+    "message": "Désactivé : les IA dans WSL ne peuvent pas atteindre Firefox tant que vous n’activez pas ceci."
+  },
+  "wslOk": {
+    "message": "✓ WSL peut se connecter sur $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "wslNoAdapter": {
+    "message": "Aucune carte réseau WSL trouvée. WSL est-il lancé ?"
+  },
+  "starting": {
+    "message": "Démarrage…"
+  },
+  "noAnswer": {
+    "message": "L’extension n’a pas répondu"
+  },
+  "reloadHint": {
+    "message": "Rechargez cette page. Si le problème persiste, redémarrez Firefox."
+  },
+  "cantReach": {
+    "message": "Impossible de joindre l’extension"
+  },
+  "couldntPause": {
+    "message": "Impossible de mettre en pause : $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "wslOn": {
+    "message": "Accès WSL activé"
+  },
+  "saved": {
+    "message": "Enregistré"
+  },
+  "couldntSave": {
+    "message": "Impossible d’enregistrer : $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "newTokenActive": {
+    "message": "Nouveau jeton actif. Copiez de nouveau la configuration dans votre IA."
+  },
+  "couldntToken": {
+    "message": "Impossible de créer un nouveau jeton : $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "savedPort": {
+    "message": "Enregistré. Si le port a changé, copiez de nouveau la configuration dans votre IA."
+  },
+  "errPort": {
+    "message": "Le port doit être un nombre entre 1024 et 65535"
+  },
+  "errBind": {
+    "message": "« Écouter sur » doit être une adresse IP comme 127.0.0.1 ou 0.0.0.0"
+  },
+  "evFailed": {
+    "message": "Échec ($P1$) : $P2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "evHelperRunning": {
+    "message": "Assistant v$P1$ en cours d’exécution",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evListening": {
+    "message": "Écoute sur $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evHelperUpdated": {
+    "message": "Assistant mis à jour en v$P1$, redémarrage",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evHelperShuttingDown": {
+    "message": "L’assistant s’arrête"
+  },
+  "evNoAnswer": {
+    "message": "L’assistant n’a pas répondu en $P1$ s ; nouveau démarrage",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evNotFound": {
+    "message": "Assistant introuvable"
+  },
+  "evStoppedStarting": {
+    "message": "$P1$ (au démarrage)",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evYouPaused": {
+    "message": "Vous avez mis l’IA en pause"
+  },
+  "evYouResumed": {
+    "message": "Vous avez repris l’IA"
+  },
+  "errHelperOld": {
+    "message": "L’assistant v$P1$ est trop ancien pour cette extension. Exécutez de nouveau la commande d’installation.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "errAddonOld": {
+    "message": "Cette extension est plus ancienne que l’assistant (v$P1$). Mettez à jour l’extension.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "errCouldNotStart": {
+    "message": "Impossible de démarrer l’assistant : $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "errDidntStart": {
+    "message": "L’assistant n’a pas démarré"
+  },
+  "errStopped": {
+    "message": "L’assistant s’est arrêté"
+  },
+  "errStoppedWhy": {
+    "message": "L’assistant s’est arrêté : $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "badgeServing": {
+    "message": "en service sur $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curClick": {
+    "message": "Clic"
+  },
+  "curClickNamed": {
+    "message": "Clic sur « $P1$ »",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curType": {
+    "message": "Saisie"
+  },
+  "curTypeNamed": {
+    "message": "Saisie de « $P1$ »",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curTypePassword": {
+    "message": "Saisie d’un mot de passe"
+  },
+  "curFillForm": {
+    "message": "Remplissage d’un formulaire"
+  },
+  "curChoose": {
+    "message": "Choix d’une option"
+  },
+  "curChooseNamed": {
+    "message": "Choix de « $P1$ »",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curHover": {
+    "message": "Survol d’un élément"
+  },
+  "curHoverNamed": {
+    "message": "Survol de « $P1$ »",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curScrollTo": {
+    "message": "Défilement"
+  },
+  "curScrollToNamed": {
+    "message": "Défilement jusqu’à « $P1$ »",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curScrollTop": {
+    "message": "Défilement vers le haut de la page"
+  },
+  "curScrollBottom": {
+    "message": "Défilement vers le bas de la page"
+  },
+  "curScrollUp": {
+    "message": "Défilement vers le haut"
+  },
+  "curScrollDown": {
+    "message": "Défilement vers le bas"
+  },
+  "curScrollLeft": {
+    "message": "Défilement vers la gauche"
+  },
+  "curScrollRight": {
+    "message": "Défilement vers la droite"
+  },
+  "curKey": {
+    "message": "Appui sur une touche"
+  },
+  "curKeyNamed": {
+    "message": "Appui sur $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curWait": {
+    "message": "Attente de la page"
+  },
+  "curWaitNamed": {
+    "message": "Attente de « $P1$ »",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curFind": {
+    "message": "Recherche"
+  },
+  "curFindNamed": {
+    "message": "Recherche de « $P1$ »",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curRead": {
+    "message": "Lecture de la page"
+  },
+  "curStopped": {
+    "message": "Arrêté"
+  },
+  "curFailed": {
+    "message": "Ça n’a pas fonctionné"
+  },
+  "lblTabsListNow": {
+    "message": "Liste des onglets"
+  },
+  "lblTabsListPast": {
+    "message": "A listé les onglets"
+  },
+  "lblTabsQueryNow": {
+    "message": "Recherche parmi les onglets"
+  },
+  "lblTabsQueryPast": {
+    "message": "A parcouru les onglets"
+  },
+  "lblWindowsListNow": {
+    "message": "Liste des fenêtres"
+  },
+  "lblWindowsListPast": {
+    "message": "A listé les fenêtres"
+  },
+  "lblActiveTabNow": {
+    "message": "Vérification de l’onglet actuel"
+  },
+  "lblActiveTabPast": {
+    "message": "A vérifié l’onglet actuel"
+  },
+  "lblTabCreateNow": {
+    "message": "Ouverture d’un onglet"
+  },
+  "lblTabCreatePast": {
+    "message": "A ouvert un onglet"
+  },
+  "lblTabUpdateNow": {
+    "message": "Ouverture d’une page"
+  },
+  "lblTabUpdatePast": {
+    "message": "A ouvert une page"
+  },
+  "lblTabCloseNow": {
+    "message": "Fermeture d’un onglet"
+  },
+  "lblTabClosePast": {
+    "message": "A fermé un onglet"
+  },
+  "lblTabDuplicateNow": {
+    "message": "Duplication d’un onglet"
+  },
+  "lblTabDuplicatePast": {
+    "message": "A dupliqué un onglet"
+  },
+  "lblTabMoveNow": {
+    "message": "Déplacement d’un onglet"
+  },
+  "lblTabMovePast": {
+    "message": "A déplacé un onglet"
+  },
+  "lblTabPinNow": {
+    "message": "Épinglage d’un onglet"
+  },
+  "lblTabPinPast": {
+    "message": "A épinglé un onglet"
+  },
+  "lblTabUnpinNow": {
+    "message": "Désépinglage d’un onglet"
+  },
+  "lblTabUnpinPast": {
+    "message": "A désépinglé un onglet"
+  },
+  "lblTabMuteNow": {
+    "message": "Coupure du son d’un onglet"
+  },
+  "lblTabMutePast": {
+    "message": "A changé le son d’un onglet"
+  },
+  "lblWindowCreateNow": {
+    "message": "Ouverture d’une fenêtre"
+  },
+  "lblWindowCreatePast": {
+    "message": "A ouvert une fenêtre"
+  },
+  "lblWindowFocusNow": {
+    "message": "Changement de fenêtre"
+  },
+  "lblWindowFocusPast": {
+    "message": "A changé de fenêtre"
+  },
+  "lblWindowRemoveNow": {
+    "message": "Fermeture d’une fenêtre"
+  },
+  "lblWindowRemovePast": {
+    "message": "A fermé une fenêtre"
+  },
+  "lblNavBackNow": {
+    "message": "Retour en arrière"
+  },
+  "lblNavBackPast": {
+    "message": "Est revenu en arrière"
+  },
+  "lblNavForwardNow": {
+    "message": "Avance"
+  },
+  "lblNavForwardPast": {
+    "message": "Est allé en avant"
+  },
+  "lblNavReloadNow": {
+    "message": "Actualisation"
+  },
+  "lblNavReloadPast": {
+    "message": "A actualisé"
+  },
+  "lblPageSnapshotNow": {
+    "message": "Lecture de la page"
+  },
+  "lblPageSnapshotPast": {
+    "message": "A lu la page"
+  },
+  "lblPageTextNow": {
+    "message": "Lecture de la page"
+  },
+  "lblPageTextPast": {
+    "message": "A lu la page"
+  },
+  "lblPageHtmlNow": {
+    "message": "Lecture du code de la page"
+  },
+  "lblPageHtmlPast": {
+    "message": "A lu le code de la page"
+  },
+  "lblPageShotNow": {
+    "message": "Capture d’écran"
+  },
+  "lblPageShotPast": {
+    "message": "A pris une capture d’écran"
+  },
+  "lblPageInfoNow": {
+    "message": "Vérification de la page"
+  },
+  "lblPageInfoPast": {
+    "message": "A vérifié la page"
+  },
+  "lblActClickNow": {
+    "message": "Clic"
+  },
+  "lblActClickPast": {
+    "message": "A cliqué"
+  },
+  "lblActTypeNow": {
+    "message": "Saisie"
+  },
+  "lblActTypePast": {
+    "message": "A saisi du texte"
+  },
+  "lblActFillFormNow": {
+    "message": "Remplissage d’un formulaire"
+  },
+  "lblActFillFormPast": {
+    "message": "A rempli un formulaire"
+  },
+  "lblActSelectNow": {
+    "message": "Choix d’une option"
+  },
+  "lblActSelectPast": {
+    "message": "A choisi une option"
+  },
+  "lblActHoverNow": {
+    "message": "Survol d’un élément"
+  },
+  "lblActHoverPast": {
+    "message": "A survolé un élément"
+  },
+  "lblActScrollNow": {
+    "message": "Défilement"
+  },
+  "lblActScrollPast": {
+    "message": "A fait défiler"
+  },
+  "lblActKeyNow": {
+    "message": "Appui sur une touche"
+  },
+  "lblActKeyPast": {
+    "message": "A appuyé sur une touche"
+  },
+  "lblActWaitNow": {
+    "message": "Attente de la page"
+  },
+  "lblActWaitPast": {
+    "message": "A attendu la page"
+  },
+  "lblActFindNow": {
+    "message": "Recherche dans la page"
+  },
+  "lblActFindPast": {
+    "message": "A cherché dans la page"
+  },
+  "lblBookmarksSearchNow": {
+    "message": "Recherche dans les marque-pages"
+  },
+  "lblBookmarksSearchPast": {
+    "message": "A cherché dans les marque-pages"
+  },
+  "lblBookmarksCreateNow": {
+    "message": "Ajout d’un marque-page"
+  },
+  "lblBookmarksCreatePast": {
+    "message": "A ajouté un marque-page"
+  },
+  "lblBookmarksRemoveNow": {
+    "message": "Suppression d’un marque-page"
+  },
+  "lblBookmarksRemovePast": {
+    "message": "A supprimé un marque-page"
+  },
+  "lblHistorySearchNow": {
+    "message": "Recherche dans l’historique"
+  },
+  "lblHistorySearchPast": {
+    "message": "A cherché dans l’historique"
+  },
+  "lblDownloadsListNow": {
+    "message": "Vérification des téléchargements"
+  },
+  "lblDownloadsListPast": {
+    "message": "A vérifié les téléchargements"
+  },
+  "lblCookiesForTabNow": {
+    "message": "Lecture des cookies"
+  },
+  "lblCookiesForTabPast": {
+    "message": "A lu les cookies"
+  },
+  "lblSessionsRecentlyClosedNow": {
+    "message": "Vérification des onglets fermés"
+  },
+  "lblSessionsRecentlyClosedPast": {
+    "message": "A vérifié les onglets fermés"
+  },
+  "lblSessionsRestoreNow": {
+    "message": "Réouverture d’un onglet"
+  },
+  "lblSessionsRestorePast": {
+    "message": "A rouvert un onglet"
+  },
+  "lblCursorSayNow": {
+    "message": "Message"
+  },
+  "lblCursorSayPast": {
+    "message": "A dit quelque chose"
+  },
+  "obTitle": {
+    "message": "Bienvenue dans Foxhand"
+  },
+  "obIntro": {
+    "message": "Foxhand permet à votre agent IA d’utiliser ce Firefox, avec vos onglets et vos sessions ouvertes, via MCP. Tout reste sur votre ordinateur. L’installation prend environ une minute."
+  },
+  "obRenamed": {
+    "message": "WebMCP Controller s’appelle désormais Foxhand. Même extension, mêmes paramètres. Si l’étape 1 le demande, exécutez la commande d’installation une fois de plus pour mettre à jour l’assistant."
+  },
+  "obChecking": {
+    "message": "Vérification…"
+  },
+  "ob1": {
+    "message": "Installer l’application d’assistance"
+  },
+  "ob1Why": {
+    "message": "Les extensions Firefox ne peuvent pas ouvrir de ports réseau : une petite application d’assistance sert donc MCP pour Foxhand. Elle n’écoute que sur cet ordinateur."
+  },
+  "ob1Done": {
+    "message": "L’assistant v$P1$ fonctionne.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "ob2": {
+    "message": "Connecter votre IA"
+  },
+  "ob2Pick": {
+    "message": "Quelle IA utilisez-vous ?"
+  },
+  "ob2Waiting": {
+    "message": "En attente de la première commande de votre IA…"
+  },
+  "ob2Done": {
+    "message": "Connectée. Votre IA vient de faire : $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "obWslNote": {
+    "message": "Votre IA fonctionne dans WSL ? Configurez-la dans Paramètres → Connecter votre IA."
+  },
+  "ob3": {
+    "message": "Essayez"
+  },
+  "ob3Intro": {
+    "message": "Demandez à votre IA quelque chose comme :"
+  },
+  "obTry1": {
+    "message": "Regarde mes onglets ouverts et regroupe-les par sujet."
+  },
+  "obTry2": {
+    "message": "Ouvre github.com/hamb1y/foxhand et dis-moi ce qui a changé dans la dernière version."
+  },
+  "obTry3": {
+    "message": "Cherche dans mon historique le dernier article que j’ai lu sur Firefox et résume-le."
+  },
+  "obTips": {
+    "message": "Bon à savoir"
+  },
+  "obTipCursor": {
+    "message": "Un curseur montre où l’IA agit, avec une bulle orange qui indique ce qu’elle fait."
+  },
+  "obTipPause": {
+    "message": "Appuyez sur $P1$ (ou sur « Mettre l’IA en pause » dans le menu de la barre d’outils) pour arrêter toutes les commandes d’un coup.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "obTipSafety": {
+    "message": "L’IA doit confirmer avant de fermer des onglets ou de supprimer des marque-pages, et elle ne peut pas lire vos mots de passe enregistrés."
+  },
+  "obSettings": {
+    "message": "Tous les paramètres"
+  },
+  "obDocs": {
+    "message": "Documentation"
+  },
+  "obHelp": {
+    "message": "Obtenir de l’aide"
+  }
+}

@@ -1,0 +1,1050 @@
+{
+  "extName": {
+    "message": "Foxhand"
+  },
+  "extDescription": {
+    "message": "Deja que tu propio agente de IA (Claude Code, Codex, Gemini CLI o cualquier cliente MCP) use este Firefox, con tus pestañas y tus sesiones iniciadas. Funciona en tu computadora. Necesita una pequeña app auxiliar."
+  },
+  "cmdPause": {
+    "message": "Pausar o reanudar la IA"
+  },
+  "settings": {
+    "message": "Configuración"
+  },
+  "settingsLink": {
+    "message": "Configuración →"
+  },
+  "setupGuideLink": {
+    "message": "Guía de instalación"
+  },
+  "checking": {
+    "message": "Comprobando…"
+  },
+  "now": {
+    "message": "Ahora"
+  },
+  "lastAgo": {
+    "message": "Último · hace $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "pauseAI": {
+    "message": "Pausar IA"
+  },
+  "resumeAI": {
+    "message": "Reanudar IA"
+  },
+  "copyConfig": {
+    "message": "Copiar configuración MCP"
+  },
+  "retry": {
+    "message": "Reintentar"
+  },
+  "retrying": {
+    "message": "Reintentando…"
+  },
+  "showCursor": {
+    "message": "Mostrar cursor de IA"
+  },
+  "shortcutPauses": {
+    "message": "$P1$ pausa la IA",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "helperV": {
+    "message": "App auxiliar v$P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "upFor": {
+    "message": "activa hace $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "nCommands": {
+    "message": "$P1$ comandos",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "statusError": {
+    "message": "Error de estado"
+  },
+  "secondsShort": {
+    "message": "$P1$ s",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "minutesShort": {
+    "message": "$P1$ min",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "hoursShort": {
+    "message": "$P1$ h",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "hoursMinutes": {
+    "message": "$P1$ h $P2$ min",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "justNow": {
+    "message": "ahora mismo"
+  },
+  "stPaused": {
+    "message": "En pausa"
+  },
+  "stReady": {
+    "message": "Lista"
+  },
+  "stReadyUpdate": {
+    "message": "Lista · hay una actualización de la app auxiliar"
+  },
+  "stNoHelper": {
+    "message": "La app auxiliar no está instalada"
+  },
+  "stHelperOld": {
+    "message": "Hay que actualizar la app auxiliar"
+  },
+  "stAddonOld": {
+    "message": "Hay que actualizar el complemento"
+  },
+  "stStarting": {
+    "message": "Iniciando la app auxiliar…"
+  },
+  "stPortProblem": {
+    "message": "La app auxiliar no puede abrir su puerto"
+  },
+  "stStartingMcp": {
+    "message": "Iniciando el servidor MCP…"
+  },
+  "stNotRunning": {
+    "message": "La app auxiliar no está en ejecución"
+  },
+  "needInstall": {
+    "message": "Instala la app auxiliar"
+  },
+  "needUpdate": {
+    "message": "Actualiza la app auxiliar"
+  },
+  "needUpdateIntro": {
+    "message": "Tu app auxiliar (v$P1$) es demasiado antigua para este complemento (v$P2$). Vuelve a ejecutar esto:",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "softUpdate": {
+    "message": "Hay una actualización de la app auxiliar"
+  },
+  "softUpdateIntro": {
+    "message": "La app auxiliar v$P1$ funciona, pero ya salió la v$P2$. Para actualizar, vuelve a ejecutar esto:",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "openPowerShell": {
+    "message": "Abre PowerShell (menú Inicio → escribe “powershell” → Intro) y pega:"
+  },
+  "openTerminalMac": {
+    "message": "Abre Terminal (⌘ Espacio → escribe “terminal” → Intro) y pega:"
+  },
+  "openTerminal": {
+    "message": "Abre una terminal y pega:"
+  },
+  "manualWin": {
+    "message": "O descarga la app y haz doble clic en ella (si SmartScreen te avisa: Más información → Ejecutar de todas formas)."
+  },
+  "manualUnix": {
+    "message": "O descarga la app y luego ejecuta: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "copyCommand": {
+    "message": "Copiar comando"
+  },
+  "downloadApp": {
+    "message": "Descargar app"
+  },
+  "turnsGreen": {
+    "message": "Esta página se pone verde sola en cuanto esté instalada."
+  },
+  "copied": {
+    "message": "Copiado ✓"
+  },
+  "copyFailed": {
+    "message": "No se pudo copiar: selecciona el texto y presiona Ctrl+C"
+  },
+  "hintClaudeApp": {
+    "message": "Agrega esto a claude_desktop_config.json (app de Claude → Configuración → Desarrollador → Editar configuración) y reinicia la app de Claude. Necesita Node.js."
+  },
+  "hintRunIn": {
+    "message": "Ejecuta esto en $P1$. Reemplaza cualquier servidor “firefox” que $P2$ ya tenga.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "termWsl": {
+    "message": "tu terminal de WSL"
+  },
+  "termPowerShell": {
+    "message": "PowerShell"
+  },
+  "termTerminal": {
+    "message": "una terminal"
+  },
+  "hintCodex": {
+    "message": "Agrega esto a ~/.codex/config.toml, reemplazando cualquier sección [mcp_servers.firefox] que ya exista."
+  },
+  "hintCodexWsl": {
+    "message": "Agrega esto a ~/.codex/config.toml dentro de WSL, reemplazando cualquier sección [mcp_servers.firefox] que ya exista."
+  },
+  "hintOpencode": {
+    "message": "Combina esto con opencode.json (en tu proyecto o en ~/.config/opencode/)."
+  },
+  "hintOpencodeWsl": {
+    "message": "Combina esto con opencode.json dentro de WSL (en tu proyecto o en ~/.config/opencode/)."
+  },
+  "hintOther": {
+    "message": "Agrega esto al archivo de configuración MCP de tu cliente, junto a los servidores que ya tenga."
+  },
+  "hintOtherWsl": {
+    "message": "Agrega esto al archivo de configuración MCP de tu cliente dentro de WSL, junto a los servidores que ya tenga."
+  },
+  "wslAddrChanges": {
+    "message": "La dirección de Windows que contiene cambia cuando Windows se reinicia: vuelve a copiarlo si tu IA deja de conectarse."
+  },
+  "wslReplaceIp": {
+    "message": "Reemplaza WINDOWS-IP con el resultado de: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "loading": {
+    "message": "Cargando…"
+  },
+  "factHelper": {
+    "message": "App auxiliar"
+  },
+  "factUp": {
+    "message": "Activa"
+  },
+  "factAddress": {
+    "message": "Dirección"
+  },
+  "connectAI": {
+    "message": "Conecta tu IA"
+  },
+  "yourAI": {
+    "message": "Tu IA"
+  },
+  "chipClaudeApp": {
+    "message": "App de Claude"
+  },
+  "chipOther": {
+    "message": "Otra"
+  },
+  "configToCopy": {
+    "message": "Configuración para copiar"
+  },
+  "copy": {
+    "message": "Copiar"
+  },
+  "aiInWsl": {
+    "message": "Mi IA se ejecuta dentro de WSL"
+  },
+  "letWsl": {
+    "message": "Permitir que las IA en WSL se conecten"
+  },
+  "firewallNote": {
+    "message": "La primera vez, Windows puede pedirte que dejes pasar foxhand-host por el firewall: marca Redes privadas y haz clic en Permitir."
+  },
+  "whileWorks": {
+    "message": "Mientras la IA trabaja"
+  },
+  "showCursorLong": {
+    "message": "Mostrar el cursor de la IA"
+  },
+  "askBeforeClosing": {
+    "message": "Preguntar antes de cerrar pestañas o borrar"
+  },
+  "activity": {
+    "message": "Actividad"
+  },
+  "nothingYet": {
+    "message": "Nada todavía."
+  },
+  "helperApp": {
+    "message": "App auxiliar"
+  },
+  "logLabel": {
+    "message": "Registro:"
+  },
+  "tokenAndPort": {
+    "message": "Token y puerto"
+  },
+  "accessToken": {
+    "message": "Token de acceso"
+  },
+  "show": {
+    "message": "Mostrar"
+  },
+  "hide": {
+    "message": "Ocultar"
+  },
+  "newToken": {
+    "message": "Nuevo token"
+  },
+  "clickAgain": {
+    "message": "Haz clic otra vez para reemplazarlo"
+  },
+  "newTokenNote": {
+    "message": "Un token nuevo deja fuera a todas las IA que usan el anterior hasta que vuelvas a copiar la configuración."
+  },
+  "port": {
+    "message": "Puerto"
+  },
+  "listenOn": {
+    "message": "Escuchar en"
+  },
+  "bindNote": {
+    "message": "127.0.0.1 = solo esta computadora. 0.0.0.0 = toda tu red, protegida solo por el token."
+  },
+  "save": {
+    "message": "Guardar"
+  },
+  "resetDefaults": {
+    "message": "Restablecer valores predeterminados"
+  },
+  "reinstall": {
+    "message": "Reinstalar, actualizar o desinstalar"
+  },
+  "toUninstall": {
+    "message": "Para desinstalar, ejecuta"
+  },
+  "allDownloads": {
+    "message": "Todas las descargas"
+  },
+  "source": {
+    "message": "Código fuente"
+  },
+  "addonV": {
+    "message": "Complemento v$P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "notInstalled": {
+    "message": "No instalada"
+  },
+  "helperInstalledOn": {
+    "message": "v$P1$ instalada en $P2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "helperFor": {
+    "message": "Para $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "alsoWsl": {
+    "message": "también en $P1$ para WSL",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "wslOff": {
+    "message": "Desactivado: las IA en WSL no pueden llegar a Firefox hasta que lo actives."
+  },
+  "wslOk": {
+    "message": "✓ WSL puede conectarse en $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "wslNoAdapter": {
+    "message": "No se encontró el adaptador de red de WSL. ¿WSL está en ejecución?"
+  },
+  "starting": {
+    "message": "Iniciando…"
+  },
+  "noAnswer": {
+    "message": "El complemento no respondió"
+  },
+  "reloadHint": {
+    "message": "Recarga esta página. Si sigue pasando, reinicia Firefox."
+  },
+  "cantReach": {
+    "message": "No se puede contactar con el complemento"
+  },
+  "couldntPause": {
+    "message": "No se pudo pausar: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "wslOn": {
+    "message": "Acceso desde WSL activado"
+  },
+  "saved": {
+    "message": "Guardado"
+  },
+  "couldntSave": {
+    "message": "No se pudo guardar: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "newTokenActive": {
+    "message": "Nuevo token activo. Vuelve a copiar la configuración en tu IA."
+  },
+  "couldntToken": {
+    "message": "No se pudo crear un token nuevo: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "savedPort": {
+    "message": "Guardado. Si cambió el puerto, vuelve a copiar la configuración en tu IA."
+  },
+  "errPort": {
+    "message": "El puerto debe ser un número entre 1024 y 65535"
+  },
+  "errBind": {
+    "message": "“Escuchar en” debe ser una dirección IP como 127.0.0.1 o 0.0.0.0"
+  },
+  "evFailed": {
+    "message": "$P1$ falló: $P2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "evHelperRunning": {
+    "message": "App auxiliar v$P1$ en ejecución",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evListening": {
+    "message": "Escuchando en $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evHelperUpdated": {
+    "message": "App auxiliar actualizada a la v$P1$; reiniciándola",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evHelperShuttingDown": {
+    "message": "La app auxiliar se está cerrando"
+  },
+  "evNoAnswer": {
+    "message": "La app auxiliar no respondió en $P1$ s; iniciándola de nuevo",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evNotFound": {
+    "message": "No se encontró la app auxiliar"
+  },
+  "evStoppedStarting": {
+    "message": "$P1$ (al iniciar)",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "evYouPaused": {
+    "message": "Pausaste la IA"
+  },
+  "evYouResumed": {
+    "message": "Reanudaste la IA"
+  },
+  "errHelperOld": {
+    "message": "La app auxiliar v$P1$ es demasiado antigua para este complemento. Vuelve a ejecutar el comando de instalación.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "errAddonOld": {
+    "message": "Este complemento es más antiguo que la app auxiliar (v$P1$). Actualiza el complemento.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "errCouldNotStart": {
+    "message": "No se pudo iniciar la app auxiliar: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "errDidntStart": {
+    "message": "La app auxiliar no se inició"
+  },
+  "errStopped": {
+    "message": "La app auxiliar se detuvo"
+  },
+  "errStoppedWhy": {
+    "message": "La app auxiliar se detuvo: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "badgeServing": {
+    "message": "sirviendo en $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curClick": {
+    "message": "Haciendo clic"
+  },
+  "curClickNamed": {
+    "message": "Haciendo clic en “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curType": {
+    "message": "Escribiendo"
+  },
+  "curTypeNamed": {
+    "message": "Escribiendo “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curTypePassword": {
+    "message": "Escribiendo una contraseña"
+  },
+  "curFillForm": {
+    "message": "Llenando un formulario"
+  },
+  "curChoose": {
+    "message": "Eligiendo una opción"
+  },
+  "curChooseNamed": {
+    "message": "Eligiendo “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curHover": {
+    "message": "Señalando algo"
+  },
+  "curHoverNamed": {
+    "message": "Señalando “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curScrollTo": {
+    "message": "Desplazándose"
+  },
+  "curScrollToNamed": {
+    "message": "Desplazándose hasta “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curScrollTop": {
+    "message": "Subiendo al principio"
+  },
+  "curScrollBottom": {
+    "message": "Bajando hasta el final"
+  },
+  "curScrollUp": {
+    "message": "Desplazándose hacia arriba"
+  },
+  "curScrollDown": {
+    "message": "Desplazándose hacia abajo"
+  },
+  "curScrollLeft": {
+    "message": "Desplazándose a la izquierda"
+  },
+  "curScrollRight": {
+    "message": "Desplazándose a la derecha"
+  },
+  "curKey": {
+    "message": "Presionando una tecla"
+  },
+  "curKeyNamed": {
+    "message": "Presionando $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curWait": {
+    "message": "Esperando a la página"
+  },
+  "curWaitNamed": {
+    "message": "Esperando “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curFind": {
+    "message": "Buscando algo"
+  },
+  "curFindNamed": {
+    "message": "Buscando “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curRead": {
+    "message": "Leyendo la página"
+  },
+  "curStopped": {
+    "message": "Detenido"
+  },
+  "curFailed": {
+    "message": "Eso no funcionó"
+  },
+  "lblTabsListNow": {
+    "message": "Listando pestañas"
+  },
+  "lblTabsListPast": {
+    "message": "Listó las pestañas"
+  },
+  "lblTabsQueryNow": {
+    "message": "Revisando pestañas"
+  },
+  "lblTabsQueryPast": {
+    "message": "Revisó las pestañas"
+  },
+  "lblWindowsListNow": {
+    "message": "Listando ventanas"
+  },
+  "lblWindowsListPast": {
+    "message": "Listó las ventanas"
+  },
+  "lblActiveTabNow": {
+    "message": "Revisando la pestaña actual"
+  },
+  "lblActiveTabPast": {
+    "message": "Revisó la pestaña actual"
+  },
+  "lblTabCreateNow": {
+    "message": "Abriendo una pestaña"
+  },
+  "lblTabCreatePast": {
+    "message": "Abrió una pestaña"
+  },
+  "lblTabUpdateNow": {
+    "message": "Abriendo una página"
+  },
+  "lblTabUpdatePast": {
+    "message": "Abrió una página"
+  },
+  "lblTabCloseNow": {
+    "message": "Cerrando una pestaña"
+  },
+  "lblTabClosePast": {
+    "message": "Cerró una pestaña"
+  },
+  "lblTabDuplicateNow": {
+    "message": "Duplicando una pestaña"
+  },
+  "lblTabDuplicatePast": {
+    "message": "Duplicó una pestaña"
+  },
+  "lblTabMoveNow": {
+    "message": "Moviendo una pestaña"
+  },
+  "lblTabMovePast": {
+    "message": "Movió una pestaña"
+  },
+  "lblTabPinNow": {
+    "message": "Fijando una pestaña"
+  },
+  "lblTabPinPast": {
+    "message": "Fijó una pestaña"
+  },
+  "lblTabUnpinNow": {
+    "message": "Desfijando una pestaña"
+  },
+  "lblTabUnpinPast": {
+    "message": "Desfijó una pestaña"
+  },
+  "lblTabMuteNow": {
+    "message": "Silenciando una pestaña"
+  },
+  "lblTabMutePast": {
+    "message": "Cambió el sonido de una pestaña"
+  },
+  "lblWindowCreateNow": {
+    "message": "Abriendo una ventana"
+  },
+  "lblWindowCreatePast": {
+    "message": "Abrió una ventana"
+  },
+  "lblWindowFocusNow": {
+    "message": "Cambiando de ventana"
+  },
+  "lblWindowFocusPast": {
+    "message": "Cambió de ventana"
+  },
+  "lblWindowRemoveNow": {
+    "message": "Cerrando una ventana"
+  },
+  "lblWindowRemovePast": {
+    "message": "Cerró una ventana"
+  },
+  "lblNavBackNow": {
+    "message": "Regresando"
+  },
+  "lblNavBackPast": {
+    "message": "Regresó"
+  },
+  "lblNavForwardNow": {
+    "message": "Avanzando"
+  },
+  "lblNavForwardPast": {
+    "message": "Avanzó"
+  },
+  "lblNavReloadNow": {
+    "message": "Recargando"
+  },
+  "lblNavReloadPast": {
+    "message": "Recargó"
+  },
+  "lblPageSnapshotNow": {
+    "message": "Leyendo la página"
+  },
+  "lblPageSnapshotPast": {
+    "message": "Leyó la página"
+  },
+  "lblPageTextNow": {
+    "message": "Leyendo la página"
+  },
+  "lblPageTextPast": {
+    "message": "Leyó la página"
+  },
+  "lblPageHtmlNow": {
+    "message": "Leyendo el código de la página"
+  },
+  "lblPageHtmlPast": {
+    "message": "Leyó el código de la página"
+  },
+  "lblPageShotNow": {
+    "message": "Tomando una captura de pantalla"
+  },
+  "lblPageShotPast": {
+    "message": "Tomó una captura de pantalla"
+  },
+  "lblPageInfoNow": {
+    "message": "Revisando la página"
+  },
+  "lblPageInfoPast": {
+    "message": "Revisó la página"
+  },
+  "lblActClickNow": {
+    "message": "Haciendo clic"
+  },
+  "lblActClickPast": {
+    "message": "Hizo clic"
+  },
+  "lblActTypeNow": {
+    "message": "Escribiendo"
+  },
+  "lblActTypePast": {
+    "message": "Escribió"
+  },
+  "lblActFillFormNow": {
+    "message": "Llenando un formulario"
+  },
+  "lblActFillFormPast": {
+    "message": "Llenó un formulario"
+  },
+  "lblActSelectNow": {
+    "message": "Eligiendo una opción"
+  },
+  "lblActSelectPast": {
+    "message": "Eligió una opción"
+  },
+  "lblActHoverNow": {
+    "message": "Señalando algo"
+  },
+  "lblActHoverPast": {
+    "message": "Señaló algo"
+  },
+  "lblActScrollNow": {
+    "message": "Desplazándose"
+  },
+  "lblActScrollPast": {
+    "message": "Se desplazó"
+  },
+  "lblActKeyNow": {
+    "message": "Presionando una tecla"
+  },
+  "lblActKeyPast": {
+    "message": "Presionó una tecla"
+  },
+  "lblActWaitNow": {
+    "message": "Esperando a la página"
+  },
+  "lblActWaitPast": {
+    "message": "Esperó a la página"
+  },
+  "lblActFindNow": {
+    "message": "Buscando en la página"
+  },
+  "lblActFindPast": {
+    "message": "Buscó en la página"
+  },
+  "lblBookmarksSearchNow": {
+    "message": "Buscando en marcadores"
+  },
+  "lblBookmarksSearchPast": {
+    "message": "Buscó en marcadores"
+  },
+  "lblBookmarksCreateNow": {
+    "message": "Agregando un marcador"
+  },
+  "lblBookmarksCreatePast": {
+    "message": "Agregó un marcador"
+  },
+  "lblBookmarksRemoveNow": {
+    "message": "Quitando un marcador"
+  },
+  "lblBookmarksRemovePast": {
+    "message": "Quitó un marcador"
+  },
+  "lblHistorySearchNow": {
+    "message": "Buscando en el historial"
+  },
+  "lblHistorySearchPast": {
+    "message": "Buscó en el historial"
+  },
+  "lblDownloadsListNow": {
+    "message": "Revisando descargas"
+  },
+  "lblDownloadsListPast": {
+    "message": "Revisó las descargas"
+  },
+  "lblCookiesForTabNow": {
+    "message": "Leyendo cookies"
+  },
+  "lblCookiesForTabPast": {
+    "message": "Leyó cookies"
+  },
+  "lblSessionsRecentlyClosedNow": {
+    "message": "Revisando pestañas cerradas"
+  },
+  "lblSessionsRecentlyClosedPast": {
+    "message": "Revisó las pestañas cerradas"
+  },
+  "lblSessionsRestoreNow": {
+    "message": "Reabriendo una pestaña"
+  },
+  "lblSessionsRestorePast": {
+    "message": "Reabrió una pestaña"
+  },
+  "lblCursorSayNow": {
+    "message": "Hablando"
+  },
+  "lblCursorSayPast": {
+    "message": "Dijo algo"
+  },
+  "obTitle": {
+    "message": "Te damos la bienvenida a Foxhand"
+  },
+  "obIntro": {
+    "message": "Foxhand permite que tu agente de IA use este Firefox, con tus pestañas y tus sesiones iniciadas, a través de MCP. Todo se queda en tu computadora. La configuración toma alrededor de un minuto."
+  },
+  "obRenamed": {
+    "message": "WebMCP Controller ahora se llama Foxhand. Es el mismo complemento, con la misma configuración. Si el paso 1 lo pide, ejecuta el comando de instalación una vez más para actualizar la app auxiliar."
+  },
+  "obChecking": {
+    "message": "Comprobando…"
+  },
+  "ob1": {
+    "message": "Instala la app auxiliar"
+  },
+  "ob1Why": {
+    "message": "Los complementos de Firefox no pueden abrir puertos de red, así que una pequeña app auxiliar sirve MCP para Foxhand. Solo escucha en esta computadora."
+  },
+  "ob1Done": {
+    "message": "La app auxiliar v$P1$ está en ejecución.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "ob2": {
+    "message": "Conecta tu IA"
+  },
+  "ob2Pick": {
+    "message": "¿Qué IA usas?"
+  },
+  "ob2Waiting": {
+    "message": "Esperando el primer comando de tu IA…"
+  },
+  "ob2Done": {
+    "message": "Conectada. Tu IA acaba de hacer: $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "obWslNote": {
+    "message": "¿Tu IA se ejecuta dentro de WSL? Configúralo en Configuración → Conecta tu IA."
+  },
+  "ob3": {
+    "message": "Pruébalo"
+  },
+  "ob3Intro": {
+    "message": "Pídele a tu IA algo como:"
+  },
+  "obTry1": {
+    "message": "Revisa mis pestañas abiertas y agrúpalas por tema."
+  },
+  "obTry2": {
+    "message": "Abre github.com/hamb1y/foxhand y dime qué cambió en la última versión."
+  },
+  "obTry3": {
+    "message": "Busca en mi historial el último artículo que leí sobre Firefox y resúmelo."
+  },
+  "obTips": {
+    "message": "Es bueno saber"
+  },
+  "obTipCursor": {
+    "message": "Un cursor muestra dónde actúa la IA, con una burbuja naranja que dice lo que está haciendo."
+  },
+  "obTipPause": {
+    "message": "Presiona $P1$ (o Pausar IA en el menú de la barra de herramientas) para detener todos los comandos a la vez.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "obTipSafety": {
+    "message": "La IA tiene que confirmar antes de cerrar pestañas o borrar marcadores, y no puede leer tus contraseñas guardadas."
+  },
+  "obSettings": {
+    "message": "Toda la configuración"
+  },
+  "obDocs": {
+    "message": "Documentación"
+  },
+  "obHelp": {
+    "message": "Obtener ayuda"
+  }
+}

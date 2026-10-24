@@ -94,8 +94,9 @@ function renderSetup(container, platform, intro, installed) {
   dl.rel = 'noopener';
   row.appendChild(btn);
   row.appendChild(dl);
-  var m = el('div', 'sub', s.manual + (installed ? '' : ' ' + t('turnsGreen')));
-  [el('div', '', s.open), pre, row, m].forEach(function (x) { container.appendChild(x); });
+  var parts = [el('div', '', s.open), pre, row, el('div', 'sub', s.manual)];
+  if (!installed) parts.push(el('div', 'sub', t('turnsGreen')));
+  parts.forEach(function (x) { container.appendChild(x); });
   return s;
 }
 
@@ -252,7 +253,13 @@ function pauseShortcut() {
   return Promise.resolve(B.commands && B.commands.getAll ? B.commands.getAll() : [])
     .then(function (cmds) {
       var c = (cmds || []).filter(function (x) { return x.name === 'toggle-pause'; })[0];
-      return c && c.shortcut ? c.shortcut.replace(/Period$/, '.') : '';
+      if (!c || !c.shortcut) return '';
+      var k = c.shortcut.replace(/Period$/, '.');
+      // On macOS Firefox maps Ctrl to Command: show the keys as a Mac shows them.
+      if (/Mac/i.test(navigator.platform || '')) {
+        k = k.replace(/MacCtrl\+/g, '⌃').replace(/Ctrl\+|Command\+/g, '⌘').replace(/Shift\+/g, '⇧').replace(/Alt\+/g, '⌥');
+      }
+      return k;
     })
     .catch(function () { return ''; });
 }

@@ -22,9 +22,10 @@ function kind() {
   return el ? el.value : 'claude';
 }
 // Most people arrive with Claude Code; a choice made before (here or in Settings) wins.
-var saved = F.configKind();
-kindEls.forEach(function (x) { x.checked = x.value === (saved === 'json' && !localStorageHas() ? 'claude' : saved); });
-function localStorageHas() { try { return !!localStorage.getItem('fxmcp.kind'); } catch (e) { return false; } }
+var picked = '';
+try { picked = localStorage.getItem('fxmcp.kind') || ''; } catch (e) {}
+var start = picked ? F.configKind() : 'claude';
+kindEls.forEach(function (x) { x.checked = x.value === start; });
 kindEls.forEach(function (x) {
   x.addEventListener('change', function () { F.configKind(x.value); if (last) renderConnect(last); });
 });
@@ -55,8 +56,9 @@ function renderHelper(st) {
 function renderConnect(st) {
   var k = kind();
   setText($('hint'), F.configHint(st, k, 'local'));
-  setText($('cfg'), st.listening ? F.mcpConfig(st, k, 'local') : '…');
-  $('copyCfg').disabled = !st.listening;
+  // The config holds the helper's address, so it appears once the helper is running.
+  $('cfg').hidden = $('copyCfg').hidden = !st.listening;
+  if (st.listening) setText($('cfg'), F.mcpConfig(st, k, 'local'));
   $('wslNote').hidden = !F.canWsl(st);
 }
 
