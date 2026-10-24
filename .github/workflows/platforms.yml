@@ -105,7 +105,9 @@ jobs:
         run: |
           $bin = "$env:LOCALAPPDATA\foxhand\foxhand-host.exe"
           & $bin status
-          $v = (& $bin version 2>&1 | Out-String).Trim()
+          # The helper prints to stderr (stdout is Firefox's channel); PowerShell 5.1 treats a redirected
+          # native stderr line as an error record, so let cmd merge the streams.
+          $v = (cmd /c "`"$bin`" version 2>&1" | Out-String).Trim()
           $want = (node -p "require('./package.json').version").Trim()
           if ($v -ne $want) { throw "version $v, expected $want" }
 
