@@ -39,4 +39,30 @@ for (const raw of lines.slice(start + 1, end)) {
 }
 while (out.length && out.at(-1) === '') out.pop();
 while (out.length && out[0] === '') out.shift();
-process.stdout.write(out.join('\n') + '\n');
+
+// AMO takes at most 3000 characters. A longer section is shortened: each bullet
+// keeps its lead sentence (they're written as summaries), tables point to the
+// full notes, and a link to the GitHub release gives everything.
+const MAX = 3000;
+let text = out.join('\n');
+if (text.length > MAX) {
+  const full = `All the details: https://github.com/hamb1y/foxhand/releases/tag/v${version}`;
+  const short = [];
+  let inTable = false;
+  for (const l of out) {
+    if (/^\|/.test(l)) {
+      if (!inTable) short.push('(The table of old and new names is in the full notes.)');
+      inTable = true;
+      continue;
+    }
+    inTable = false;
+    const m = /^(\s*- )(.+?[.!?])(\s|$)/.exec(l);
+    short.push(m ? m[1] + m[2] : l);
+  }
+  while (short.length && short.join('\n').length + full.length + 2 > MAX) {
+    short.pop();
+    while (short.length && short.at(-1) === '') short.pop();
+  }
+  text = short.join('\n') + '\n\n' + full;
+}
+process.stdout.write(text + '\n');
