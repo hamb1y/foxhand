@@ -1,4 +1,4 @@
-# AMO listing: paste-ready text (Foxhand 0.5.2)
+# AMO listing: paste-ready text (Foxhand 0.5.4)
 
 AMO keeps a name, summary and description per language: Developer Hub →
 Edit Product Page, then switch the language at the top of the form. English is

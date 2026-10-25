@@ -107,6 +107,10 @@ const PAGES = {
         ph.addEventListener('keydown', (e) => { if (e.key.length === 1) { e.preventDefault(); if (/[0-9]/.test(e.key)) { const d = (ph.value.replace(/[^0-9]/g, '') + e.key).slice(0, 10);
           ph.value = d.length > 6 ? '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6) : d; document.title = 'phone:' + ph.value; } } });
         const codes = [...document.querySelectorAll('[maxlength]')]; codes.forEach((i, k) => i.addEventListener('input', () => { if (i.value && codes[k + 1]) codes[k + 1].focus(); document.title = 'code:' + codes.map((x) => x.value).join(''); }));</script>`,
+  // A click listener React-style: on the element's own expando, no cursor style, no role.
+  '/fw': `<title>fw</title><div id="r">React row</div><div id="v">Vue row</div><script>
+        const r = document.getElementById('r'); r.__reactProps$abc = { onClick: () => { document.title = 'fw:react'; } }; r.addEventListener('click', () => r.__reactProps$abc.onClick());
+        const v = document.getElementById('v'); v._vei = { onClick: () => { document.title = 'fw:vue'; } }; v.addEventListener('click', () => v._vei.onClick());</script>`,
   '/modal': `<title>Modal</title><button>Behind</button><dialog id="d"><h2>Confirm order</h2><button onclick="d.close(); document.title='closed'">Close</button></dialog>
         <script>d.showModal()</script>`,
   '/md': `<title>MD</title><main><h1>Guide</h1><p>Read the <a href="/docs">docs</a> first.</p><ul><li>One</li><li>Two <b>bold</b></li></ul>
@@ -602,6 +606,12 @@ async function pages() {
   t = await tool('page_click', { tabId, name: 'Close panel' });
   ok('clicking an icon-only control by its svg title', (await title(tabId)) === 'clicky:ic', t.text);
 
+  await tool('tab_navigate', { tabId, url: F('/fw'), waitForLoad: true });
+  snap = (await tool('page_snapshot', { tabId })).text;
+  ok('React and Vue click handlers make a div clickable', /clickable "React row"/.test(snap) && /clickable "Vue row"/.test(snap), snap);
+  await tool('page_click', { tabId, name: 'Vue row' });
+  ok('clicking a framework-handled div', (await title(tabId)) === 'fw:vue', await title(tabId));
+
   await tool('tab_navigate', { tabId, url: F('/typing'), waitForLoad: true });
   t = await tool('page_type', { tabId, name: 'City', text: 'Oslo' });
   ok('typing fires key events (autocomplete appears)', /Oslo Central/.test(t.text), t.text);
@@ -739,10 +749,12 @@ try {
         if (typeof v === 'string' && v.startsWith('$ref:')) return refOf(last, v.slice(5));
         return v;
       });
+      const t0 = Date.now();
       const t = await tool(name, args);
+      t.ms = Date.now() - t0;
       if (name === 'tab_create' && tabId === null) tabId = t.json?.id;
       if (name === 'page_snapshot') last = t.text;
-      console.log(`### ${name} ${JSON.stringify(args)}${t.isError ? ' ERROR' : ''}\n${t.text.slice(0, Number(process.env.STEP_CHARS || 2500))}\n`);
+      console.log(`### ${name} ${JSON.stringify(args)}${t.isError ? ' ERROR' : ''} (${t.ms}ms)\n${t.text.slice(0, Number(process.env.STEP_CHARS || 2500))}\n`);
     }
   } else {
     if (!process.env.ONLY_REAL) { await scenario(); await edges(); await pages(); await robustness(); }

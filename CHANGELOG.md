@@ -1,10 +1,60 @@
 # Changelog
 
-## 0.5.2
+## 0.5.4
 
-The tools are reworked so agents can read and act on pages more reliably. The
-names now follow one pattern, `<thing>_<verb>`. **Agents and prompts that call
-tools by their old names need updating.**
+The tools are reworked so agents can read and act on real pages on the first
+try, without working around them. Every change below was checked on live
+sites (Spiegel, GitHub, YouTube, Wikipedia, TodoMVC, react-select, MUI,
+Lexical, ProseMirror, Slate, CKEditor) as well as in the tests. The names now
+follow one pattern, `<thing>_<verb>`. **Agents and prompts that call tools by
+their old names need updating.**
+
+### Buttons the snapshot used to miss
+
+- **Buttons built from plain elements.** A `<div>` the page made clickable
+  with script shows as role `clickable`, from a pointer cursor, a click
+  attribute, Google's `jsaction`, or a React or Vue click handler.
+- **Icon-only buttons have names**, from their tooltip, SVG title, the icon's
+  own name (`fa-trash` becomes "icon: trash"), a test id or a class.
+- **Closed shadow roots** are read and acted on, not only open ones.
+- **Controls that only show on hover**, like the ✕ on a to-do item, are listed
+  (marked `[on hover]`) and can be clicked, although an add-on can't produce
+  CSS `:hover`.
+- **Styled checkboxes and radios** (a hidden input under a styled label) show
+  as the checkbox, with its state.
+- **Unlabeled fields** are named by the text beside them or, for a custom
+  dropdown, the value it shows.
+
+### iframes from other sites
+
+- **Cookie banners, sign-in buttons, payment fields and embeds in cross-origin
+  iframes** are part of the snapshot. Their refs work like any other; a name or
+  selector that isn't on the page is looked for in its frames; a click at a
+  point over a frame lands inside it. `page_text` and `page_find` include their
+  text.
+- **A consent dialog that closes itself after "Accept"** is reported as done,
+  not as a failure the agent would retry.
+
+### Snapshots with a shape
+
+- **Controls are nested under what they belong to**: the landmark, dialog,
+  form, list item, table row or card. The agent can tell which "Delete" goes
+  with which row. Lines that add nothing are folded away.
+- **An open modal, or an overlay covering the screen, is listed first** and
+  flagged in the header, so a long page can't push it out of the snapshot.
+- **Repeated buttons say which section they're under** ("More actions" under
+  each video's title).
+
+### Typing like a person
+
+- **Every character is a key press**: keydown, keypress, beforeinput, the edit,
+  input and keyup. Autocomplete boxes open, input masks (phone numbers, cards)
+  format, and one-box-per-digit code fields follow the focus the page moves.
+- **Rich editors keep the text**: Lexical, Slate, ProseMirror, CKEditor and
+  editors in same-origin frames. If an editor rejects the text, the result says
+  so instead of forcing text in and corrupting it.
+- **Clicks land on the element under the pointer**, such as the icon inside a
+  button, which is often where the page listens.
 
 ### Renamed and merged
 
@@ -42,9 +92,14 @@ tools by their old names need updating.**
 - **Refs last longer.** A ref keeps pointing at its element until the page
   navigates, so one snapshot serves several actions.
 - **Results say what changed.** Every action reports the elements that
-  appeared, menus that opened or closed, new alert and status messages, and the
-  new URL or title, or that nothing changed. The agent rarely needs a new
-  snapshot after each step.
+  appeared, text that appeared or went away (an error under a field, "Added to
+  cart"), what opened, closed, got checked or selected, new alert and status
+  messages, and the new URL or title. The agent rarely needs a new snapshot
+  after each step. After typing into a search box it waits briefly for the
+  suggestions.
+- **A name that isn't found lists the closest ones**, including common
+  synonyms ("Sign in" finds "Log in"). The name written exactly as given wins
+  over looser matches.
 - **Clicks at a point.** `page_click` takes `x`,`y`, for maps, editors and games
   drawn on a canvas.
 - **`page_type` finds fields by label or placeholder** and handles rich editors,
@@ -55,8 +110,13 @@ tools by their old names need updating.**
   focus, Enter submits, and text keys edit.
 - **`page_scroll` finds the inner scroller** of chat apps and can scroll an
   element into view.
-- **`page_wait` waits for things to go** (`gone: true`, for spinners) or for
-  the page to settle.
+- **`page_wait` waits for things to go** (`gone: true`, for spinners), for the
+  page to settle, or for the address to change (`urlContains`, after a login
+  or checkout redirect).
+- **Pages that never finish loading** (long-polling, endless trackers) no
+  longer cost the full wait: `tab_create` and `tab_navigate` return once the
+  new page is up, with `ready: true`.
+- **Modifier keys in any spelling**: `ctrl`, `Control`, `cmd`, `Option`.
 - **New: `page_drag`** for sortable lists, sliders and map panning, and
   **`page_upload`** to attach files the agent supplies.
 
@@ -64,12 +124,14 @@ tools by their old names need updating.**
 
 - **`page_text` comes in chunks.** Long pages no longer flood the agent's
   context: follow `nextOffset` for more. `within` reads one region.
+- **`page_text` with `format: "markdown"`** keeps headings, lists, tables,
+  emphasis and link URLs, and shows form fields.
 - **`page_snapshot` can read one region** (`within`) or only what's on screen
   (`viewportOnly`), and includes shadow DOM.
 - **`page_screenshot` captures one element or the whole page**, as PNG or
   smaller JPEG, at any scale.
 - **`page_find` returns the ref to click** for each match and whether it's off
-  screen.
+  screen, and finds phrases split across elements ("Add to **cart**").
 
 ### Browser data
 

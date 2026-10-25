@@ -207,6 +207,30 @@ function cursorOf(el) {
   try { return (el.ownerDocument.defaultView || window).getComputedStyle(el).cursor; } catch (e) { return ''; }
 }
 
+/* A click handler attached by React or Vue, read from the element's own
+   properties (React's __reactProps$…, Vue 3's _vei). Firefox lets a content
+   script read the page's objects through wrappedJSObject; nothing is run. */
+function frameworkClick(el) {
+  var w;
+  try { w = el.wrappedJSObject; } catch (e) { return false; }
+  if (!w) return false;
+  try {
+    var keys = Object.keys(w);
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      if (k.indexOf('__reactProps$') === 0) {
+        var pr = w[k];
+        return !!(pr && (pr.onClick || pr.onMouseDown || pr.onPointerDown || pr.onMouseUp || pr.onPointerUp));
+      }
+      if (k === '_vei') {
+        var v = w._vei;
+        return !!(v && (v.onClick || v.onMousedown || v.onPointerdown || v.onMouseup));
+      }
+    }
+  } catch (e) {}
+  return false;
+}
+
 function looksClickable(el) {
   if (!el || el.nodeType !== 1 || NO_CLICK_TAGS[el.tagName] || SKIP_TAGS[el.tagName]) return false;
   var now = Date.now();
@@ -218,6 +242,7 @@ function looksClickable(el) {
     if (el.hasAttribute(CLICK_ATTRS[i])) { c = true; break; }
   }
   if (!c && /(^|[\s;])click:/.test(el.getAttribute('jsaction') || '')) c = true; // Google's jsaction
+  if (!c && frameworkClick(el)) c = true;
   if (c) {
     try { if (el.querySelector(CONTROL_SEL)) c = false; } catch (e) {}
   } else if (cursorOf(el) === 'pointer') {
@@ -500,6 +525,12 @@ function computeName(el, tag) {
     var st = sib && !isEditableField(sib) ? textOf(sib) : '';
     if (st && st.length <= 80) return st;
   }
+  // An unlabeled field: the label-like text just before it ("<div>Email</div><input>"), or for a
+  // custom dropdown the value or placeholder it shows ("Ocean", "Select...").
+  if (isEditableField(el) || /^(combobox|textbox|searchbox|spinbutton)$/.test(el.getAttribute('role') || '')) {
+    var near2 = nearbyLabel(el);
+    if (near2) return near2;
+  }
   // Last resort for an unlabeled control: what its test id or class calls it ("destroy", "close-button").
   if (actionable(el)) {
     var hint = el.getAttribute('data-testid') || el.getAttribute('data-test') || el.getAttribute('data-qa') || '';
@@ -512,6 +543,23 @@ function computeName(el, tag) {
     if (hint) return hint.replace(/[-_]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().trim().slice(0, 40);
   }
   if (el.id) return '#' + el.id.slice(0, 60);
+  return '';
+}
+
+function nearbyLabel(el) {
+  var short = function (t) { return t && t.length <= 60 ? t : ''; };
+  for (var n = el, i = 0; n && i < 3; n = n.parentElement, i++) {
+    var prev = n.previousElementSibling;
+    if (prev && !isEditableField(prev) && !(prev.querySelector && prev.querySelector('input, select, textarea'))) {
+      var t = short(textOf(prev));
+      if (t) return t;
+    }
+    // A dropdown's control box shows its current value or placeholder next to the input.
+    if (i > 0 && (el.getAttribute('role') === 'combobox' || el.getAttribute('aria-autocomplete'))) {
+      var shown = short(textOf(n));
+      if (shown) return shown;
+    }
+  }
   return '';
 }
 
@@ -690,7 +738,12 @@ function writeOutline(entries, lines) {
       if (e.node && e.node.name) {
         var pn = norm(e.node.name);
         e.kids = e.kids.filter(function (k) {
-          if (!k.node || k.kids.length || !k.node.name || pn.indexOf(norm(k.node.name)) !== 0) return true;
+          if (!k.node || k.kids.length || !k.node.name) return true;
+          // Only decoration that repeats the parent: its heading, icon, text or inner button, never a field.
+          if (!/^(heading|img|text|button|clickable|link)$/.test(k.node.role) || e.node.role === 'iframe') return true;
+          var kn = norm(k.node.name);
+          var same = kn === pn || ((k.node.role === 'heading' || k.node.role === 'img') && pn.indexOf(kn) === 0);
+          if (!same) return true;
           if (k.node.role === 'heading') e.line += level(k);
           return false;
         });
@@ -2051,6 +2104,8 @@ async function selectCustom(el, msg) {
     }
     var o = pickOption(opts, values[i]);
     if (!o) {
+      // Leave the page as it was: close the menu that was opened.
+      try { keySequence(deepActive() || el, 'Escape', { code: 'Escape', keyCode: 27, which: 27 }); } catch (e) {}
       var names = opts.slice(0, 30).map(function (x) { return JSON.stringify(shortName(x)); });
       throw be('NO_MATCH', 'No option matches ' + JSON.stringify(values[i]) + ' in ' + describe(el) + '. Options: ' + names.join(', ') + (opts.length > 30 ? ', …' : '') + '.');
     }

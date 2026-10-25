@@ -17,7 +17,7 @@ your own machine.
 
 [**Install the add-on from addons.mozilla.org**](https://addons.mozilla.org/en-US/firefox/addon/webmcp-controller/)
 · [Website](https://hamb1y.github.io/foxhand/)
-· [What's new in 0.5.2](CHANGELOG.md)
+· [What's new in 0.5.4](CHANGELOG.md)
 
 <img src="site/shots/cursor.webp" alt="A Wikipedia article on the red panda. The AI cursor rests on the title with an orange bubble that reads: Reading up on the red panda, the animal Firefox is named after.">
 
@@ -99,7 +99,7 @@ Check the connection from a shell:
 
 ```bash
 curl http://localhost:8901/health
-# {"ok":true,"extensionConnected":true,"version":"0.5.2"}
+# {"ok":true,"extensionConnected":true,"version":"0.5.4"}
 ```
 
 ## Architecture
@@ -261,12 +261,12 @@ elements, the `AMBIGUOUS` error lists them.
 
 | Tool | What it does |
 |---|---|
-| `page_snapshot` | Outline of the page with `[ref=N]` for each element. Includes shadow DOM and same-origin iframes, waits for pages still rendering. `within` reads one region, `viewportOnly` just what's on screen. |
-| `page_text` | Visible text, in chunks for long pages (`offset`, `nextOffset`), optionally `within` one region. |
+| `page_snapshot` | Outline of the page with `[ref=N]` for each element, nested under its landmark, dialog, form, row or list item. Includes buttons made from plain divs (`clickable`), icon-only and hover-only controls, open and closed shadow DOM, and iframes from any site. An open modal or overlay is listed first. `within` reads one region, `viewportOnly` just what's on screen. |
+| `page_text` | Visible text, iframes included, in chunks for long pages (`offset`, `nextOffset`), optionally `within` one region. `format: "markdown"` keeps headings, lists, tables and link URLs. |
 | `page_html` | HTML of the page or of one part (`selector` or `within`). |
 | `page_screenshot` | The visible area, one element, or the whole page (`fullPage`). `format: "jpeg"` and `scale` make it smaller. |
 | `page_info` | URL, title and load state. |
-| `page_find` | Find text, with a snippet, the ref to click and whether it's off screen. |
+| `page_find` | Find text (also split across elements, and in iframes), with a snippet, the ref to click and whether it's off screen. |
 
 </details>
 
@@ -276,13 +276,13 @@ elements, the `AMBIGUOUS` error lists them.
 | Tool | What it does |
 |---|---|
 | `page_click` | Click an element or a point. Reports what changed, tabs the click opened (`openedTabs`) and the new URL. |
-| `page_type` | Type into a field (named by its label or placeholder), textarea or rich editor. Also sets checkboxes and selects. Can submit through the form's button, a composer's Send button, or Enter. |
+| `page_type` | Type key by key into a field (named by its label or placeholder), textarea or rich editor (Lexical, ProseMirror, Slate, CKEditor), so autocomplete and input masks work. Also sets checkboxes and selects. Can submit through the form's button, a composer's Send button, or Enter. |
 | `page_fill` | Fill several fields in one call. Every field is checked first, so one bad field changes nothing. |
 | `page_select` | Choose options in a `<select>` or a custom combobox or listbox. A miss lists the options. |
 | `page_hover` | Send hover events for JS menus and tooltips. CSS `:hover` cannot be triggered. |
 | `page_scroll` | Scroll the page, an element into view, or inside a scroller. Finds the inner scroller of chat apps. |
 | `page_key` | Press a key with modifiers. Performs the default action (Tab, Enter, Space, editing keys) when the page doesn't. |
-| `page_wait` | Wait for text or an element to appear, for it to go (`gone:true`, for spinners), or for the page to settle. |
+| `page_wait` | Wait for text or an element to appear, for it to go (`gone:true`, for spinners), for the address to change (`urlContains`), or for the page to settle. |
 | `page_drag` | Drag an element or point onto another: sortable lists, sliders, map panning. |
 | `page_upload` | Attach files to a file input or drop zone. The agent supplies the contents; files on disk can't be read. |
 
@@ -476,7 +476,7 @@ files into a zip.
 ```bash
 git clone https://github.com/hamb1y/foxhand.git
 cd foxhand
-git checkout v0.5.2
+git checkout v0.5.4
 bash scripts/pack-extension.sh      # writes foxhand.zip
 ```
 
