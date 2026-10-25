@@ -63,6 +63,8 @@ CI (`.github/workflows/ci.yml`) runs all of the above. Run it locally before you
   2. builds every helper binary,
   3. publishes the GitHub release (which creates the tag),
   4. submits the add-on to AMO (`scripts/amo-sign.sh`, `AMO_CHANNEL=listed`).
+- If the AMO step fails after the GitHub release is out, fix the cause and run the "AMO submit" workflow (`gh workflow run amo-submit.yml -R hamb1y/foxhand`). AMO refuses a version it already has, so it can't double-submit.
+- AMO release notes are capped at 3000 characters; `scripts/amo-notes.mjs` shortens a longer CHANGELOG section and links the GitHub release.
 - The AMO secrets are already set as repo secrets (`gh secret set ... -R hamb1y/foxhand`). Never look for API keys locally.
 - The AMO listing text (name, summaries, descriptions in every language, privacy policy) comes from `docs/amo-listing.md`. The "AMO listing" workflow (`gh workflow run amo-listing.yml -R hamb1y/foxhand`, needs the owner's OK) pushes it with `scripts/amo-listing.mjs`. `node scripts/amo-listing.mjs --dry-run` shows what it would send.
 
