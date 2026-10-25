@@ -22,6 +22,16 @@ const dialogField = z
 
 const promptTextField = z.string().max(1000).optional().describe("Text to answer a prompt() with, when dialog is \"accept\"");
 
+/* Modifier keys, however the agent spells them: "ctrl", "Control", "cmd", "Option"... */
+const MODIFIERS: Record<string, "Ctrl" | "Alt" | "Shift" | "Meta"> = {
+  ctrl: "Ctrl", control: "Ctrl", alt: "Alt", option: "Alt", opt: "Alt", shift: "Shift",
+  meta: "Meta", cmd: "Meta", command: "Meta", super: "Meta", win: "Meta", windows: "Meta", os: "Meta",
+};
+const modifierField = z.preprocess(
+  (v) => (typeof v === "string" ? (MODIFIERS[v.trim().toLowerCase().replace(/key$/, "")] ?? v) : v),
+  z.enum(["Ctrl", "Alt", "Shift", "Meta"]),
+);
+
 const changesField = z
   .boolean()
   .optional()
@@ -68,7 +78,7 @@ export function registerActTools(
         ...targetFields,
         double: z.boolean().optional().describe("Double-click"),
         button: z.enum(["left", "middle", "right"]).optional().describe("Mouse button (default left; right opens the page's own context menu)"),
-        modifiers: z.array(z.enum(["Ctrl", "Alt", "Shift", "Meta"])).optional().describe("Keys held while clicking"),
+        modifiers: z.array(modifierField).optional().describe("Keys held while clicking"),
         dialog: dialogField,
         promptText: promptTextField,
         changes: changesField,
@@ -239,7 +249,7 @@ export function registerActTools(
         tabId: tabIdField,
         ...targetFields,
         key: z.string().describe("e.g. \"Enter\", \"Escape\", \"Tab\", \"ArrowDown\", \"a\""),
-        modifiers: z.array(z.enum(["Ctrl", "Alt", "Shift", "Meta"])).optional().describe("Keys held down"),
+        modifiers: z.array(modifierField).optional().describe("Keys held down"),
         times: z.number().int().min(1).max(50).optional().describe("Press it this many times (default 1)"),
         dialog: dialogField,
         promptText: promptTextField,

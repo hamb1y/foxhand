@@ -677,6 +677,15 @@ async function hideCursors() {
  * call start(tabId) once the tab id is known. Events seen before that are
  * buffered. With checkNow, a tab that is already complete counts (used for new
  * tabs, which have no previous page whose 'complete' could be mistaken). */
+function loadResult(info, ok) {
+  info.loadComplete = ok === true || info.status === 'complete' || info.loading === false;
+  if (ok === 'ready' && !info.loadComplete) {
+    info.ready = true;
+    info.note = 'The page is up and usable; it is still loading some resources in the background.';
+  }
+  return info;
+}
+
 function tabLoadWaiter(timeoutMs, signal, wantUrl) {
   var tabId = null, buffered = [], sawLoading = false, done = false, resolveFn;
   var promise = new Promise(function (r) { resolveFn = r; });
@@ -685,6 +694,7 @@ function tabLoadWaiter(timeoutMs, signal, wantUrl) {
     if (done) return;
     done = true;
     clearTimeout(timer);
+    clearInterval(poll);
     try { B.tabs.onUpdated.removeListener(onUpd); } catch (e) {}
     if (signal) signal.removeEventListener('abort', onAbort);
     resolveFn(v);
@@ -706,6 +716,22 @@ function tabLoadWaiter(timeoutMs, signal, wantUrl) {
   }
   function onAbort() { finish(false); }
   var timer = setTimeout(function () { finish(false); }, Math.max(1000, timeoutMs));
+  // Some pages never reach 'complete' (long-polling, endless trackers). Once the new page's
+  // document is up and has been for a few seconds, it's usable: return 'ready' instead of waiting it out.
+  var began = Date.now(), startUrl = null;
+  var poll = setInterval(function () {
+    if (done || tabId === null || !sawLoading || Date.now() - began < 3000) return;
+    call(B.tabs, 'get', tabId).then(function (t) {
+      if (done || !t || placeholder(t) || t.status === 'complete') return;
+      return call(B.tabs, 'sendMessage', tabId, { kind: 'page-metrics' }, { frameId: 0 }).then(function (res) {
+        var r = res && res.__fxmcp ? res.result : res;
+        // Only the new page counts: while a slow navigation is pending, the old one still answers.
+        var bare = function (u) { return String(u || '').split('#')[0].replace(/\/$/, ''); };
+        var isNew = r && (bare(r.href) === bare(wantUrl) || (startUrl !== null && bare(r.href) !== bare(startUrl)));
+        if (!done && r && r.ready && r.href === t.url && isNew) finish('ready');
+      });
+    }).catch(function () {});
+  }, 1000);
   B.tabs.onUpdated.addListener(onUpd);
   if (signal) {
     if (signal.aborted) finish(false);
@@ -715,6 +741,7 @@ function tabLoadWaiter(timeoutMs, signal, wantUrl) {
     promise: promise,
     start: function (id, checkNow) {
       tabId = id;
+      call(B.tabs, 'get', id).then(function (t) { startUrl = checkNow ? 'about:blank' : (t && t.url) || ''; }).catch(function () { startUrl = ''; });
       var early = buffered;
       buffered = [];
       early.forEach(function (e) { if (!done && e[0] === id) consider(e[1], e[2]); });
@@ -982,8 +1009,7 @@ var handlers = {
       waiter.start(created.id, true);
       var ok = await waiter.promise;
       var info = toTabInfo(await call(B.tabs, 'get', created.id));
-      info.loadComplete = ok;
-      return info;
+      return loadResult(info, ok);
     }
     return toTabInfo(created);
   },
@@ -1014,8 +1040,7 @@ var handlers = {
       var ok = await loaded.promise;
       var info = toTabInfo(await call(B.tabs, 'get', tab.id));
       await focusWindow(props, info);
-      info.loadComplete = ok;
-      return info;
+      return loadResult(info, ok);
     }
     if (Object.keys(props).length) updated = await call(B.tabs, 'update', tab.id, props);
     await focusWindow(props, updated);

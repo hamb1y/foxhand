@@ -255,7 +255,12 @@ function tagRole(el, compact) {
   if (tag === 'IFRAME' || tag === 'FRAME') return 'iframe';
   var m = HEADING_RE.exec(tag);
   if (m) return 'heading';
-  if (el.isContentEditable) return 'textbox';
+  if (el.isContentEditable) {
+    // The editing host is the textbox; the paragraphs inside it are its text.
+    var ep = flatParent(el);
+    if (!(ep && ep.isContentEditable)) return 'textbox';
+    return compact ? '' : 'text';
+  }
   if (looksClickable(el)) return 'clickable';
   return compact ? '' : 'text';
 }
@@ -470,7 +475,14 @@ function computeName(el, tag) {
     if (ht) return ht.slice(0, 100);
   }
   var ph = el.getAttribute && el.getAttribute('placeholder');
-  var tx = textOf(el);
+  // An editor's text is its value, not its name: name it by its placeholder or label instead.
+  var editorHost = el.isContentEditable && !(flatParent(el) && flatParent(el).isContentEditable);
+  var tx = editorHost ? '' : textOf(el);
+  if (editorHost && !ph) {
+    var phEl = el.querySelector && el.querySelector('[data-placeholder], .placeholder, [class*="placeholder"]');
+    ph = (el.getAttribute('data-placeholder') || (phEl && (phEl.getAttribute('data-placeholder') || textOf(phEl))) || '');
+    if (!ph && el.parentElement) { var sibPh = el.parentElement.querySelector('[class*="placeholder"]'); if (sibPh && sibPh !== el) ph = textOf(sibPh); }
+  }
   if (!tx && ph && ph.trim()) return ph.trim().slice(0, 100);
   if (tx) return tx.slice(0, 100);
   var title = el.getAttribute && el.getAttribute('title');
@@ -976,7 +988,13 @@ function mayHaveName(el, needle) {
   if (el.hasAttribute('aria-labelledby') || (el.labels && el.labels.length)) return true;
   if (norm(el.textContent).indexOf(needle) >= 0) return true;
   var attrs = ['aria-label', 'placeholder', 'title', 'alt', 'value', 'name', 'data-tooltip', 'data-tip', 'data-title', 'data-testid', 'class'];
-  for (var i = 0; i < attrs.length; i++) if (norm(el.getAttribute(attrs[i])).indexOf(needle) >= 0) return true;
+  for (var i = 0; i < attrs.length; i++) {
+    var v = el.getAttribute(attrs[i]);
+    if (!v) continue;
+    if (norm(v).indexOf(needle) >= 0) return true;
+    // Names made from a class or test id ("ContentEditable__root" -> "content editable root").
+    if ((attrs[i] === 'class' || attrs[i] === 'data-testid') && norm(v.replace(/[-_]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2')).indexOf(needle) >= 0) return true;
+  }
   return false;
 }
 
@@ -999,8 +1017,12 @@ function prefers(kind, el) {
    msg.role as a filter. Falls back to visible text for elements with no role. */
 function byName(msg, kind) {
   var needle = norm(msg.name);
+  var rawNeedle = given(msg.name) ? String(msg.name).replace(/\s+/g, ' ').trim() : '';
   var wantRole = given(msg.role) ? String(msg.role).trim().toLowerCase() : '';
-  var exact = [], partial = [];
+  var exact = [], partial = [], casePrefix = [], prefix = [];
+  var esc = function (x) { return x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+  var caseRe = rawNeedle ? new RegExp('^' + esc(rawNeedle) + '(?![\\w])') : null;
+  var wordRe = needle ? new RegExp('^' + esc(needle) + '(?![\\w])') : null;
   var stack = [document.body || document.documentElement];
   while (stack.length) {
     var root = stack.pop();
@@ -1013,12 +1035,19 @@ function byName(msg, kind) {
       if (wantRole ? !roleMatches(el, wantRole) : !isInteresting(el)) continue;
       if (needle && !mayHaveName(el, needle)) continue;
       if (!visible(el) && !(actionable(el) && shownOnHover(el))) continue;
-      var nm = needle ? norm(computeName(el, el.tagName)) : '';
+      var raw = needle ? String(computeName(el, el.tagName)).replace(/\s+/g, ' ').trim() : '';
+      var nm = needle ? norm(raw) : '';
       if (!needle || nm === needle) exact.push(el);
-      else if (nm.indexOf(needle) >= 0) partial.push(el);
+      else if (nm.indexOf(needle) >= 0) {
+        partial.push(el);
+        if (wordRe.test(nm)) prefix.push(el);
+        if (caseRe.test(raw)) casePrefix.push(el);
+      }
     }
   }
-  var list = exact.length ? exact : partial;
+  // Exact name, else the one name that starts with it as written ("Red panda" over "Red Panda Records"),
+  // else names starting with it, else names containing it.
+  var list = exact.length ? exact : casePrefix.length === 1 ? casePrefix : prefix.length === 1 ? prefix : partial;
   if (!list.length && needle && !wantRole) list = byText(needle);
   // A list item and the link inside it often share a name: keep the innermost.
   list = list.filter(function (a) { return !list.some(function (b) { return b !== a && flatContains(a, b); }); });
@@ -1050,8 +1079,8 @@ function byText(needle) {
 
 /* A short line naming el for an error or a change list: its snapshot line when it has a role. */
 function lineFor(el) {
-  try { var nl = nodeFor(el, true); if (nl) return nl.line; } catch (e) {}
   try { var k = containerOf(el); if (k) return containerLine(el, k).line; } catch (e) {}
+  try { var nl = nodeFor(el, true); if (nl) return nl.line; } catch (e) {}
   return '[ref=' + refFor(el) + '] ' + describe(el) + quoted(textOf(el));
 }
 
@@ -1520,11 +1549,24 @@ function charKey(ch) {
 /* Insert text at the caret the way the browser does for a keystroke: through
    the editing commands, so beforeinput/input fire as real events and editors
    (React, ProseMirror, Lexical, Slate...) see an ordinary edit. */
+/* The beforeinput a keystroke fires before it edits. Editors built on it (Lexical,
+   Slate, Draft, ProseMirror) cancel it and make the edit themselves; the editing
+   commands below don't fire it, so without this such editors undo the change.
+   Returns true when the page cancelled it (and so made the edit itself). */
+function beforeInput(el, inputType, data) {
+  var ev;
+  try { ev = new InputEvent('beforeinput', { bubbles: true, cancelable: true, composed: true, inputType: inputType, data: data === undefined ? null : data }); }
+  catch (e) { return false; }
+  el.dispatchEvent(ev);
+  return ev.defaultPrevented;
+}
+
 function insertAtCaret(el, s) {
   var ok = false;
+  var doc = el.ownerDocument || document; // an editor in a same-origin frame (TinyMCE) edits its own document
   try {
-    if (s === '\n') ok = document.execCommand(el.isContentEditable ? 'insertParagraph' : 'insertLineBreak', false, null);
-    else ok = document.execCommand('insertText', false, s);
+    if (s === '\n') ok = doc.execCommand(el.isContentEditable ? 'insertParagraph' : 'insertLineBreak', false, null);
+    else ok = doc.execCommand('insertText', false, s);
   } catch (e) { ok = false; }
   if (ok) return true;
   if (el.isContentEditable) return false;
@@ -1534,7 +1576,8 @@ function insertAtCaret(el, s) {
 function selectAllIn(el) {
   if (el.isContentEditable) {
     try {
-      var sel = window.getSelection(), range = document.createRange();
+      var doc = el.ownerDocument || document;
+      var sel = (doc.defaultView || window).getSelection(), range = doc.createRange();
       range.selectNodeContents(el);
       sel.removeAllRanges();
       sel.addRange(range);
@@ -1547,7 +1590,8 @@ function selectAllIn(el) {
 function caretToEnd(el) {
   if (el.isContentEditable) {
     try {
-      var sel = window.getSelection(), range = document.createRange();
+      var doc = el.ownerDocument || document;
+      var sel = (doc.defaultView || window).getSelection(), range = doc.createRange();
       range.selectNodeContents(el);
       range.collapse(false);
       sel.removeAllRanges();
@@ -1564,9 +1608,11 @@ function caretToEnd(el) {
    character itself, as it would for a user. Long text is inserted in one edit
    between the keys of its first and last characters. */
 var TYPE_PER_KEY_MAX = 400;
-function typeText(el, text, append) {
+async function typeText(el, text, append) {
   if (deepActive() !== el) { try { el.focus({ preventScroll: true }); } catch (e) { try { el.focus(); } catch (e2) {} } }
   if (append) caretToEnd(el); else selectAllIn(el);
+  // Editors pick up a selection change on the selectionchange event, which comes a moment later.
+  if (el.isContentEditable) await sleep(30);
   if (!text) {
     var had = fieldText(el) !== '';
     if (!append && had) {
@@ -1574,9 +1620,9 @@ function typeText(el, text, append) {
       var bk = { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8, bubbles: true, cancelable: true, composed: true };
       var kd = new KeyboardEvent('keydown', bk);
       el.dispatchEvent(kd);
-      if (!kd.defaultPrevented) {
+      if (!kd.defaultPrevented && !beforeInput(el, 'deleteContentBackward')) {
         var del = false;
-        try { del = document.execCommand('delete', false, null); } catch (e) {}
+        try { del = (el.ownerDocument || document).execCommand('delete', false, null); } catch (e) {}
         if (!del || fieldText(el) !== '') {
           if (el.isContentEditable) el.textContent = ''; else nativeSetValue(el, '');
           fireInput(el, 'deleteContentBackward');
@@ -1590,7 +1636,11 @@ function typeText(el, text, append) {
   var perKey = chars.length <= TYPE_PER_KEY_MAX;
   var moved = [];
   var pending = '';
-  var flush = function () { if (pending) { insertAtCaret(el, pending); pending = ''; } };
+  var flush = function () {
+    if (!pending) return;
+    if (!beforeInput(el, 'insertText', pending)) insertAtCaret(el, pending);
+    pending = '';
+  };
   for (var i = 0; i < chars.length; i++) {
     var ch = chars[i];
     var edge = i === 0 || i === chars.length - 1;
@@ -1610,9 +1660,14 @@ function typeText(el, text, append) {
     var target = deepActive();
     var into = target && target !== el && isEditableField(target) && canEdit(target) ? target : el;
     if (into !== el && moved.indexOf(into) < 0) moved.push(into);
-    if (!cancelled) insertAtCaret(into, ch);
+    if (!cancelled) {
+      var it = ch === '\n' ? (into.isContentEditable ? 'insertParagraph' : 'insertLineBreak') : 'insertText';
+      if (!beforeInput(into, it, ch === '\n' ? null : ch)) insertAtCaret(into, ch);
+    }
     if (into !== el) el = into; // keep typing where the page put the caret
     (target || el).dispatchEvent(new KeyboardEvent('keyup', init));
+    // A person's keys come a few ms apart; editors that redraw from their model after each one need that gap.
+    if (el.isContentEditable) await sleep(i === 0 ? 20 : 0);
   }
   flush();
   return moved.length ? moved : null;
@@ -1620,7 +1675,7 @@ function typeText(el, text, append) {
 
 /* Apply a value to an element already checked by editableTarget/checkValue.
    Returns a short note when the outcome isn't simply "value set". */
-function setValue(el, text, append) {
+async function setValue(el, text, append) {
   checkValue(el, text);
   var type = inputType(el);
   if (type === 'checkbox' || type === 'radio') {
@@ -1637,18 +1692,18 @@ function setValue(el, text, append) {
     return;
   }
   if (el.isContentEditable) {
-    var before = el.innerText;
-    el._fxMoved = typeText(el, text, append);
-    // An editor that ignored every edit: put the text in directly.
-    if (text && el.innerText === before) {
-      if (append) el.appendChild(document.createTextNode(text)); else el.textContent = text;
-      fireInput(el, 'insertText', text);
-    }
+    el._fxMoved = await typeText(el, text, append);
+    // Editors redraw from their own model a moment later (and undo edits they didn't make):
+    // check what actually shows, and say so rather than force text in and corrupt their state.
+    var flat = function (x) { return String(x || '').replace(/\s+/g, ''); };
+    var want = flat(text);
+    for (var w = 0; w < 10 && want && flat(el.innerText).indexOf(want) < 0; w++) await sleep(50);
+    if (want && flat(el.innerText).indexOf(want) < 0) el._fxNote = 'The editor doesn\'t show the typed text; it may have rejected or reformatted it. Check with page_text before retrying.';
     return;
   }
   var expected = append ? String(el.value) + text : text;
   if (isTextField(el) && el.tagName !== 'SELECT' && !/^(date|time|datetime-local|month|week|color|range)$/.test(type)) {
-    el._fxMoved = typeText(el, text, append);
+    el._fxMoved = await typeText(el, text, append);
     // Nothing got in (a field that refuses edits from scripts): set it directly, which React/Vue still notice.
     if (String(el.value) === '' && expected !== '') {
       nativeSetValue(el, expected);
@@ -1886,10 +1941,11 @@ async function doType(msg) {
   var explicit = await submitTarget(msg);
   checkCancel(msg);
   var want = msg.append && isTextField(el) && !el.isContentEditable ? String(el.value) + text : text;
-  setValue(el, text, !!msg.append);
+  await setValue(el, text, !!msg.append);
   var out = { typed: true, ref: refOf(el) };
-  var moved = el._fxMoved;
-  try { delete el._fxMoved; } catch (e) {}
+  var moved = el._fxMoved, edNote = el._fxNote;
+  try { delete el._fxMoved; delete el._fxNote; } catch (e) {}
+  if (edNote) { out.typed = false; out.note = edNote; }
   if (moved && moved.length) {
     // One box per character (verification codes): the page moved focus along as each was typed.
     out.spreadOver = [lineFor(el)].concat(moved.map(lineFor));
@@ -1934,7 +1990,7 @@ async function doFillForm(msg) {
       var v = f.value === undefined || f.value === null ? '' : String(f.value);
       var el = targets[i].isConnected ? targets[i] : editableTarget(await locate(Object.assign(fieldSpec(f, msg), { waitMs: 1000 }), 'fill'));
       checkValue(el, v);
-      setValue(el, v);
+      await setValue(el, v);
       targets[i] = el;
     } catch (e) {
       throw be(e.code || 'INTERNAL', 'fields[' + i + ']: ' + e.message + ' Filled ' + i + ' of ' + targets.length +
@@ -2368,7 +2424,7 @@ function tabOrder() {
 
 function insertText(el, s) {
   if (el.isContentEditable) {
-    try { if (document.execCommand('insertText', false, s)) return true; } catch (e) {}
+    try { if ((el.ownerDocument || document).execCommand('insertText', false, s)) return true; } catch (e) {}
     return false;
   }
   if (typeof el.setRangeText !== 'function' || el.selectionStart === null) {
@@ -3020,6 +3076,14 @@ function diffState(before) {
   });
   var removed = 0;
   before.shown.forEach(function (el) { if (!after.shown.has(el)) removed++; });
+  // An option and the link inside it, a button and its label span: keep the outer one.
+  added = added.filter(function (el) {
+    var nm = norm(computeName(el, el.tagName));
+    for (var p = flatParent(el), i = 0; p && i < 6; p = flatParent(p), i++) {
+      if (added.indexOf(p) >= 0 && norm(computeName(p, p.tagName)) === nm) return false;
+    }
+    return true;
+  });
   if (added.length) {
     out.added = added.slice(0, 15).map(lineFor);
     if (added.length > 15) out.addedMore = added.length - 15;
@@ -3069,11 +3133,16 @@ function startWatch(msg) {
 async function finishWatch(w, result) {
   try {
     var start = Date.now();
+    // Typing into a search or autocomplete box: its suggestions often arrive a moment later (from the network).
+    var a = /type|fill/.test(w.kind) ? deepActive() : null;
+    var suggests = !!(a && a.getAttribute && (a.getAttribute('role') === 'combobox' || a.hasAttribute('aria-autocomplete') ||
+      a.hasAttribute('aria-controls') || a.hasAttribute('aria-owns') || a.hasAttribute('list') || inputType(a) === 'search'));
+    var quietFor = suggests ? 600 : 300, idleFor = suggests ? 1500 : 400;
     for (;;) {
       if (w.unloading) break;
       var now = Date.now();
-      if (!w.count && now - start > 400) break;           // nothing reacted
-      if (w.count && now - w.last >= 300 && now - start >= 150) break; // reacted, then went quiet
+      if (!w.count && now - start > idleFor) break;           // nothing reacted
+      if (w.count && now - w.last >= quietFor && now - start >= 150) break; // reacted, then went quiet
       if (now - start > 2500) break;
       await sleep(50);
     }
@@ -3273,7 +3342,8 @@ function pageMetrics() {
   return {
     width: Math.max(r ? r.scrollWidth : 0, window.innerWidth), height: Math.max(r ? r.scrollHeight : 0, window.innerHeight),
     viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,
-    scrollX: window.scrollX, scrollY: window.scrollY, devicePixelRatio: window.devicePixelRatio || 1
+    scrollX: window.scrollX, scrollY: window.scrollY, devicePixelRatio: window.devicePixelRatio || 1,
+    href: location.href, ready: document.readyState !== 'loading'
   };
 }
 
