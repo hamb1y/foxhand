@@ -24,6 +24,10 @@ if [ -z "${AMO_JWT_ISSUER:-}" ] || [ -z "${AMO_JWT_SECRET:-}" ]; then
   exit 1
 fi
 
+# Stored secrets sometimes carry a trailing newline from how they were pasted.
+AMO_JWT_ISSUER="$(printf '%s' "$AMO_JWT_ISSUER" | tr -d '[:space:]')"
+AMO_JWT_SECRET="$(printf '%s' "$AMO_JWT_SECRET" | tr -d '[:space:]')"
+
 CHANNEL="${AMO_CHANNEL:-unlisted}"
 if [ "$CHANNEL" != "unlisted" ] && [ "$CHANNEL" != "listed" ]; then
   echo "[foxhand] ERROR: AMO_CHANNEL must be 'unlisted' or 'listed'." >&2

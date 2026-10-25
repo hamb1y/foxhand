@@ -1,0 +1,23 @@
+name: AMO submit
+# Submit the current version to addons.mozilla.org as a listed version, by hand:
+# for when the release workflow's AMO step failed after the GitHub release was made.
+# AMO refuses a version it already has, so running this twice can't double-submit.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  amo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bash scripts/amo-sign.sh
+        env:
+          AMO_CHANNEL: listed
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
