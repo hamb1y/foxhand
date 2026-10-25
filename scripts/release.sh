@@ -11,6 +11,13 @@ ALL_TARGETS="windows-x64 windows-arm64 darwin-arm64 darwin-x64 linux-x64 linux-a
 
 node scripts/set-version.mjs --check
 
+# What's new: this version's section of CHANGELOG.md, without its heading.
+CHANGES="$(awk -v h="## ${TAG#v}" '$0 == h { on = 1; next } on && /^## / { exit } on' CHANGELOG.md)"
+if [[ -z "${CHANGES//[[:space:]]/}" ]]; then
+  echo "[foxhand] CHANGELOG.md has no '## ${TAG#v}' section" >&2
+  exit 1
+fi
+
 sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
 
 # A release always carries every platform, built now, and nothing else: assemble an
@@ -36,6 +43,10 @@ FILES=()
 for a in "${ASSETS[@]}"; do FILES+=("$OUT/$a"); done
 
 NOTES="$(cat <<MD
+$CHANGES
+
+## Install
+
 Helper app for the **Foxhand** add-on (formerly WebMCP Controller).
 
 **Windows**: open PowerShell and paste:

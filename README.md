@@ -384,6 +384,7 @@ node test/live.mjs                       # real Firefox + this add-on + the help
 node test/live.mjs --real                # ... plus a few real websites
 node scripts/i18n.mjs --check            # every translation complete and generated
 npx web-ext@8 lint -s extension
+node scripts/site-shots.mjs              # retake the website's screenshots (site/shots/) from a real run
 ```
 
 `test/live.mjs` starts your installed Firefox with a throwaway profile and a
@@ -399,9 +400,6 @@ the one-line installers (`.github/workflows/platforms.yml`).
 the generated files are committed, so the add-on still has no build step.
 Messages meant for the AI stay in English.
 
-```bash
-```
-
 The add-on and helper share one version number (`package.json`,
 `manifest.json`, `shared/src/version.ts`). A separate wire `PROTOCOL` number
 changes only on breaking bridge changes. On connect the two sides exchange both
@@ -409,6 +407,9 @@ numbers. A version mismatch gets a warning and keeps working. A protocol
 mismatch tells you which side needs updating.
 
 ### Releasing
+
+Add a `## X.Y.Z` section to [CHANGELOG.md](CHANGELOG.md) first: it becomes the
+release notes, and a release without one stops before building.
 
 ```bash
 node scripts/set-version.mjs X.Y.Z   # bumps every version file

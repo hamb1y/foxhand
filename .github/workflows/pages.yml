@@ -6,7 +6,7 @@ name: Pages
 on:
   push:
     branches: [main]
-    paths: ['scripts/install.sh', 'scripts/install.ps1', 'site/**', '.github/workflows/pages.yml']
+    paths: ['scripts/install.sh', 'scripts/install.ps1', 'site/**', 'extension/icons/icon.svg', 'extension/fonts/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -31,6 +31,7 @@ jobs:
           cp -r site/. _site/
           cp scripts/install.sh _site/sh
           cp scripts/install.ps1 _site/ps
+          cp extension/icons/icon.svg extension/fonts/GoogleSansFlex-latin.woff2 _site/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
