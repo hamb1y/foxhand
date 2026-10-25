@@ -1,4 +1,4 @@
-/* Foxhand — first-run setup: install the helper, connect an AI, try it. Each step turns green by itself. */
+/* Foxhand — first-run setup: install the helper, connect an AI, try it. Each step ticks itself off. */
 (function () {
 'use strict';
 

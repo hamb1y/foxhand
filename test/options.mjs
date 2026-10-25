@@ -191,7 +191,7 @@ await page.close();
 page = await open({ ...READY, platform: { os: "linux", arch: "x86-64" }, hostMissing: true, connected: false, listening: false, host: null, url: "" });
 check("missing helper puts install steps first", (await visible(page, "#install")) && await page.locator("#install").evaluate((e) => e.classList.contains("attention") && getComputedStyle(e).order === "-1"));
 check("no Pause while the helper is missing", !(await visible(page, "#pause")));
-check("install command shown", /foxhand\/sh \| sh/.test(await text(page, "#setupNow")) && /turns green/.test(await text(page, "#setupNow")));
+check("install command shown", /foxhand\/sh \| sh/.test(await text(page, "#setupNow")) && /updates by itself/.test(await text(page, "#setupNow")));
 check("Retry offered", await visible(page, "#retry"));
 check("default harness is JSON", (await page.locator("input[value=json]").isChecked()) && /"mcpServers"/.test(await text(page, "#cfg")));
 await page.waitForTimeout(3500);
