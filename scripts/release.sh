@@ -71,6 +71,7 @@ MD
 if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
   gh release upload "$TAG" --repo "$REPO" --clobber "${FILES[@]}"
 else
-  gh release create "$TAG" --repo "$REPO" --title "Foxhand helper $TAG" --notes "$NOTES" "${FILES[@]}"
+  # TARGET: the commit to tag when the tag doesn't exist yet (the release workflow passes it).
+  gh release create "$TAG" --repo "$REPO" ${TARGET:+--target "$TARGET"} --title "Foxhand helper $TAG" --notes "$NOTES" "${FILES[@]}"
 fi
 echo "[foxhand] released $TAG → https://github.com/$REPO/releases/tag/$TAG"

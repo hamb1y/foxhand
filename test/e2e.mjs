@@ -128,50 +128,54 @@ const init = await mcp("initialize", { protocolVersion: "2025-06-18", capabiliti
 check("server instructions mention the cursor", /cursor/i.test(init.body?.result?.instructions || ""));
 const list = await mcp("tools/list", {});
 const tools = list.body.result.tools;
-const click = tools.find((t) => t.name === "act_click");
-check("page tools take an optional thought", !!click?.inputSchema?.properties?.thought && !click.inputSchema.required?.includes("thought"));
-check("cursor_note tool exists", tools.some((t) => t.name === "cursor_note"));
-check("meta tools have no thought", !tools.find((t) => t.name === "extension_status").inputSchema?.properties?.thought);
+const click = tools.find((t) => t.name === "page_click");
+check("page tools have no thought param", !!click && !click.inputSchema?.properties?.thought);
+check("thought tool exists", tools.some((t) => t.name === "thought"));
+for (const gone of ["tabs_list", "tab_move", "tab_duplicate", "tab_unpin", "cursor_note", "snapshot_ax", "act_click"]) {
+  check(`${gone} is gone`, !tools.some((t) => t.name === gone));
+}
 
-let r = await tool("tabs_list");
-check("tabs_list", r.status === 200 && /example\.com/.test(text(r)));
+let r = await tool("tab_query");
+check("tab_query with nothing lists all tabs", r.status === 200 && /example\.com/.test(text(r)));
+r = await tool("tab_query", { query: "*" });
+check("tab_query \"*\" lists all tabs", /example\.com/.test(text(r)), text(r));
 extraTabs.push({ id: 8, windowId: 1, index: 1, url: "https://asleep.test/", title: "Asleep", discarded: true, status: "complete" });
-r = await tool("tabs_list", { includeDiscarded: false });
-check("tabs_list includeDiscarded:false leaves discarded tabs out", !/asleep/.test(text(r)) && /example\.com/.test(text(r)), text(r));
-r = await tool("tabs_list");
-check("tabs_list includes discarded tabs by default", /asleep/.test(text(r)), text(r));
+r = await tool("tab_query", { includeDiscarded: false });
+check("tab_query includeDiscarded:false leaves discarded tabs out", !/asleep/.test(text(r)) && /example\.com/.test(text(r)), text(r));
+r = await tool("tab_query");
+check("tab_query includes discarded tabs by default", /asleep/.test(text(r)), text(r));
+r = await tool("tab_query", { query: "ASLEEP" });
+check("tab_query text matches the url/title case-insensitively", /asleep/.test(text(r)) && !/example\.com/.test(text(r)), text(r));
 extraTabs.length = 0;
-r = await tool("tabs_query", { urlPattern: "(a+)+$" });
-check("tabs_query refuses a catastrophic regex", /INVALID_PARAMS/.test(text(r)) && /nested/.test(text(r)), text(r));
-r = await tool("tabs_query", { urlPattern: "^https://(?:www\\.)?example\\.com/" });
-check("tabs_query still takes ordinary regexes", /example\.com/.test(text(r)), text(r));
+r = await tool("tab_query", { urlPattern: "(a+)+$" });
+check("tab_query refuses a catastrophic regex", /INVALID_PARAMS/.test(text(r)) && /nested/.test(text(r)), text(r));
+r = await tool("tab_query", { urlPattern: "^https://(?:www\\.)?example\\.com/" });
+check("tab_query still takes ordinary regexes", /example\.com/.test(text(r)), text(r));
 let t0 = Date.now();
 r = await tool("tab_navigate", { url: "https://example.com/#pricing", timeoutMs: 5000 });
 check("a #fragment navigation doesn't wait for a load that never comes", /"loadComplete": true/.test(text(r)) && Date.now() - t0 < 2000, `${Date.now() - t0}ms ${text(r)}`);
 TAB.url = "https://example.com/";
 
 sent.length = 0;
-await tool("act_click", { ref: 3, thought: "Opening the pricing page" });
+r = await tool("thought", { thought: "Opening the pricing page" });
+check("thought shows on the cursor right away", sent.some((x) => x.kind === "cursor" && x.op === "say" && x.note === "Opening the pricing page"), text(r));
+await tool("tab_query");
+sent.length = 0;
+await tool("page_click", { ref: 3 });
 let m = sent.find((x) => x.kind === "act-click");
-check("thought reaches the page with the action", m?.cursor?.note === "Opening the pricing page", JSON.stringify(m));
+check("thought stays with the next page action (not used up by tab_query)", m?.cursor?.note === "Opening the pricing page", JSON.stringify(m));
 check("thought is not passed as a tool arg", m && !("thought" in m));
 
 sent.length = 0;
-await tool("act_click", { ref: 3 });
+await tool("page_click", { ref: 3 });
 m = sent.find((x) => x.kind === "act-click");
-check("cursor shown even without a thought", m?.cursor && m.cursor.note === "");
+check("cursor shown even without a thought (used once)", m?.cursor && m.cursor.note === "", JSON.stringify(m?.cursor));
 
-sent.length = 0;
-await tool("tabs_list", { thought: "Checking what's open" });
-await sleep(100);
-check("thought on a non-page tool is shown on the active tab", sent.some((x) => x.kind === "cursor" && x.op === "say" && x.note === "Checking what's open"));
-
-sent.length = 0;
-r = await tool("cursor_note", { note: "Thinking about which plan is cheaper" });
-check("cursor_note", sent.some((x) => x.kind === "cursor" && x.op === "say" && /cheaper/.test(x.note)), text(r));
+r = await tool("page_click", {});
+check("page_click without a target is refused", r.body?.result?.isError && /needs an element/.test(text(r)), text(r));
 
 shotLog.length = 0;
-await tool("screenshot", {});
+await tool("page_screenshot", {});
 await sleep(50);
 check("cursor hidden during screenshot", shotLog.join(",") === "conceal,capture,reveal", shotLog.join(","));
 
@@ -181,24 +185,24 @@ check("cursor toggle saved", st.showCursor === false && store.mcpShowCursor === 
 await sleep(50);
 check("turning it off hides it everywhere", sent.some((x) => x.kind === "cursor" && x.op === "hide"));
 sent.length = 0;
-await tool("act_click", { ref: 3, thought: "x" });
+await tool("page_click", { ref: 3 });
 m = sent.find((x) => x.kind === "act-click");
 check("no cursor when turned off", m && !m.cursor);
 await ask({ type: "set-config", showCursor: true });
 
-r = await tool("cookies_for_tab", {});
+r = await tool("cookie_query", {});
 check("cookies come from the tab's container", cookieQueries.at(-1)?.storeId === "firefox-container-2", JSON.stringify(cookieQueries.at(-1)));
 check("cookies include ones partitioned under this site only", /chips-here/.test(text(r)) && /plain/.test(text(r)) && !/chips-elsewhere/.test(text(r)), text(r));
 
 pageGone = (x) => x.kind === "act-click";
-r = await tool("act_click", { ref: 3 });
+r = await tool("page_click", { ref: 3 });
 check("click that navigates the page reports pageChanged", !r.body?.result?.isError && /pageChanged|navigated/i.test(text(r)), text(r));
 let gone = 0;
 pageGone = (x) => x.kind === "page-text" && gone++ === 0;
 r = await tool("page_text", {});
 check("read during a reload is retried", !r.body?.result?.isError && gone === 2, text(r));
 pageGone = (x) => x.kind === "act-wait";
-r = await tool("act_wait", { text: "never" });
+r = await tool("page_wait", { text: "never" });
 check("wait interrupted by navigation says so", r.body?.result?.isError && /NAVIGATED|navigated/.test(text(r)), text(r));
 pageGone = null;
 
@@ -207,25 +211,25 @@ const ac = new AbortController();
 const waiting = fetch(st.url, {
   method: "POST", signal: ac.signal,
   headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: "Bearer " + st.token },
-  body: JSON.stringify({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "act_wait", arguments: { text: "never" } } }),
+  body: JSON.stringify({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "page_wait", arguments: { text: "never" } } }),
 }).catch(() => "aborted");
 for (let t = 0; t < 3000 && !sent.some((x) => x.kind === "act-wait"); t += 50) await sleep(50);
 ac.abort();
 await waiting;
 const opId = sent.find((x) => x.kind === "act-wait")?.opId;
 for (let t = 0; t < 3000 && !sent.some((x) => x.kind === "cancel"); t += 50) await sleep(50);
-check("cancelling act_wait stops the wait in the page", !!opId && sent.some((x) => x.kind === "cancel" && x.opId === opId), JSON.stringify(sent.map((x) => x.kind)));
+check("cancelling page_wait stops the wait in the page", !!opId && sent.some((x) => x.kind === "cancel" && x.opId === opId), JSON.stringify(sent.map((x) => x.kind)));
 
 const old = st.token;
 st = await ask({ type: "regenerate-token" });
-check("old token rejected after regenerate", (await mcp("tools/call", { name: "tabs_list", arguments: {} }, old)).status === 401);
-r = await mcp("tools/call", { name: "tabs_list", arguments: {} });
+check("old token rejected after regenerate", (await mcp("tools/call", { name: "tab_query", arguments: {} }, old)).status === 401);
+r = await mcp("tools/call", { name: "tab_query", arguments: {} });
 check("new token accepted", r.status === 200);
 
 const port2 = PORT + 61;
 await ask({ type: "set-config", port: port2, bind: "127.0.0.1" });
 st = await waitFor((s) => s.listening && s.url.includes(":" + port2));
-check("port change", st.url.includes(":" + port2) && (await tool("tabs_list")).status === 200, st.url);
+check("port change", st.url.includes(":" + port2) && (await tool("tab_query")).status === 200, st.url);
 check("bad port rejected", !!(await ask({ type: "set-config", port: 80 })).error);
 check("settings tab is answered", !!(await ask({ type: "get-status" }))?.token);
 check("popup is answered", !!(await askAs({ id: EXT_ID, url: "moz-extension://test-uuid/popup.html" }, { type: "get-status" }))?.token);
@@ -236,11 +240,11 @@ check("sender without a URL is ignored", (await askAs({ id: EXT_ID }, { type: "g
 const quick = [PORT + 62, PORT + 63, PORT + 64];
 await Promise.all(quick.map((p) => ask({ type: "set-config", port: p })));
 st = await waitFor((s) => s.listening && s.url.includes(":" + quick[2]));
-check("rapid port changes end on the last one", st.url.includes(":" + quick[2]) && (await tool("tabs_list")).status === 200, st.url);
+check("rapid port changes end on the last one", st.url.includes(":" + quick[2]) && (await tool("tab_query")).status === 200, st.url);
 
 await ask({ type: "reconnect" });
 st = await waitFor((s) => s.listening && s.connectedAt);
-check("reconnect", st.listening && (await tool("tabs_list")).status === 200);
+check("reconnect", st.listening && (await tool("tab_query")).status === 200);
 
 child?.kill();
 console.log(failures ? `\n${failures} failed` : "\nall passed");

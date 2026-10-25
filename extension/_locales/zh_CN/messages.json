@@ -708,6 +708,28 @@
       }
     }
   },
+  "curDrag": {
+    "message": "正在拖动"
+  },
+  "curDragNamed": {
+    "message": "正在拖动“$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curUpload": {
+    "message": "正在附加文件"
+  },
+  "curUploadNamed": {
+    "message": "正在附加“$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
   "curRead": {
     "message": "正在阅读页面"
   },
@@ -962,6 +984,72 @@
   },
   "lblCursorSayPast": {
     "message": "说了些话"
+  },
+  "lblTabNavigateNow": {
+    "message": "正在打开页面"
+  },
+  "lblTabNavigatePast": {
+    "message": "打开了页面"
+  },
+  "lblActDragNow": {
+    "message": "正在拖动"
+  },
+  "lblActDragPast": {
+    "message": "拖动了"
+  },
+  "lblActUploadNow": {
+    "message": "正在附加文件"
+  },
+  "lblActUploadPast": {
+    "message": "附加了文件"
+  },
+  "lblCookiesQueryNow": {
+    "message": "正在读取 Cookie"
+  },
+  "lblCookiesQueryPast": {
+    "message": "读取了 Cookie"
+  },
+  "lblCookiesSetNow": {
+    "message": "正在设置 Cookie"
+  },
+  "lblCookiesSetPast": {
+    "message": "设置了 Cookie"
+  },
+  "lblCookiesRemoveNow": {
+    "message": "正在删除 Cookie"
+  },
+  "lblCookiesRemovePast": {
+    "message": "删除了 Cookie"
+  },
+  "lblDownloadsQueryNow": {
+    "message": "正在查看下载"
+  },
+  "lblDownloadsQueryPast": {
+    "message": "查看了下载"
+  },
+  "lblDownloadsStartNow": {
+    "message": "正在下载文件"
+  },
+  "lblDownloadsStartPast": {
+    "message": "下载了文件"
+  },
+  "lblStorageGetNow": {
+    "message": "正在读取保存的数据"
+  },
+  "lblStorageGetPast": {
+    "message": "读取了保存的数据"
+  },
+  "lblStorageSetNow": {
+    "message": "正在保存数据"
+  },
+  "lblStorageSetPast": {
+    "message": "保存了数据"
+  },
+  "lblStorageRemoveNow": {
+    "message": "正在删除保存的数据"
+  },
+  "lblStorageRemovePast": {
+    "message": "删除了保存的数据"
   },
   "obTitle": {
     "message": "欢迎使用 Foxhand"

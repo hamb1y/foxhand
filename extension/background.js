@@ -44,13 +44,17 @@ var CAPABILITIES = [
   'bookmarks.search', 'bookmarks.create', 'bookmarks.remove',
   'history.search', 'downloads.list',
   'cookies.forTab', 'sessions.recentlyClosed', 'sessions.restore',
-  'cursor.say'
+  'cursor.say',
+  'tab.navigate', 'act.drag', 'act.upload',
+  'cookies.query', 'cookies.set', 'cookies.remove',
+  'downloads.query', 'downloads.start',
+  'storage.get', 'storage.set', 'storage.remove'
 ];
 
 /* Methods whose thought is shown by the content script as part of the action itself. */
 var CONTENT_METHODS = /^(page\.(snapshot|text|html)|act\.)/;
 /* Methods that navigate or close the page: a note shown there would vanish immediately. */
-var NO_NOTE_METHODS = /^(tab\.(create|update|close|duplicate)|nav\.|window\.|sessions\.restore|page\.shot)/;
+var NO_NOTE_METHODS = /^(tab\.(create|update|navigate|close|duplicate)|nav\.|window\.|sessions\.restore|page\.shot)/;
 
 var CFG = { token: '', port: DEFAULT_PORT, bind: DEFAULT_BIND, allowWsl: false, confirmDestructive: true, showCursor: true };
 var paused = false;        // the user paused AI control: every command is refused until they resume
@@ -228,7 +232,12 @@ function assertContentAllowed(tab) {
 
 var CONTENT_FILES = ['content/cursor.js', 'content/ax.js'];
 
-async function injectAx(tabId) {
+async function injectAx(tabId, frameId) {
+  if (frameId) {
+    // A cross-origin frame gets the page script only; the AI cursor stays in the top page.
+    await call(B.tabs, 'executeScript', tabId, { file: 'content/ax.js', frameId: frameId });
+    return;
+  }
   if (B.tabs && typeof B.tabs.executeScript === 'function') {
     for (var i = 0; i < CONTENT_FILES.length; i++) {
       await call(B.tabs, 'executeScript', tabId, { file: CONTENT_FILES[i] });
@@ -268,26 +277,30 @@ async function wake(tabId) {
   }
 }
 
-async function sendToTab(tabId, p, msg) {
+async function sendToTab(tabId, p, msg, frameId) {
+  frameId = frameId || 0;
   await wake(tabId);
-  if (CFG.showCursor && msg.kind !== 'cursor') {
+  if (CFG.showCursor && msg.kind !== 'cursor' && !frameId) {
     msg.cursor = { note: typeof p.thought === 'string' ? p.thought.slice(0, 300) : '' };
   }
+  // Always one frame: frames we injected into would answer a tab-wide message too.
+  var opts = { frameId: frameId };
   var firstErr = null;
   try {
-    return unwrapContentResponse(await call(B.tabs, 'sendMessage', tabId, msg));
+    return unwrapContentResponse(await call(B.tabs, 'sendMessage', tabId, msg, opts));
   } catch (e) {
     firstErr = e;
   }
   var m = String((firstErr && firstErr.message) || firstErr);
   if (/receiving end does not exist|could not establish connection|could not send|no response/i.test(m)) {
     try {
-      await injectAx(tabId);
+      await injectAx(tabId, frameId);
     } catch (inj) {
+      if (frameId) throw be('REF_STALE', 'That frame is gone or can\'t be scripted. Take a new page_snapshot.');
       throw be('NO_CONTENT_SCRIPT', 'No content script in tab ' + tabId + ' (restricted page?)');
     }
     try {
-      return unwrapContentResponse(await call(B.tabs, 'sendMessage', tabId, msg));
+      return unwrapContentResponse(await call(B.tabs, 'sendMessage', tabId, msg, opts));
     } catch (e2) {
       // An answer from the page (e.g. REF_STALE) or a page that navigated isn't a missing script.
       if ((e2 && e2.code) || PAGE_GONE_RE.test(String((e2 && e2.message) || e2))) throw e2;
@@ -301,22 +314,229 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
 /* The page went away (navigated, reloaded, closed) before its content script replied. */
 var PAGE_GONE_RE = /destroyed before|message manager disconnected|context is inactive|page (was )?unloaded/i;
-var READ_KINDS = /^(ax-snapshot|page-text|page-html|act-find)$/;
+var READ_KINDS = /^(ax-snapshot|page-text|page-html|act-find|page-storage|page-metrics|element-rect)$/;
 
 /* sendToTab, but an action that navigated the page before replying isn't reported as a failure
  * (the AI would repeat a click that worked), and a read retries once on the page that replaced it. */
-async function sendToPage(tabId, p, msg) {
+async function sendToPage(tabId, p, msg, frameId) {
   try {
-    return await sendToTab(tabId, p, msg);
+    return await sendToTab(tabId, p, msg, frameId);
   } catch (e) {
     if (!PAGE_GONE_RE.test(String((e && e.message) || e))) throw e;
     if (READ_KINDS.test(msg.kind)) {
       await sleep(500);
-      return await sendToTab(tabId, p, msg);
+      return await sendToTab(tabId, p, msg, frameId);
     }
     if (msg.kind === 'act-wait') throw be('NAVIGATED', 'The page navigated away while waiting; take a new snapshot');
     return { done: true, pageChanged: true, note: 'The page navigated or reloaded as a result; take a new snapshot before using refs' };
   }
+}
+
+/* ---- cross-origin frames ----
+ * A cross-origin <iframe> (cookie banners, sign-in buttons, payment fields,
+ * embeds) runs its own copy of ax.js. Its refs are shown as slot * FRAME_REF +
+ * the frame's own ref, so one number names the frame and the element in it. */
+var FRAME_REF = 10000000;
+var frameSlots = new Map(); // tabId -> { ids: Map(frameId -> slot), byslot: [frameId] }
+
+function frameSlot(tabId, frameId) {
+  var t = frameSlots.get(tabId);
+  if (!t) { t = { ids: new Map(), byslot: [0] }; frameSlots.set(tabId, t); }
+  var s = t.ids.get(frameId);
+  if (!s) { s = t.byslot.length; t.byslot.push(frameId); t.ids.set(frameId, s); }
+  return s;
+}
+
+/* Rewrite a frame's refs ("ref": N and [ref=N]) to their page-wide numbers. */
+function frameRefs(v, slot) {
+  if (v === null || v === undefined) return v;
+  var conv = function (n) { return String(slot * FRAME_REF + Number(n)); };
+  var j = JSON.stringify(v)
+    .replace(/\[ref=(\d+)\]/g, function (m, n) { return '[ref=' + conv(n) + ']'; })
+    .replace(/"ref":(\d+)/g, function (m, n) { return '"ref":' + conv(n); })
+    .replace(/\(ref=(\d+)\)/g, function (m, n) { return '(ref=' + conv(n) + ')'; });
+  return JSON.parse(j);
+}
+
+function frameErr(e, slot) {
+  if (!e || !e.code) return e;
+  var m = String(e.message || '').replace(/\[ref=(\d+)\]|\bref[ =](\d+)/g, function (all, a, b) {
+    var n = slot * FRAME_REF + Number(a || b);
+    return a ? '[ref=' + n + ']' : 'ref ' + n;
+  });
+  return be(e.code, m);
+}
+
+/* Which frame a message's refs point into: {frameId, slot} with the refs made
+   local, or null for the page itself. Refs from two frames can't mix. */
+function routeRefs(tabId, msg) {
+  var slots = [];
+  var take = function (obj, key) {
+    if (!obj || obj[key] === undefined || obj[key] === null || obj[key] === '') return;
+    var n = Number(obj[key]);
+    if (!(n >= FRAME_REF)) { slots.push(0); return; }
+    slots.push(Math.floor(n / FRAME_REF));
+    obj[key] = n % FRAME_REF;
+  };
+  take(msg, 'ref'); take(msg, 'submitRef'); take(msg, 'toRef');
+  if (msg.within && typeof msg.within === 'object') take(msg.within, 'ref');
+  if (Array.isArray(msg.fields)) msg.fields.forEach(function (f) { take(f, 'ref'); });
+  var uniq = slots.filter(function (s, i) { return slots.indexOf(s) === i; });
+  if (uniq.length > 1) throw be('INVALID_PARAMS', 'These refs are in different frames of the page; one action works inside one frame.');
+  if (!uniq.length || uniq[0] === 0) return null;
+  var t = frameSlots.get(tabId);
+  var frameId = t && t.byslot[uniq[0]];
+  if (!frameId) throw be('REF_NOT_FOUND', 'That ref belongs to a frame from an earlier snapshot. Take a new page_snapshot.');
+  delete msg.generation; // generations are per document
+  return { frameId: frameId, slot: uniq[0] };
+}
+
+function withTimeout(promise, ms, what) {
+  return Promise.race([promise, new Promise(function (_, rej) { setTimeout(function () { rej(be('TIMEOUT', what + ' did not answer in time')); }, ms); })]);
+}
+
+/* Send to a frame. Its script is made sure of first (a cheap call that injects it
+   if needed), so a failure after that means the action itself took the frame
+   away, as a consent dialog does when it removes itself after "Accept": that is
+   reported as done, not as "not found" (the agent would click again). */
+var FRAME_ACTS = /^act-(click|type|fillForm|select|key|drag|upload|hover|scroll)$/;
+async function frameSend(tabId, p, msg, frameId) {
+  await sendToTab(tabId, p, { kind: 'page-metrics' }, frameId);
+  try {
+    return await sendToTab(tabId, p, msg, frameId);
+  } catch (e) {
+    var gone = !e || !e.code || e.code === 'NO_CONTENT_SCRIPT' || e.code === 'REF_STALE' || PAGE_GONE_RE.test(String(e && e.message));
+    if (gone && FRAME_ACTS.test(msg.kind)) {
+      return { done: true, frameClosed: true, note: 'The frame went away as the action finished (a dialog closing itself after the click, most likely). Check the page before repeating it.' };
+    }
+    throw e;
+  }
+}
+
+/* sendToPage, reaching into cross-origin frames: refs from a frame go to it; a
+   name or selector not found on the page is looked for in its frames; a point
+   over a frame is clicked inside it. */
+async function pageCall(tabId, p, msg) {
+  var route = routeRefs(tabId, msg);
+  if (route) {
+    try {
+      var rr = frameRefs(await frameSend(tabId, p, msg, route.frameId), route.slot);
+      if (rr && typeof rr === 'object' && !Array.isArray(rr) && msg.kind !== 'ax-snapshot' && msg.kind !== 'page-text') rr.frame = 'Inside a cross-origin frame.';
+      return rr;
+    } catch (e) { throw frameErr(e, route.slot); }
+  }
+  var byName = (msg.name !== undefined && msg.name !== null && msg.name !== '') || (msg.selector !== undefined && msg.selector !== null && msg.selector !== '');
+  var probe = byName && /^act-|^element-rect$/.test(msg.kind);
+  try {
+    return await sendToPage(tabId, p, probe ? Object.assign({}, msg, { frameProbe: true }) : msg);
+  } catch (e) {
+    if (e && e.code === 'IN_FRAME') {
+      var at = JSON.parse(e.message);
+      var slot = frameSlot(tabId, at.frameId);
+      var m2 = Object.assign({}, msg, { x: at.x, y: at.y });
+      delete m2.generation;
+      try {
+        var r = frameRefs(await frameSend(tabId, p, m2, at.frameId), slot);
+        if (r && typeof r === 'object') r.frame = 'Inside a cross-origin frame at that point.';
+        return r;
+      } catch (fe) { throw frameErr(fe, slot); }
+    }
+    if (!e || e.code !== 'TRY_FRAMES') throw e;
+    var ids = JSON.parse(e.message);
+    for (var i = 0; i < ids.length; i++) {
+      var s = frameSlot(tabId, ids[i]);
+      var m3 = Object.assign({}, msg, { waitMs: 0 });
+      delete m3.generation;
+      try {
+        var res = frameRefs(await withTimeout(frameSend(tabId, p, m3, ids[i]), 15000, 'A frame'), s);
+        if (res && typeof res === 'object') res.frame = 'Found inside a cross-origin frame (e.g. a cookie banner or embedded widget).';
+        return res;
+      } catch (fe2) {
+        if (fe2 && fe2.code && fe2.code !== 'REF_NOT_FOUND' && fe2.code !== 'TIMEOUT' && fe2.code !== 'NO_CONTENT_SCRIPT' && fe2.code !== 'REF_STALE') throw frameErr(fe2, s);
+      }
+    }
+    // In no frame either: wait on the page itself as usual.
+    return await sendToPage(tabId, p, msg);
+  }
+}
+
+/* Splice each cross-origin frame's outline in under its [frame:N] line. */
+async function withFrameOutlines(tabId, p, snap, base) {
+  if (!snap || typeof snap.text !== 'string' || !/\[frame:\d+\]/.test(snap.text)) return snap;
+  var budget = Math.max(0, (base.maxChars || 50000) - snap.text.length);
+  var out = [], read = 0;
+  var lines = snap.text.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var m = /\s?\[frame:(\d+)\]/.exec(line);
+    if (!m) { out.push(line); continue; }
+    var fid = Number(m[1]);
+    // The first frame always gets room: it is often the consent dialog listed first.
+    if (!read && budget < 8000) budget = 8000;
+    if (budget < 200 || read >= 6) { out.push(line.replace(m[0], ' [cross-origin frame: not read here; page_snapshot within:{ref} of this frame reads it]')); continue; }
+    try {
+      var sub = await withTimeout(sendToPage(tabId, p, { kind: 'ax-snapshot', compact: base.compact, maxChars: budget, viewportOnly: base.viewportOnly }, fid), 6000, 'The frame');
+      var slot = frameSlot(tabId, fid);
+      sub = frameRefs(sub, slot);
+      read++;
+      var pad = (/^ */.exec(line) || [''])[0] + '  ';
+      var body = String(sub.text || '').replace(/\s?\[frame:\d+\]/g, ' [nested frame: not read]');
+      out.push(line.replace(m[0], body ? ' [frame content follows]' : ' [frame: nothing interactive inside]'));
+      if (body) body.split('\n').forEach(function (l) { out.push(pad + l); });
+      budget -= body.length + 2 * (body.split('\n').length);
+      if (Array.isArray(sub.nodes)) snap.nodes = (snap.nodes || []).concat(sub.nodes);
+      if (sub.truncated) snap.truncated = true;
+    } catch (e) {
+      out.push(line.replace(m[0], ' [cross-origin frame: could not be read]'));
+    }
+  }
+  snap.text = out.join('\n');
+  return snap;
+}
+
+/* page_text with the text of cross-origin frames after the page's own, chunked as one. */
+async function withFrameText(tabId, p, res, off, mc) {
+  if (!res || !Array.isArray(res.frames) || !res.frames.length) { if (res) delete res.frames; return res; }
+  var frames = res.frames;
+  delete res.frames;
+  var suffix = '';
+  for (var i = 0; i < frames.length; i++) {
+    try {
+      var t = await withTimeout(sendToPage(tabId, p, { kind: 'page-text', maxChars: 20000 }, frames[i].frameId), 6000, 'The frame');
+      var slot = frameSlot(tabId, frames[i].frameId);
+      if (t && t.text && t.text.trim()) {
+        suffix += '\n\n--- frame ' + JSON.stringify(frames[i].name || frames[i].src || 'frame') + ' (ref=' + frames[i].ref + ', ' + (slot ? 'cross-origin' : '') + ') ---\n' + t.text.trim();
+      }
+    } catch (e) {}
+  }
+  if (!suffix) return res;
+  var T = Number(res.totalChars) || 0;
+  var end = off + mc - T;
+  if (end > 0) res.text += suffix.slice(Math.max(0, off - T), end);
+  res.totalChars = T + suffix.length;
+  res.truncated = off + mc < res.totalChars;
+  if (res.truncated) res.nextOffset = off + res.text.length; else delete res.nextOffset;
+  return res;
+}
+
+/* page_find in cross-origin frames too. */
+async function withFrameFinds(tabId, p, res, query) {
+  if (!res || !Array.isArray(res.frames)) return res;
+  var frames = res.frames;
+  delete res.frames;
+  for (var i = 0; i < frames.length; i++) {
+    try {
+      var r = await withTimeout(sendToPage(tabId, p, { kind: 'act-find', query: query }, frames[i].frameId), 6000, 'The frame');
+      r = frameRefs(r, frameSlot(tabId, frames[i].frameId));
+      if (r && r.count) {
+        (r.matches || []).forEach(function (m) { m.frame = frames[i].name || frames[i].src || 'cross-origin frame'; });
+        res.matches = (res.matches || []).concat(r.matches || []).slice(0, 30);
+        res.count = (res.count || 0) + r.count;
+        res.truncated = res.count > res.matches.length;
+      }
+    } catch (e) {}
+  }
+  return res;
 }
 
 /* sendToPage for an action, cancellable: a cancel from the helper (or Pause AI) reaches the page by opId. */
@@ -330,11 +550,14 @@ async function actOn(tabId, p, ctx, msg) {
   var onCreated = function (t) { if (t && t.openerTabId === tabId) opened.push(t.id); };
   try { B.tabs.onCreated.addListener(onCreated); } catch (e) {}
   var stop = function () {
+    // Every frame: the action may be running inside one.
     try { call(B.tabs, 'sendMessage', tabId, { kind: 'cancel', opId: ctx.id }).catch(function () {}); } catch (e) {}
   };
   ctx.signal.addEventListener('abort', stop);
   try {
-    var result = await sendToPage(tabId, p, msg);
+    var result = await pageCall(tabId, p, msg);
+    if (msg.kind === 'act-find') result = await withFrameFinds(tabId, p, result, msg.query);
+    if (result && typeof result === 'object' && (result.navigating || result.pageChanged)) result = await afterNavigation(tabId, result, ctx.signal);
     if (OPENS_TABS.test(msg.kind)) {
       await sleep(250); // the new tab is created just after the click returns
       if (opened.length) result = await withOpenedTabs(result, opened);
@@ -346,7 +569,26 @@ async function actOn(tabId, p, ctx, msg) {
   }
 }
 
-var OPENS_TABS = /^act-(click|key|type|fillForm)$/;
+/* The action started a navigation: wait (briefly) for the new page, then say where it landed. */
+async function afterNavigation(tabId, result, signal) {
+  var until = Date.now() + 8000, tab = null;
+  await sleep(150);
+  while (Date.now() < until && !(signal && signal.aborted)) {
+    try { tab = await call(B.tabs, 'get', tabId); } catch (e) { return result; }
+    if (tab.status === 'complete') break;
+    await sleep(150);
+  }
+  if (!tab) return result;
+  result.url = tab.url || '';
+  result.title = tab.title || '';
+  result.loaded = tab.status === 'complete';
+  result.note = 'The page navigated' + (result.loaded ? ' and finished loading' : ' (still loading)') +
+    '. Refs from before are gone: take page_snapshot before acting again.';
+  delete result.pageChanged;
+  return result;
+}
+
+var OPENS_TABS = /^act-(click|key|type|fillForm|drag)$/;
 
 async function withOpenedTabs(result, ids) {
   var tabs = [];
@@ -372,7 +614,9 @@ function shoot(tab, p) {
 
 async function shootNow(tab, p) {
   var format = p.format === 'jpeg' ? 'jpeg' : 'png';
-  var opts = format === 'jpeg' ? { format: format, quality: 80 } : { format: format };
+  var opts = format === 'jpeg' ? { format: format, quality: Math.max(10, Math.min(100, num(p.quality, 80))) } : { format: format };
+  if (p.rect) opts.rect = p.rect;
+  if (p.scale !== undefined) opts.scale = p.scale;
   try { tab = await call(B.tabs, 'get', tab.id); } catch (e) {} // may have changed while queued
   // Fast path (Firefox 125+): capture a background tab without switching to it.
   if (!tab.active && B.tabs && typeof B.tabs.captureTab === 'function') {
@@ -433,6 +677,15 @@ async function hideCursors() {
  * call start(tabId) once the tab id is known. Events seen before that are
  * buffered. With checkNow, a tab that is already complete counts (used for new
  * tabs, which have no previous page whose 'complete' could be mistaken). */
+function loadResult(info, ok) {
+  info.loadComplete = ok === true || info.status === 'complete' || info.loading === false;
+  if (ok === 'ready' && !info.loadComplete) {
+    info.ready = true;
+    info.note = 'The page is up and usable; it is still loading some resources in the background.';
+  }
+  return info;
+}
+
 function tabLoadWaiter(timeoutMs, signal, wantUrl) {
   var tabId = null, buffered = [], sawLoading = false, done = false, resolveFn;
   var promise = new Promise(function (r) { resolveFn = r; });
@@ -441,6 +694,7 @@ function tabLoadWaiter(timeoutMs, signal, wantUrl) {
     if (done) return;
     done = true;
     clearTimeout(timer);
+    clearInterval(poll);
     try { B.tabs.onUpdated.removeListener(onUpd); } catch (e) {}
     if (signal) signal.removeEventListener('abort', onAbort);
     resolveFn(v);
@@ -462,6 +716,22 @@ function tabLoadWaiter(timeoutMs, signal, wantUrl) {
   }
   function onAbort() { finish(false); }
   var timer = setTimeout(function () { finish(false); }, Math.max(1000, timeoutMs));
+  // Some pages never reach 'complete' (long-polling, endless trackers). Once the new page's
+  // document is up and has been for a few seconds, it's usable: return 'ready' instead of waiting it out.
+  var began = Date.now(), startUrl = null;
+  var poll = setInterval(function () {
+    if (done || tabId === null || !sawLoading || Date.now() - began < 3000) return;
+    call(B.tabs, 'get', tabId).then(function (t) {
+      if (done || !t || placeholder(t) || t.status === 'complete') return;
+      return call(B.tabs, 'sendMessage', tabId, { kind: 'page-metrics' }, { frameId: 0 }).then(function (res) {
+        var r = res && res.__fxmcp ? res.result : res;
+        // Only the new page counts: while a slow navigation is pending, the old one still answers.
+        var bare = function (u) { return String(u || '').split('#')[0].replace(/\/$/, ''); };
+        var isNew = r && (bare(r.href) === bare(wantUrl) || (startUrl !== null && bare(r.href) !== bare(startUrl)));
+        if (!done && r && r.ready && r.href === t.url && isNew) finish('ready');
+      });
+    }).catch(function () {});
+  }, 1000);
   B.tabs.onUpdated.addListener(onUpd);
   if (signal) {
     if (signal.aborted) finish(false);
@@ -471,6 +741,7 @@ function tabLoadWaiter(timeoutMs, signal, wantUrl) {
     promise: promise,
     start: function (id, checkNow) {
       tabId = id;
+      call(B.tabs, 'get', id).then(function (t) { startUrl = checkNow ? 'about:blank' : (t && t.url) || ''; }).catch(function () { startUrl = ''; });
       var early = buffered;
       buffered = [];
       early.forEach(function (e) { if (!done && e[0] === id) consider(e[1], e[2]); });
@@ -541,6 +812,140 @@ function safeRegExp(src) {
   return new RegExp(src);
 }
 
+/* Copy the params that were given (not undefined/null) onto msg. */
+function pick(p, keys, msg) {
+  msg = msg || {};
+  keys.forEach(function (k) { if (p[k] !== undefined && p[k] !== null) msg[k] = p[k]; });
+  return msg;
+}
+
+/* How an action names its element: a snapshot ref, a CSS selector, an accessible
+ * name (+ role, nth), or a point. The content script resolves them (see locate in ax.js). */
+var TARGET_KEYS = ['ref', 'selector', 'name', 'role', 'nth', 'x', 'y', 'generation', 'waitMs'];
+
+function hasTargetParams(p) {
+  return ['ref', 'selector', 'name', 'x'].some(function (k) { return p[k] !== undefined && p[k] !== null && p[k] !== ''; });
+}
+
+/* A page action: resolve the tab, forward the target and the action's own fields. */
+async function act(p, ctx, kind, keys, base) {
+  var tab = await resolveTab(p.tabId);
+  assertContentAllowed(tab);
+  var msg = pick(p, TARGET_KEYS.concat(['changes'], keys), Object.assign({ kind: kind }, base || {}));
+  return await actOn(tab.id, p, ctx, msg);
+}
+
+/* Agent storage: a small key-value store in the add-on that outlives tabs, pages
+ * and restarts. Page storage: the page's own localStorage/sessionStorage. */
+var AGENT_STORE = 'agentStore';
+var AGENT_MAX_KEYS = 1000, AGENT_MAX_VALUE = 100000;
+
+async function storageOp(op, p) {
+  var area = p.area || 'agent';
+  if (area === 'local' || area === 'session') {
+    var tab = await resolveTab(p.tabId);
+    assertContentAllowed(tab);
+    return await sendToPage(tab.id, p, pick(p, ['key', 'value'], { kind: 'page-storage', op: op, area: area }));
+  }
+  if (area !== 'agent') throw be('INVALID_PARAMS', 'area must be "agent", "local" or "session"');
+  var got = await call(B.storage.local, 'get', AGENT_STORE);
+  var store = (got && got[AGENT_STORE] && typeof got[AGENT_STORE] === 'object') ? got[AGENT_STORE] : {};
+  var key = (p.key === undefined || p.key === null || p.key === '') ? null : String(p.key).slice(0, 200);
+  if (op === 'get') {
+    if (key === null) {
+      var prefix = p.prefix ? String(p.prefix) : '';
+      var keys = Object.keys(store).filter(function (k) { return k.indexOf(prefix) === 0; }).sort();
+      return { area: 'agent', count: keys.length, keys: keys.map(function (k) { return { key: k, updated: store[k].at }; }) };
+    }
+    if (!(key in store)) return { area: 'agent', key: key, found: false };
+    return { area: 'agent', key: key, found: true, value: store[key].v, updated: store[key].at };
+  }
+  if (key === null) throw be('INVALID_PARAMS', 'storage_' + op + ' needs a key');
+  if (op === 'set') {
+    var size = JSON.stringify(p.value === undefined ? null : p.value).length;
+    if (size > AGENT_MAX_VALUE) throw be('PAYLOAD_TOO_LARGE', 'Values are limited to ' + AGENT_MAX_VALUE + ' characters of JSON (this one is ' + size + ').');
+    if (!(key in store) && Object.keys(store).length >= AGENT_MAX_KEYS) throw be('PAYLOAD_TOO_LARGE', 'The agent store is full (' + AGENT_MAX_KEYS + ' keys). Remove some first.');
+    store[key] = { v: p.value === undefined ? null : p.value, at: new Date().toISOString() };
+    var put = {}; put[AGENT_STORE] = store; await call(B.storage.local, 'set', put);
+    return { area: 'agent', key: key, saved: true };
+  }
+  var had = key in store;
+  delete store[key];
+  if (had) var put = {}; put[AGENT_STORE] = store; await call(B.storage.local, 'set', put);
+  return { area: 'agent', key: key, removed: had };
+}
+
+/* The cookie jar a tab sees: its container / private store, across first-party
+ * isolation, including cookies partitioned under its site (CHIPS / Total Cookie
+ * Protection). Older Firefox lacks some keys; drop them and retry. */
+async function jarCookies(tab, url, extra) {
+  var q = Object.assign({ url: url.split('#')[0], firstPartyDomain: null, partitionKey: {} }, extra || {});
+  if (tab && tab.cookieStoreId) q.storeId = tab.cookieStoreId;
+  var cookies;
+  for (var attempt = 0; ; attempt++) {
+    try {
+      cookies = await call(B.cookies, 'getAll', q);
+      break;
+    } catch (e) {
+      if (attempt === 0 && 'partitionKey' in q) { delete q.partitionKey; continue; }
+      if (attempt <= 1 && 'firstPartyDomain' in q) { delete q.firstPartyDomain; continue; }
+      throw e;
+    }
+  }
+  var host = '', scheme = '';
+  try { var u = new URL(url); host = u.hostname; scheme = u.protocol; } catch (e) {}
+  var under = function (d) { return host === d || host.endsWith('.' + d); };
+  return (cookies || []).filter(function (c) {
+    // First-party isolation: keep only the jar of this site, not cookies it set as a third party elsewhere.
+    var fpd = c.firstPartyDomain;
+    if (fpd) {
+      var m = /^\((\w+),([^,)]+)/.exec(fpd); // "(https,example.com[,port])" when isolating by scheme too
+      if (m ? (m[1] + ':' !== scheme || !under(m[2])) : !under(fpd)) return false;
+    }
+    var site = c.partitionKey && c.partitionKey.topLevelSite;
+    if (!site) return true;
+    try {
+      var su = new URL(site);
+      return su.protocol === scheme && under(su.hostname);
+    } catch (e) {
+      return false;
+    }
+  });
+}
+
+/* The URL cookies are read or written for: the one given, else the tab's page. */
+async function cookieTarget(p) {
+  var tab = await resolveTab(p.tabId);
+  var url = p.url !== undefined && p.url !== null && p.url !== '' ? fixUrl(p.url) : String(tab.url || '');
+  if (!/^https?:/i.test(url)) throw be('INVALID_PARAMS', 'Cookies need an http(s) page; this tab shows ' + (url || 'nothing') + '. Pass url.');
+  return { tab: tab, url: url };
+}
+
+function cookieInfo(c) {
+  var o = {
+    name: c.name, value: c.value, domain: c.domain, path: c.path,
+    secure: !!c.secure, httpOnly: !!c.httpOnly, sameSite: c.sameSite || 'no_restriction',
+    session: !!c.session
+  };
+  if (!c.session && c.expirationDate) o.expires = new Date(c.expirationDate * 1000).toISOString();
+  if (c.partitionKey && c.partitionKey.topLevelSite) o.partitionedUnder = c.partitionKey.topLevelSite;
+  return o;
+}
+
+/* A download as the agent needs it: where the file is, whether it's done, and why not. */
+async function downloadInfo(d) {
+  var o = {
+    id: d.id, url: d.url, path: d.filename || '', file: String(d.filename || '').split(/[\\/]/).pop(),
+    state: d.state, bytesReceived: d.bytesReceived, totalBytes: d.totalBytes >= 0 ? d.totalBytes : null,
+    mime: d.mime || '', startTime: d.startTime, exists: !!d.exists
+  };
+  if (d.endTime) o.endTime = d.endTime;
+  if (d.error) o.error = d.error;
+  if (d.danger && d.danger !== 'safe' && d.danger !== 'accepted') o.danger = d.danger;
+  if (d.paused) o.paused = true;
+  return o;
+}
+
 /* ---------------------------------------------------------------- handlers */
 
 var handlers = {
@@ -553,9 +958,10 @@ var handlers = {
   'tabs.query': async function (p) {
     var tabs = await call(B.tabs, 'query', {});
     var urlRe = null, titleRe = null;
+    var text = (p.query === undefined || p.query === null || p.query === '*') ? '' : String(p.query).trim().toLowerCase();
     try {
-      urlRe = safeRegExp(p.urlPattern);
-      titleRe = safeRegExp(p.titlePattern);
+      urlRe = p.urlPattern === '*' ? null : safeRegExp(p.urlPattern);
+      titleRe = p.titlePattern === '*' ? null : safeRegExp(p.titlePattern);
     } catch (e) {
       throw be('INVALID_PARAMS', 'Bad regex in tabs.query: ' + e.message);
     }
@@ -566,6 +972,9 @@ var handlers = {
       if (p.audible !== undefined && !!t.audible !== !!p.audible) return false;
       if (p.pinned !== undefined && !!t.pinned !== !!p.pinned) return false;
       if (p.active !== undefined && !!t.active !== !!p.active) return false;
+      if (p.windowId !== undefined && t.windowId !== Number(p.windowId)) return false;
+      if (p.includeDiscarded === false && t.discarded) return false;
+      if (text && (String(t.url || '') + ' ' + String(t.title || '')).toLowerCase().indexOf(text) < 0) return false;
       return true;
     }).map(toTabInfo);
   },
@@ -579,7 +988,13 @@ var handlers = {
 
   /* ---- tab management ---- */
   'tab.create': async function (p, ctx) {
+    if (p.duplicateOf !== undefined && p.duplicateOf !== null) {
+      var src = await resolveTab(p.duplicateOf);
+      var dup = await call(B.tabs, 'duplicate', src.id, p.active === false ? { active: false } : undefined);
+      return toTabInfo(dup);
+    }
     var details = {};
+    if (p.windowId !== undefined) details.windowId = Number(p.windowId);
     if (p.url !== undefined) details.url = fixUrl(p.url);
     if (p.active !== undefined) details.active = !!p.active;
     var waiter = details.url && p.waitForLoad ? tabLoadWaiter(num(p.timeoutMs, 20000), ctx.signal, details.url) : null;
@@ -594,8 +1009,7 @@ var handlers = {
       waiter.start(created.id, true);
       var ok = await waiter.promise;
       var info = toTabInfo(await call(B.tabs, 'get', created.id));
-      info.loadComplete = ok;
-      return info;
+      return loadResult(info, ok);
     }
     return toTabInfo(created);
   },
@@ -626,12 +1040,35 @@ var handlers = {
       var ok = await loaded.promise;
       var info = toTabInfo(await call(B.tabs, 'get', tab.id));
       await focusWindow(props, info);
-      info.loadComplete = ok;
-      return info;
+      return loadResult(info, ok);
     }
     if (Object.keys(props).length) updated = await call(B.tabs, 'update', tab.id, props);
     await focusWindow(props, updated);
     return toTabInfo(updated || tab);
+  },
+  'tab.navigate': async function (p, ctx) {
+    if (p.url !== undefined && p.url !== null && p.url !== '') return await handlers['tab.update'](pick(p, ['tabId', 'url', 'waitForLoad', 'timeoutMs']), ctx);
+    var go = p.go;
+    if (go !== 'back' && go !== 'forward' && go !== 'reload') throw be('INVALID_PARAMS', 'tab_navigate needs url, or go: "back", "forward" or "reload"');
+    var tab = await resolveTab(p.tabId);
+    var wait = p.waitForLoad !== false ? tabLoadWaiter(num(p.timeoutMs, 20000), ctx.signal) : null;
+    if (wait) wait.start(tab.id, false);
+    try {
+      if (go === 'back') await call(B.tabs, 'goBack', tab.id);
+      else if (go === 'forward') await call(B.tabs, 'goForward', tab.id);
+      else await call(B.tabs, 'reload', tab.id, { bypassCache: !!p.bypassCache });
+    } catch (e) {
+      if (wait) wait.cancel();
+      if (go !== 'reload') throw be('NAVIGATION_FAILED', 'Cannot go ' + go + ': ' + (e.message || e) + ' (no history that way?)');
+      throw e;
+    }
+    // Back/forward within one page (#fragments, pushState) fires no load; don't wait the full timeout.
+    var ok = wait ? await Promise.race([wait.promise, sleep(go === 'reload' ? 1e9 : 3000).then(function () { return null; })]) : null;
+    if (wait) wait.cancel();
+    var info = toTabInfo(await call(B.tabs, 'get', tab.id));
+    if (wait) info.loadComplete = ok === null ? info.status === 'complete' : ok;
+    if (go !== 'reload' && info.url === tab.url) info.note = 'The URL did not change: there may be no history ' + go + ', or the page changed in place.';
+    return info;
   },
   'tab.close': async function (p) {
     var ids;
@@ -660,7 +1097,7 @@ var handlers = {
   },
   'tab.pin': async function (p) {
     var tab = await resolveTab(p.tabId);
-    return toTabInfo(await call(B.tabs, 'update', tab.id, { pinned: true }));
+    return toTabInfo(await call(B.tabs, 'update', tab.id, { pinned: p.pinned !== undefined ? !!p.pinned : true }));
   },
   'tab.unpin': async function (p) {
     var tab = await resolveTab(p.tabId);
@@ -728,32 +1165,61 @@ var handlers = {
   'page.snapshot': async function (p) {
     var tab = await resolveTab(p.tabId);
     assertContentAllowed(tab);
-    return await sendToPage(tab.id, p, {
+    var base = pick(p, ['within', 'viewportOnly'], {
       kind: 'ax-snapshot',
       compact: p.compact !== undefined ? !!p.compact : true,
       maxChars: num(p.maxChars, 50000)
     });
+    if (base.within) base.within = Object.assign({}, base.within);
+    var snap = await pageCall(tab.id, p, Object.assign({}, base));
+    return await withFrameOutlines(tab.id, p, snap, base);
   },
   'page.text': async function (p) {
     var tab = await resolveTab(p.tabId);
     assertContentAllowed(tab);
-    return await sendToPage(tab.id, p, { kind: 'page-text', maxChars: num(p.maxChars, 50000) });
+    var tm = pick(p, ['within', 'offset', 'format'], { kind: 'page-text', maxChars: num(p.maxChars, 20000), withFrames: true });
+    if (tm.within) tm.within = Object.assign({}, tm.within);
+    var res = await pageCall(tab.id, p, tm);
+    return await withFrameText(tab.id, p, res, Math.max(0, Math.floor(Number(p.offset) || 0)), tm.maxChars);
   },
   'page.html': async function (p) {
     var tab = await resolveTab(p.tabId);
     assertContentAllowed(tab);
-    return await sendToPage(tab.id, p, {
+    return await pageCall(tab.id, p, pick(p, ['within'], {
       kind: 'page-html',
       selector: p.selector,
       maxChars: num(p.maxChars, 50000)
-    });
+    }));
   },
   'page.shot': async function (p) {
     var tab = await resolveTab(p.tabId);
+    var shotP = { format: p.format, quality: p.quality, keepActive: p.keepActive };
+    var scale = p.scale !== undefined ? Math.max(0.1, Math.min(2, Number(p.scale) || 1)) : null;
+    var extra = {};
+    var element = hasTargetParams(p);
+    if (element || p.fullPage) {
+      assertContentAllowed(tab);
+      var m = await pageCall(tab.id, p, element
+        ? pick(p, TARGET_KEYS, { kind: 'element-rect' })
+        : { kind: 'page-metrics' });
+      if (element && m.frame) throw be('NOT_SUPPORTED', 'That element is inside a cross-origin frame, which can\'t be captured on its own. Capture the frame itself (its ref from page_snapshot) or the visible area.');
+      var r = element ? m.rect : { x: 0, y: 0, width: m.width, height: m.height };
+      if (element && (r.width < 1 || r.height < 1)) throw be('NOT_INTERACTABLE', 'That element has no size on screen (' + (m.line || 'hidden') + ').');
+      var maxH = 16000;
+      if (r.height > maxH) { extra.cutOff = 'Only the top ' + maxH + 'px of ' + Math.round(r.height) + 'px were captured.'; r.height = maxH; }
+      shotP.rect = { x: Math.floor(r.x), y: Math.floor(r.y), width: Math.ceil(r.width), height: Math.ceil(r.height) };
+      // A tall page at full size is a huge image: shrink it unless a scale was asked for.
+      if (scale === null) scale = Math.min(1, 4000 / Math.max(r.width, r.height));
+      if (element) extra.element = m.line;
+      extra.region = shotP.rect;
+    }
+    if (scale !== null) shotP.scale = scale;
     // Keep the AI cursor out of the picture.
     var concealed = !!(await cursorOp(tab.id, 'conceal'));
     try {
-      return await shoot(tab, p);
+      var out = await shoot(tab, shotP);
+      if (scale !== null) out.scale = Math.round(scale * 100) / 100;
+      return Object.assign(out, extra);
     } finally {
       if (concealed) cursorOp(tab.id, 'reveal');
     }
@@ -785,73 +1251,84 @@ var handlers = {
 
   /* ---- acting (content script does the DOM work) ---- */
   'act.click': async function (p, ctx) {
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, { kind: 'act-click', ref: p.ref, selector: p.selector, generation: p.generation, button: p.button || 'left' });
+    return await act(p, ctx, 'act-click', ['double', 'modifiers'], { button: p.button || 'left' });
   },
   'act.type': async function (p, ctx) {
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, {
-      kind: 'act-type', ref: p.ref, selector: p.selector, generation: p.generation,
+    return await act(p, ctx, 'act-type', ['append', 'submitRef', 'submitSelector', 'submitName'], {
       text: (p.text === undefined || p.text === null) ? '' : String(p.text),
-      submit: !!p.submit, submitRef: p.submitRef, submitSelector: p.submitSelector
+      submit: !!p.submit
     });
   },
   'act.fillForm': async function (p, ctx) {
     if (!Array.isArray(p.fields)) throw be('INVALID_PARAMS', 'act.fillForm requires fields[]');
     var tab = await resolveTab(p.tabId);
     assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, {
-      kind: 'act-fillForm', fields: p.fields, generation: p.generation,
-      submit: !!p.submit, submitRef: p.submitRef, submitSelector: p.submitSelector
-    });
+    return await actOn(tab.id, p, ctx, pick(p, ['generation', 'changes', 'submitRef', 'submitSelector', 'submitName'], {
+      kind: 'act-fillForm', fields: p.fields, submit: !!p.submit
+    }));
   },
   'act.select': async function (p, ctx) {
     if (!Array.isArray(p.values)) throw be('INVALID_PARAMS', 'act.select requires values[]');
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, {
-      kind: 'act-select', ref: p.ref, selector: p.selector, generation: p.generation,
-      values: p.values.map(String)
-    });
+    return await act(p, ctx, 'act-select', [], { values: p.values.map(String) });
   },
   'act.hover': async function (p, ctx) {
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, { kind: 'act-hover', ref: p.ref, selector: p.selector, generation: p.generation });
+    return await act(p, ctx, 'act-hover', []);
   },
   'act.scroll': async function (p, ctx) {
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, {
-      kind: 'act-scroll', ref: p.ref, selector: p.selector, generation: p.generation,
-      direction: p.direction, pixels: p.pixels, to: p.to
-    });
+    return await act(p, ctx, 'act-scroll', ['direction', 'pixels', 'to']);
   },
   'act.key': async function (p, ctx) {
     if (p.key === undefined || p.key === null || p.key === '') {
       throw be('INVALID_PARAMS', 'act.key requires key');
     }
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, { kind: 'act-key', key: String(p.key), modifiers: p.modifiers });
+    return await act(p, ctx, 'act-key', ['modifiers', 'times'], { key: String(p.key) });
   },
   'act.wait': async function (p, ctx) {
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, {
-      kind: 'act-wait', text: p.text, selector: p.selector, timeoutMs: num(p.timeoutMs, 10000)
-    });
+    if (typeof p.urlContains === 'string' && p.urlContains) {
+      // Navigation replaces the page's script, so this wait runs here.
+      var wt = await resolveTab(p.tabId);
+      var until = Date.now() + Math.min(num(p.timeoutMs, 10000), 60000), start = Date.now(), cur = wt;
+      while (Date.now() < until) {
+        if (ctx.signal.aborted) throw be('CANCELLED', 'The command was cancelled.');
+        try { cur = await call(B.tabs, 'get', wt.id); } catch (e) { throw be('TAB_NOT_FOUND', 'The tab was closed while waiting.'); }
+        if (String(cur.url || '').indexOf(p.urlContains) >= 0 && cur.status === 'complete') {
+          return { found: true, url: cur.url, title: cur.title || '', elapsedMs: Date.now() - start };
+        }
+        await sleep(200);
+      }
+      return { found: false, timedOut: true, url: cur.url || '', loading: cur.status !== 'complete', elapsedMs: Date.now() - start,
+        note: 'The address didn\'t contain ' + JSON.stringify(p.urlContains) + (cur.status !== 'complete' ? ' (still loading)' : '') + ' before the wait ran out.' };
+    }
+    return await act(p, ctx, 'act-wait', ['text', 'gone'], { timeoutMs: num(p.timeoutMs, 10000) });
   },
   'act.find': async function (p, ctx) {
     if (p.query === undefined || p.query === null || String(p.query) === '') {
       throw be('INVALID_PARAMS', 'act.find requires query');
     }
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, { kind: 'act-find', query: String(p.query) });
+    return await act(p, ctx, 'act-find', [], { query: String(p.query), withFrames: true });
   },
+  'act.drag': async function (p, ctx) {
+    var to = ['toRef', 'toSelector', 'toName', 'toRole', 'toX', 'toY'];
+    if (!to.some(function (k) { return p[k] !== undefined && p[k] !== null && p[k] !== ''; })) {
+      throw be('INVALID_PARAMS', 'act.drag needs a drop target: toRef, toSelector, toName or toX+toY');
+    }
+    return await act(p, ctx, 'act-drag', to);
+  },
+  'act.upload': async function (p, ctx) {
+    if (!Array.isArray(p.files) || !p.files.length) throw be('INVALID_PARAMS', 'act.upload requires files[]');
+    var total = 0;
+    p.files.forEach(function (f) {
+      if (!f || !f.name) throw be('INVALID_PARAMS', 'Each file needs a name');
+      total += String(f.base64 || '').length + String(f.text || '').length;
+    });
+    if (total > 700000) throw be('PAYLOAD_TOO_LARGE', 'Files are limited to about 500KB in total.');
+    return await act(p, ctx, 'act-upload', [], { files: p.files });
+  },
+
+  /* ---- storage ---- */
+  'storage.get': async function (p) { return await storageOp('get', p); },
+  'storage.set': async function (p) { return await storageOp('set', p); },
+  'storage.remove': async function (p) { return await storageOp('remove', p); },
 
   /* ---- browser data ---- */
   'bookmarks.search': async function (p) {
@@ -885,45 +1362,88 @@ var handlers = {
       return (all || []).slice(0, limit);
     }
   },
+  'downloads.query': async function (p) {
+    var q = { orderBy: ['-startTime'], limit: Math.max(1, Math.min(200, num(p.limit, 20))) };
+    if (p.id !== undefined) q.id = Number(p.id);
+    if (p.query) q.query = String(p.query).split(/\s+/).filter(Boolean);
+    if (p.state) q.state = String(p.state);
+    var list = await call(B.downloads, 'search', q);
+    var out = [];
+    for (var i = 0; i < (list || []).length; i++) out.push(await downloadInfo(list[i]));
+    return out;
+  },
+  'downloads.start': async function (p, ctx) {
+    if (!p.url) throw be('INVALID_PARAMS', 'download_start needs url');
+    var opts = { url: fixUrl(p.url), conflictAction: 'uniquify', saveAs: false };
+    if (p.filename) {
+      var name = String(p.filename).replace(/^[\\/]+/, '');
+      if (/(^|[\\/])\.\.([\\/]|$)/.test(name)) throw be('INVALID_PARAMS', 'filename can\'t contain ".."; it is relative to the downloads folder');
+      opts.filename = name;
+    }
+    var id;
+    try { id = await call(B.downloads, 'download', opts); } catch (e) {
+      throw be('DOWNLOAD_FAILED', 'Download refused: ' + (e.message || e));
+    }
+    var until = Date.now() + (p.wait === false ? 0 : num(p.timeoutMs, 60000));
+    var d = null;
+    for (;;) {
+      d = ((await call(B.downloads, 'search', { id: id })) || [])[0];
+      if (!d || d.state !== 'in_progress' || Date.now() >= until || ctx.signal.aborted) break;
+      await sleep(250);
+    }
+    var info = d ? await downloadInfo(d) : { id: id };
+    if (info.state === 'in_progress') info.note = 'Still downloading; check later with download_query {id: ' + id + '}.';
+    return info;
+  },
   'cookies.forTab': async function (p) {
     var tab = await resolveTab(p.tabId);
     var url = String(tab.url || '');
     if (!/^https?:/i.test(url)) return [];
-    // The tab's own cookie jar (containers, private windows), across first-party
-    // isolation, including cookies partitioned under this site (CHIPS / Total
-    // Cookie Protection). Older Firefox lacks some keys; drop them and retry.
-    var q = { url: url.split('#')[0], firstPartyDomain: null, partitionKey: {} };
-    if (tab.cookieStoreId) q.storeId = tab.cookieStoreId;
-    var cookies;
-    for (var attempt = 0; ; attempt++) {
-      try {
-        cookies = await call(B.cookies, 'getAll', q);
-        break;
-      } catch (e) {
-        if (attempt === 0 && 'partitionKey' in q) { delete q.partitionKey; continue; }
-        if (attempt <= 1 && 'firstPartyDomain' in q) { delete q.firstPartyDomain; continue; }
-        throw e;
-      }
+    return await jarCookies(tab, url);
+  },
+  'cookies.query': async function (p) {
+    var t = await cookieTarget(p);
+    var list = await jarCookies(t.tab, t.url, p.name ? { name: String(p.name) } : null);
+    return { url: t.url, count: list.length, cookies: list.map(cookieInfo) };
+  },
+  'cookies.set': async function (p) {
+    if (!p.name) throw be('INVALID_PARAMS', 'cookie_set needs name');
+    var t = await cookieTarget(p);
+    var d = { url: t.url.split('#')[0], name: String(p.name), value: p.value === undefined || p.value === null ? '' : String(p.value) };
+    if (t.tab.cookieStoreId) d.storeId = t.tab.cookieStoreId;
+    pick(p, ['domain', 'path', 'secure', 'httpOnly', 'sameSite'], d);
+    if (p.expiresInSeconds !== undefined) d.expirationDate = Math.floor(Date.now() / 1000) + Number(p.expiresInSeconds);
+    else if (p.expires !== undefined) {
+      var at = typeof p.expires === 'number' ? p.expires : Date.parse(p.expires) / 1000;
+      if (!isFinite(at)) throw be('INVALID_PARAMS', 'expires must be an ISO date or unix seconds');
+      d.expirationDate = Math.floor(at);
     }
-    var host = '', scheme = '';
-    try { var u = new URL(url); host = u.hostname; scheme = u.protocol; } catch (e) {}
-    var under = function (d) { return host === d || host.endsWith('.' + d); };
-    return (cookies || []).filter(function (c) {
-      // First-party isolation: keep only the jar of this tab's own site, not cookies it set as a third party elsewhere.
-      var fpd = c.firstPartyDomain;
-      if (fpd) {
-        var m = /^\((\w+),([^,)]+)/.exec(fpd); // "(https,example.com[,port])" when isolating by scheme too
-        if (m ? (m[1] + ':' !== scheme || !under(m[2])) : !under(fpd)) return false;
-      }
-      var site = c.partitionKey && c.partitionKey.topLevelSite;
-      if (!site) return true;
-      try {
-        var su = new URL(site);
-        return su.protocol === scheme && under(su.hostname);
-      } catch (e) {
-        return false;
-      }
-    });
+    var c;
+    try {
+      c = await call(B.cookies, 'set', d);
+    } catch (e) {
+      // First-party isolation needs the jar named explicitly.
+      if (!/firstPartyDomain/i.test(String(e.message || e))) throw be('COOKIE_REFUSED', 'Firefox refused the cookie: ' + (e.message || e));
+      d.firstPartyDomain = new URL(d.url).hostname.split('.').slice(-2).join('.');
+      c = await call(B.cookies, 'set', d);
+    }
+    if (!c) throw be('COOKIE_REFUSED', 'Firefox refused the cookie (check domain, secure and sameSite against the URL).');
+    return { set: true, url: d.url, cookie: cookieInfo(c) };
+  },
+  'cookies.remove': async function (p) {
+    if (!p.name) throw be('INVALID_PARAMS', 'cookie_remove needs name');
+    var t = await cookieTarget(p);
+    var list = await jarCookies(t.tab, t.url, { name: String(p.name) });
+    var removed = 0;
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i];
+      var d = { url: (c.secure ? 'https://' : 'http://') + c.domain.replace(/^\./, '') + c.path, name: c.name };
+      if (c.storeId) d.storeId = c.storeId;
+      if (c.firstPartyDomain) d.firstPartyDomain = c.firstPartyDomain;
+      if (c.partitionKey) d.partitionKey = c.partitionKey;
+      try { if (await call(B.cookies, 'remove', d)) removed++; } catch (e) {}
+    }
+    return { url: t.url, name: String(p.name), removed: removed };
   },
   'sessions.recentlyClosed': async function (p) {
     return await call(B.sessions, 'getRecentlyClosed', { maxResults: num(p.limit, 10) });
@@ -956,7 +1476,14 @@ var LABELS = {
   'bookmarks.remove': ['Removing a bookmark', 'Removed a bookmark'], 'history.search': ['Searching history', 'Searched history'],
   'downloads.list': ['Checking downloads', 'Checked downloads'], 'cookies.forTab': ['Reading cookies', 'Read cookies'],
   'sessions.recentlyClosed': ['Checking closed tabs', 'Checked closed tabs'], 'sessions.restore': ['Reopening a tab', 'Reopened a tab'],
-  'cursor.say': ['Talking', 'Said something']
+  'cursor.say': ['Talking', 'Said something'],
+  'tab.navigate': ['Opening a page', 'Opened a page'], 'act.drag': ['Dragging', 'Dragged'],
+  'act.upload': ['Attaching a file', 'Attached a file'],
+  'cookies.query': ['Reading cookies', 'Read cookies'], 'cookies.set': ['Setting a cookie', 'Set a cookie'],
+  'cookies.remove': ['Deleting a cookie', 'Deleted a cookie'],
+  'downloads.query': ['Checking downloads', 'Checked downloads'], 'downloads.start': ['Downloading a file', 'Downloaded a file'],
+  'storage.get': ['Reading saved data', 'Read saved data'], 'storage.set': ['Saving data', 'Saved data'],
+  'storage.remove': ['Deleting saved data', 'Deleted saved data']
 };
 /* "tabs.list" -> i18n keys "lblTabsListNow" / "lblTabsListPast". */
 function labelsFor(method) {
@@ -967,7 +1494,7 @@ function labelsFor(method) {
 }
 
 /* Methods that act on one tab, so "Now" can say which. */
-var TAB_METHODS = /^(page\.|act\.|nav\.|cookies\.|tab\.(update|close|duplicate|move|pin|unpin|mute)$|cursor\.say$)/;
+var TAB_METHODS = /^(page\.|act\.|nav\.|cookies\.|tab\.(update|navigate|close|duplicate|move|pin|unpin|mute)$|cursor\.say$)/;
 var now = null; // { text, past, site, tabId, at, done }
 
 function siteOf(url) {
@@ -996,7 +1523,7 @@ async function onCommand(cmd, ctx) {
     cur.at = Date.now();
     updateBadge();
   }
-  if (!/^(tabs\.list|windows\.list|active\.tab|page\.info|cursor\.say)$/.test(cmd.method)) note(label[1], 'act', cur.site);
+  if (!/^(tabs\.(list|query)|windows\.list|active\.tab|page\.info|cursor\.say|storage\.get)$/.test(cmd.method)) note(label[1], 'act', cur.site);
   noteAfter(cmd.method, params);
   return result;
 }

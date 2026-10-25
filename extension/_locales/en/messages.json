@@ -708,6 +708,28 @@
       }
     }
   },
+  "curDrag": {
+    "message": "Dragging something"
+  },
+  "curDragNamed": {
+    "message": "Dragging “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curUpload": {
+    "message": "Attaching a file"
+  },
+  "curUploadNamed": {
+    "message": "Attaching “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
   "curRead": {
     "message": "Reading the page"
   },
@@ -962,6 +984,72 @@
   },
   "lblCursorSayPast": {
     "message": "Said something"
+  },
+  "lblTabNavigateNow": {
+    "message": "Opening a page"
+  },
+  "lblTabNavigatePast": {
+    "message": "Opened a page"
+  },
+  "lblActDragNow": {
+    "message": "Dragging"
+  },
+  "lblActDragPast": {
+    "message": "Dragged"
+  },
+  "lblActUploadNow": {
+    "message": "Attaching a file"
+  },
+  "lblActUploadPast": {
+    "message": "Attached a file"
+  },
+  "lblCookiesQueryNow": {
+    "message": "Reading cookies"
+  },
+  "lblCookiesQueryPast": {
+    "message": "Read cookies"
+  },
+  "lblCookiesSetNow": {
+    "message": "Setting a cookie"
+  },
+  "lblCookiesSetPast": {
+    "message": "Set a cookie"
+  },
+  "lblCookiesRemoveNow": {
+    "message": "Deleting a cookie"
+  },
+  "lblCookiesRemovePast": {
+    "message": "Deleted a cookie"
+  },
+  "lblDownloadsQueryNow": {
+    "message": "Checking downloads"
+  },
+  "lblDownloadsQueryPast": {
+    "message": "Checked downloads"
+  },
+  "lblDownloadsStartNow": {
+    "message": "Downloading a file"
+  },
+  "lblDownloadsStartPast": {
+    "message": "Downloaded a file"
+  },
+  "lblStorageGetNow": {
+    "message": "Reading saved data"
+  },
+  "lblStorageGetPast": {
+    "message": "Read saved data"
+  },
+  "lblStorageSetNow": {
+    "message": "Saving data"
+  },
+  "lblStorageSetPast": {
+    "message": "Saved data"
+  },
+  "lblStorageRemoveNow": {
+    "message": "Deleting saved data"
+  },
+  "lblStorageRemovePast": {
+    "message": "Deleted saved data"
   },
   "obTitle": {
     "message": "Welcome to Foxhand"

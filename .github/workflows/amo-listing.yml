@@ -1,0 +1,23 @@
+name: AMO listing
+# Updates the addons.mozilla.org listing (name, summaries, descriptions in every
+# language, homepage, support link, privacy policy) from docs/amo-listing.md.
+# Run by hand: listing edits need the owner's OK.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  listing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/amo-listing.mjs --dry-run
+      - run: node scripts/amo-listing.mjs
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}

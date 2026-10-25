@@ -1,56 +1,59 @@
 /**
- * Page-interaction tools. Elements are addressed either by snapshot `ref`
- * (preferred, from snapshot_ax) or by CSS `selector`; one of the two is required.
+ * Page-interaction tools. An element is named by ref (from page_snapshot),
+ * by name (+ role, nth), by CSS selector, or by a viewport point x,y.
+ * Every action reports what changed on the page (`changes`) and anything
+ * worth knowing (`notes`), and follows a navigation it caused.
  */
 
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { BridgeMethod } from "@webmcp-controller/shared";
 import type { ExtensionBridge } from "../bridge/bridge.js";
 import type { ServerConfig } from "../config.js";
-import { callBridge, fmt, tabIdField, toBridgeError } from "./helpers.js";
-
-function text(t: string) {
-  const res: { content: { type: "text"; text: string }[]; isError?: boolean } = {
-    content: [{ type: "text" as const, text: t }],
-  };
-  if (t.startsWith("ERROR")) res.isError = true;
-  return res;
-}
-
-function refusal(t: string) {
-  return { content: [{ type: "text" as const, text: t }], isError: true };
-}
-
-const refField = z
-  .number()
-  .int()
-  .positive()
-  .optional()
-  .describe("Element ref from snapshot_ax (preferred)");
-
-const selectorField = z.string().optional().describe("CSS selector (alternative to ref)");
-
-const generationField = z
-  .string()
-  .optional()
-  .describe("The `generation` of the snapshot_ax the ref came from. If the page has since navigated, the call fails with REF_STALE instead of acting on the wrong element.");
+import { callBridge, hasTarget, refusal, tabIdField, targetFields, targetOf, text } from "./helpers.js";
 
 const dialogField = z
   .enum(["accept", "dismiss"])
   .optional()
   .describe(
-    "How to answer a confirm()/prompt() the page shows because of this action (default dismiss = Cancel). " +
-      "Dialogs never block: the result lists any the page showed (`dialogs`). Repeat with \"accept\" to answer OK.",
+    "How to answer a confirm()/prompt() this action makes the page show (default dismiss = Cancel). " +
+      "Dialogs never block; the result lists them (`dialogs`). Repeat with \"accept\" to answer OK.",
   );
 
 const promptTextField = z.string().max(1000).optional().describe("Text to answer a prompt() with, when dialog is \"accept\"");
 
-/** Guard for tools that need exactly one element target. Returns an error string or null. */
-function requireTarget(args: { ref?: number; selector?: string }, tool: string): string | null {
-  if (args.ref === undefined && args.selector === undefined) {
-    return `ERROR: ${tool} requires either ref (from snapshot_ax) or selector.`;
-  }
-  return null;
+/* Modifier keys, however the agent spells them: "ctrl", "Control", "cmd", "Option"... */
+const MODIFIERS: Record<string, "Ctrl" | "Alt" | "Shift" | "Meta"> = {
+  ctrl: "Ctrl", control: "Ctrl", alt: "Alt", option: "Alt", opt: "Alt", shift: "Shift",
+  meta: "Meta", cmd: "Meta", command: "Meta", super: "Meta", win: "Meta", windows: "Meta", os: "Meta",
+};
+const modifierField = z.preprocess(
+  (v) => (typeof v === "string" ? (MODIFIERS[v.trim().toLowerCase().replace(/key$/, "")] ?? v) : v),
+  z.enum(["Ctrl", "Alt", "Shift", "Meta"]),
+);
+
+const changesField = z
+  .boolean()
+  .optional()
+  .describe("Report what changed on the page after the action (default true; false is a little faster)");
+
+const submitFields = {
+  submit: z
+    .boolean()
+    .optional()
+    .describe(
+      "Submit once afterwards. In a form: its submit button (unless a field is invalid). Outside a form (chat boxes): " +
+        "the box's own Send button if there is exactly one, else Enter. `submitted` says how; false comes with a note.",
+    ),
+  submitRef: z.number().int().positive().optional().describe("Ref of the button that submits (implies submit)"),
+  submitName: z.string().optional().describe("Label of the button that submits, e.g. \"Send\" (implies submit)"),
+  submitSelector: z.string().optional().describe("CSS selector of the button that submits (implies submit)"),
+};
+
+const TARGET_HELP = "Name the element with ref, name (+role), selector, or x,y.";
+
+function needTarget(args: Record<string, unknown>, tool: string) {
+  return hasTarget(args) ? null : refusal(`ERROR [INVALID_PARAMS]: ${tool} needs an element. ${TARGET_HELP}`);
 }
 
 export function registerActTools(
@@ -58,288 +61,321 @@ export function registerActTools(
   bridge: ExtensionBridge,
   _config: ServerConfig,
 ): void {
+  /** Forward an action, with room for the element wait on top of the bridge timeout. */
+  const act = async (method: BridgeMethod, params: Record<string, unknown>, extraMs = 0) => {
+    const wait = typeof params["waitMs"] === "number" ? (params["waitMs"] as number) : 3000;
+    return text(await callBridge(bridge, method, params, { timeoutMs: 30000 + wait + extraMs }));
+  };
+
   server.registerTool(
-    "act_click",
+    "page_click",
     {
-      description: "Click an element by snapshot ref or CSS selector. Fails with ELEMENT_DISABLED on a disabled element.",
+      description:
+        "Click an element. " + TARGET_HELP + " Use x,y for canvas apps (maps, editors, games). " +
+        "Returns what changed, tabs the click opened (openedTabs), and the new URL if it navigated.",
       inputSchema: {
+        tabId: tabIdField,
+        ...targetFields,
+        double: z.boolean().optional().describe("Double-click"),
+        button: z.enum(["left", "middle", "right"]).optional().describe("Mouse button (default left; right opens the page's own context menu)"),
+        modifiers: z.array(modifierField).optional().describe("Keys held while clicking"),
         dialog: dialogField,
         promptText: promptTextField,
-        tabId: tabIdField,
-        ref: refField,
-        selector: selectorField,
-        generation: generationField,
-        button: z.enum(["left", "middle", "right"]).optional().describe("Mouse button (default left)"),
+        changes: changesField,
       },
     },
     async (args) => {
-      const denied = requireTarget(args, "act_click");
-      if (denied) return refusal(denied);
-      return text(
-        await callBridge(bridge, "act.click", {
-          dialog: args.dialog,
-          promptText: args.promptText,
-          tabId: args.tabId,
-          ref: args.ref,
-          selector: args.selector,
-          generation: args.generation,
-          button: args.button,
-        }),
-      );
+      const bad = needTarget(args, "page_click");
+      if (bad) return bad;
+      return act("act.click", {
+        ...targetOf(args),
+        double: args.double,
+        button: args.button,
+        modifiers: args.modifiers,
+        dialog: args.dialog,
+        promptText: args.promptText,
+        changes: args.changes,
+      });
     },
   );
 
   server.registerTool(
-    "act_type",
+    "page_type",
     {
       description:
-        "Replace the value of a text field, textarea, contenteditable, <select> (by option value or label) or checkbox/radio (\"true\"/\"false\"). " +
-        "Fails with NOT_EDITABLE on buttons and read-only fields. Optionally submit afterwards.",
+        "Type into a text field, textarea or rich editor, replacing its text (append:true adds to it). " +
+        "Name the field by ref, or by name (its label or placeholder); with none, types into the focused field. " +
+        "Also sets checkboxes (\"true\"/\"false\") and selects (option label). Can submit afterwards.",
       inputSchema: {
+        tabId: tabIdField,
+        ...targetFields,
+        text: z.string().describe("The text"),
+        append: z.boolean().optional().describe("Add to the existing text instead of replacing it"),
+        ...submitFields,
         dialog: dialogField,
         promptText: promptTextField,
-        tabId: tabIdField,
-        ref: refField,
-        selector: selectorField,
-        generation: generationField,
-        text: z.string().describe("Text to type"),
-        submit: z.boolean().optional().describe("Submit after typing, once. In a form: clicks its submit button (or submits it), unless a field fails validation. Outside a form (chat boxes): clicks the box's own Send button if there is exactly one, otherwise presses Enter once. Result says how (`submitted`); `submitted:false` comes with a note, so check the page before retrying."),
-        submitRef: z.number().int().positive().optional().describe("Ref of the button to click to submit (implies submit). Use when the page has several Send/Submit buttons."),
-        submitSelector: z.string().optional().describe("CSS selector of the button to click to submit (alternative to submitRef)"),
+        changes: changesField,
       },
     },
-    async (args) => {
-      const denied = requireTarget(args, "act_type");
-      if (denied) return refusal(denied);
-      return text(
-        await callBridge(bridge, "act.type", {
-          dialog: args.dialog,
-          promptText: args.promptText,
-          tabId: args.tabId,
-          ref: args.ref,
-          selector: args.selector,
-          generation: args.generation,
-          text: args.text,
-          submit: args.submit,
-          submitRef: args.submitRef,
-          submitSelector: args.submitSelector,
-        }),
-      );
-    },
+    async (args) =>
+      act("act.type", {
+        ...targetOf(args),
+        text: args.text,
+        append: args.append,
+        submit: args.submit,
+        submitRef: args.submitRef,
+        submitName: args.submitName,
+        submitSelector: args.submitSelector,
+        dialog: args.dialog,
+        promptText: args.promptText,
+        changes: args.changes,
+      }),
   );
 
   server.registerTool(
-    "act_fill_form",
+    "page_fill",
     {
       description:
-        "Fill several fields in one call (same value rules as act_type). Every field is checked before anything changes, " +
-        "so a bad ref or value fails the whole call without partial edits.",
+        "Fill several fields in one call (same rules as page_type). Every field is found and checked before anything changes, " +
+        "so a wrong field fails the call without partial edits. Fields can be named by ref, name (label/placeholder) or selector.",
       inputSchema: {
-        dialog: dialogField,
-        promptText: promptTextField,
         tabId: tabIdField,
         fields: z
           .array(
             z
               .object({
-                ref: z.number().int().positive().optional().describe("Element ref from snapshot_ax"),
-                selector: z.string().optional().describe("CSS selector (alternative to ref)"),
-                value: z.string().describe("Value to fill; \"true\"/\"false\" for checkboxes, option value or label for selects"),
+                ref: z.number().int().positive().optional(),
+                name: z.string().optional().describe("The field's label or placeholder"),
+                role: z.string().optional(),
+                nth: z.number().int().positive().optional(),
+                selector: z.string().optional(),
+                value: z.string().describe("Text; \"true\"/\"false\" for checkboxes; option label or value for selects"),
               })
-              .refine((f) => f.ref !== undefined || f.selector !== undefined, {
-                message: "each field needs a ref or selector",
+              .refine((f) => f.ref !== undefined || f.selector !== undefined || f.name !== undefined || f.role !== undefined, {
+                message: "each field needs a ref, name or selector",
               }),
           )
           .min(1)
-          .describe("Fields to fill (at least one)"),
-        generation: generationField,
-        submit: z.boolean().optional().describe("Submit after filling, once (same rules as act_type)"),
-        submitRef: z.number().int().positive().optional().describe("Ref of the button to click to submit (implies submit). Use when the page has several Send/Submit buttons."),
-        submitSelector: z.string().optional().describe("CSS selector of the button to click to submit (alternative to submitRef)"),
-      },
-    },
-    async (args) =>
-      text(
-        await callBridge(bridge, "act.fillForm", {
-          dialog: args.dialog,
-          promptText: args.promptText,
-          tabId: args.tabId,
-          fields: args.fields,
-          generation: args.generation,
-          submit: args.submit,
-          submitRef: args.submitRef,
-          submitSelector: args.submitSelector,
-        }),
-      ),
-  );
-
-  server.registerTool(
-    "act_select",
-    {
-      description:
-        "Select option(s) in a native <select>. Each value matches an option's value exactly, then its visible label, then either ignoring case. " +
-        "Fails with NO_MATCH (listing the options) if one doesn't match. For custom dropdowns, use act_click.",
-      inputSchema: {
-        tabId: tabIdField,
-        ref: refField,
-        selector: selectorField,
-        generation: generationField,
-        values: z.array(z.string()).min(1).describe("Option value(s) or label(s) to select; more than one only for multi-selects"),
-      },
-    },
-    async (args) => {
-      const denied = requireTarget(args, "act_select");
-      if (denied) return refusal(denied);
-      return text(
-        await callBridge(bridge, "act.select", {
-          tabId: args.tabId,
-          ref: args.ref,
-          selector: args.selector,
-          generation: args.generation,
-          values: args.values,
-        }),
-      );
-    },
-  );
-
-  server.registerTool(
-    "act_hover",
-    {
-      description:
-        "Hover over an element by sending pointer/mouse hover events. Opens menus and tooltips driven by JavaScript; " +
-        "CSS-only :hover effects can't be triggered by an extension.",
-      inputSchema: {
-        tabId: tabIdField,
-        ref: refField,
-        selector: selectorField,
-        generation: generationField,
-      },
-    },
-    async (args) => {
-      const denied = requireTarget(args, "act_hover");
-      if (denied) return refusal(denied);
-      return text(
-        await callBridge(bridge, "act.hover", {
-          tabId: args.tabId,
-          ref: args.ref,
-          selector: args.selector,
-          generation: args.generation,
-        }),
-      );
-    },
-  );
-
-  server.registerTool(
-    "act_scroll",
-    {
-      description:
-        "Scroll the page (direction + pixels, default ~80% of the viewport), jump to top/bottom, or scroll ref/selector into view. Falls back to the page's main inner scroller (chat apps etc.) when the window itself can't scroll. Returns atEnd when there's nothing further.",
-      inputSchema: {
-        tabId: tabIdField,
-        ref: refField,
-        selector: selectorField,
-        generation: generationField,
-        direction: z.enum(["up", "down", "left", "right"]).optional().describe("Scroll direction"),
-        pixels: z.number().int().positive().optional().describe("Pixels to scroll (default ~80% of the viewport)"),
-        amount: z.number().int().positive().optional().describe("Alias for pixels"),
-        to: z.enum(["top", "bottom"]).optional().describe("Jump to top or bottom instead"),
-      },
-    },
-    async (args) =>
-      text(
-        await callBridge(bridge, "act.scroll", {
-          tabId: args.tabId,
-          ref: args.ref,
-          selector: args.selector,
-          generation: args.generation,
-          direction: args.direction,
-          pixels: args.pixels ?? args.amount,
-          to: args.to,
-        }),
-      ),
-  );
-
-  server.registerTool(
-    "act_key",
-    {
-      description:
-        "Press a key on the focused element, optionally with modifiers. The page's key handlers always run; since extension key events are " +
-        "untrusted, the add-on itself performs common default actions the page didn't cancel: Tab/Shift+Tab move focus, Enter activates " +
-        "buttons/links or submits a form field, Space toggles/activates, printable keys and Backspace/Delete edit text fields, " +
-        "arrows/PageUp/PageDown/Home/End scroll, Ctrl+A selects all. Browser shortcuts (Ctrl+T, Ctrl+L…) aren't possible. Result `effect` says what happened.",
-      inputSchema: {
+          .describe("The fields and their values"),
+        generation: targetFields.generation,
+        ...submitFields,
         dialog: dialogField,
         promptText: promptTextField,
-        tabId: tabIdField,
-        key: z.string().describe("Key to press, e.g. 'Enter', 'Escape', 'Tab', 'a'"),
-        modifiers: z
-          .array(z.enum(["Ctrl", "Alt", "Shift", "Meta"]))
-          .optional()
-          .describe("Modifier keys held while pressing"),
+        changes: changesField,
       },
     },
     async (args) =>
-      text(
-        await callBridge(bridge, "act.key", {
-          dialog: args.dialog,
-          promptText: args.promptText,
-          tabId: args.tabId,
-          key: args.key,
-          modifiers: args.modifiers,
-        }),
-      ),
+      act("act.fillForm", {
+        tabId: args.tabId,
+        fields: args.fields,
+        generation: args.generation,
+        submit: args.submit,
+        submitRef: args.submitRef,
+        submitName: args.submitName,
+        submitSelector: args.submitSelector,
+        dialog: args.dialog,
+        promptText: args.promptText,
+        changes: args.changes,
+      }),
   );
 
   server.registerTool(
-    "act_wait",
+    "page_select",
     {
-      description: "Wait for text or a selector to appear (or just a fixed condition poll).",
+      description:
+        "Choose option(s) in a dropdown: a native <select>, or a custom one (combobox/listbox) that it opens and clicks for you. " +
+        "Values match the option's label or value. On NO_MATCH the error lists the options.",
       inputSchema: {
         tabId: tabIdField,
-        text: z.string().optional().describe("Text to wait for on the page"),
-        selector: z.string().optional().describe("CSS selector to wait for"),
-        timeoutMs: z
-          .number()
-          .int()
-          .min(1000)
-          .max(60000)
-          .optional()
-          .describe("Max wait in ms (default 10000, max 60000)"),
+        ...targetFields,
+        values: z.array(z.string()).min(1).describe("Option label(s) or value(s); several only for multi-selects"),
+        changes: changesField,
       },
     },
     async (args) => {
-      const waitMs = Math.min(Math.max(args.timeoutMs ?? 10000, 1000), 60000);
-      try {
-        const result = await bridge.call(
+      const bad = needTarget(args, "page_select");
+      if (bad) return bad;
+      return act("act.select", { ...targetOf(args), values: args.values, changes: args.changes });
+    },
+  );
+
+  server.registerTool(
+    "page_hover",
+    {
+      description:
+        "Move the pointer over an element, for menus and tooltips that open on hover in JavaScript. " +
+        "Effects that are pure CSS :hover can't be triggered by an add-on; click instead if nothing opens.",
+      inputSchema: {
+        tabId: tabIdField,
+        ...targetFields,
+        changes: changesField,
+      },
+    },
+    async (args) => {
+      const bad = needTarget(args, "page_hover");
+      if (bad) return bad;
+      return act("act.hover", { ...targetOf(args), changes: args.changes });
+    },
+  );
+
+  server.registerTool(
+    "page_scroll",
+    {
+      description:
+        "Scroll: the page by direction (default ~80% of the screen), to top/bottom, an element into view (name it), " +
+        "or inside a scrollable element (name it and pass direction). Uses the page's main inner scroller when the window can't scroll " +
+        "(chat apps). atEnd:true means there's nothing further.",
+      inputSchema: {
+        tabId: tabIdField,
+        ...targetFields,
+        direction: z.enum(["up", "down", "left", "right"]).optional(),
+        pixels: z.number().int().positive().optional().describe("How far (default ~80% of the viewport)"),
+        to: z.enum(["top", "bottom"]).optional().describe("Jump to the top or bottom"),
+      },
+    },
+    async (args) =>
+      act("act.scroll", { ...targetOf(args), direction: args.direction, pixels: args.pixels, to: args.to, changes: false }),
+  );
+
+  server.registerTool(
+    "page_key",
+    {
+      description:
+        "Press a key, optionally with modifiers, on the focused element or on a named one (it is focused first). " +
+        "The page's handlers run, and the add-on performs the usual default action when the page doesn't: " +
+        "Tab moves focus, Enter activates or submits, Space toggles, text keys and Backspace edit, arrows/PageDown scroll, Ctrl+A selects all. " +
+        "Browser shortcuts (Ctrl+T, Ctrl+L) aren't possible. `effect` says what happened.",
+      inputSchema: {
+        tabId: tabIdField,
+        ...targetFields,
+        key: z.string().describe("e.g. \"Enter\", \"Escape\", \"Tab\", \"ArrowDown\", \"a\""),
+        modifiers: z.array(modifierField).optional().describe("Keys held down"),
+        times: z.number().int().min(1).max(50).optional().describe("Press it this many times (default 1)"),
+        dialog: dialogField,
+        promptText: promptTextField,
+        changes: changesField,
+      },
+    },
+    async (args) =>
+      act("act.key", {
+        ...targetOf(args),
+        key: args.key,
+        modifiers: args.modifiers,
+        times: args.times,
+        dialog: args.dialog,
+        promptText: args.promptText,
+        changes: args.changes,
+      }),
+  );
+
+  server.registerTool(
+    "page_wait",
+    {
+      description:
+        "Wait until text or an element appears, or with gone:true until it disappears (spinners, \"Loading…\"); " +
+        "or until the tab's URL contains urlContains and has loaded (after a login or checkout redirect). " +
+        "With nothing to wait for, waits until the page stops changing. Use it after an action that loads content.",
+      inputSchema: {
+        tabId: tabIdField,
+        text: z.string().optional().describe("Text to wait for"),
+        ref: targetFields.ref,
+        name: targetFields.name,
+        role: targetFields.role,
+        selector: targetFields.selector,
+        gone: z.boolean().optional().describe("Wait for it to disappear instead"),
+        urlContains: z.string().optional().describe("Wait until the tab's address contains this text and the page has loaded"),
+        timeoutMs: z.number().int().min(500).max(60000).optional().describe("Give up after this long (default 10000)"),
+      },
+    },
+    async (args) => {
+      const timeoutMs = args.timeoutMs ?? 10000;
+      return text(
+        await callBridge(
+          bridge,
           "act.wait",
           {
             tabId: args.tabId,
             text: args.text,
+            ref: args.ref,
+            name: args.name,
+            role: args.role,
             selector: args.selector,
-            timeoutMs: waitMs,
+            gone: args.gone,
+            urlContains: args.urlContains,
+            timeoutMs,
+            changes: false,
           },
-          { timeoutMs: waitMs + 15000 },
-        );
-        return text(fmt(result));
-      } catch (e) {
-        const { code, message } = toBridgeError(e);
-        return text(`ERROR [${code}]: ${message}`);
-      }
+          { timeoutMs: timeoutMs + 15000 },
+        ),
+      );
     },
   );
 
   server.registerTool(
-    "act_find",
+    "page_drag",
     {
       description:
-        "Find visible text on the page (case-insensitive). Returns up to 20 matches with their element, " +
-        "`count` of all occurrences, and `truncated` when there were more.",
+        "Drag one element (or point) onto another: sortable lists, kanban cards, sliders, map panning. " +
+        "Name the source like any target and the drop with toRef, toName (+toRole), toSelector, or toX,toY.",
       inputSchema: {
         tabId: tabIdField,
-        query: z.string().describe("Text to find"),
+        ...targetFields,
+        toRef: z.number().int().positive().optional(),
+        toName: z.string().optional(),
+        toRole: z.string().optional(),
+        toSelector: z.string().optional(),
+        toX: z.number().optional().describe("With toY: a viewport point to drop at"),
+        toY: z.number().optional(),
+        changes: changesField,
       },
     },
-    async (args) =>
-      text(await callBridge(bridge, "act.find", { tabId: args.tabId, query: args.query })),
+    async (args) => {
+      const bad = needTarget(args, "page_drag");
+      if (bad) return bad;
+      const hasDrop =
+        args.toRef !== undefined ||
+        args.toName !== undefined ||
+        args.toRole !== undefined ||
+        args.toSelector !== undefined ||
+        (args.toX !== undefined && args.toY !== undefined);
+      if (!hasDrop) return refusal("ERROR [INVALID_PARAMS]: say where to drop: toRef, toName, toSelector, or toX and toY");
+      return act("act.drag", {
+        ...targetOf(args),
+        toRef: args.toRef,
+        toName: args.toName,
+        toRole: args.toRole,
+        toSelector: args.toSelector,
+        toX: args.toX,
+        toY: args.toY,
+        changes: args.changes,
+      });
+    },
+  );
+
+  server.registerTool(
+    "page_upload",
+    {
+      description:
+        "Attach files to a file input or drop zone, as if chosen in the file picker. You supply the contents " +
+        "(text, or base64 for binary), about 500KB in all; files on disk can't be read. With no element, uses the page's only file input.",
+      inputSchema: {
+        tabId: tabIdField,
+        ...targetFields,
+        files: z
+          .array(
+            z
+              .object({
+                name: z.string().min(1).describe("File name, e.g. \"notes.txt\""),
+                text: z.string().optional().describe("Contents as text"),
+                base64: z.string().optional().describe("Contents as base64 (for binary files)"),
+                mimeType: z.string().optional().describe("e.g. \"image/png\" (default: none)"),
+              })
+              .refine((f) => f.text !== undefined || f.base64 !== undefined, { message: "each file needs text or base64" }),
+          )
+          .min(1),
+        changes: changesField,
+      },
+    },
+    async (args) => act("act.upload", { ...targetOf(args), files: args.files, changes: args.changes }),
   );
 }

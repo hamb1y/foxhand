@@ -240,6 +240,106 @@ await ev("(() => { const i = document.getElementById('i'); i.focus(); i.setSelec
 await run({ kind: "act-key", key: "Delete" });
 check("Delete removes a whole grapheme cluster", await ev("i.value") === "x", JSON.stringify(await ev("i.value")));
 
+// ---- 0.5.4: what real pages do ----
+// Buttons made from divs, icon-only buttons, rows, hover-only controls, styled checkboxes.
+await load(`<style>.b{cursor:pointer} li .x{display:none} li:hover .x{display:inline}</style>
+  <ul><li><span>Order 1</span> <div class="b" onclick="window.k='e1'">Edit</div> <button class="x" onclick="window.k='x1'" aria-label="Remove"></button></li>
+  <li><span>Order 2</span> <div class="b" onclick="window.k='e2'">Edit</div> <button class="x" onclick="window.k='x2'" aria-label="Remove"></button></li></ul>
+  <div class="b" id="ic"><svg width="10" height="10"><title>Close panel</title></svg></div>
+  <label><input type="checkbox" id="cb" style="position:absolute;opacity:0;width:0;height:0"> Subscribe</label>
+  <input type="checkbox" id="c2"><span>Next to me</span>`);
+let s0 = await snap();
+check("divs with a pointer cursor show as clickable", /clickable "Edit"/.test(s0.text), s0.text);
+check("icon-only control named by its svg title", /clickable "Close panel"/.test(s0.text), s0.text);
+check("list items holding several controls group them", /listitem "Order 2[^\n]*\n\s+\[ref=\d+\] clickable "Edit"/.test(s0.text), s0.text);
+check("hover-only controls are listed", /button "Remove" \[on hover\]/.test(s0.text), s0.text);
+check("a styled checkbox shows as the checkbox, by its label", /checkbox "Subscribe" \[unchecked\]/.test(s0.text), s0.text);
+check("an unlabeled checkbox is named by the text beside it", /checkbox "Next to me"/.test(s0.text), s0.text);
+r = await run({ kind: "act-click", name: "Remove", nth: 2 });
+check("clicking a hover-only control works and says so", (await ev("window.k")) === "x2" && /hover/.test(r.note || ""), JSON.stringify(r));
+r = await run({ kind: "act-click", name: "Subscribe" });
+check("clicking a styled checkbox reports the state change", (await ev("cb.checked")) === true && /checked/.test(JSON.stringify(r.changes || "")), JSON.stringify(r));
+
+// Repeated buttons on plain-div product cards say which card they're in.
+await load(`<main><div><div class=item><img alt="Backpack photo"><div><a href="#1"><div>Backpack</div></a><div>$29.99</div><button>Add to cart</button></div></div>
+  <div class=item><img alt="Bike photo"><div><a href="#2"><div>Bike Light</div></a><div>$9.99</div><button>Add to cart</button></div></div></div></main>`);
+s0 = await snap();
+check("repeated buttons are labeled with their card's title", /button "Add to cart" \[in "Backpack"\]/.test(s0.text) && /button "Add to cart" \[in "Bike Light"\]/.test(s0.text), s0.text);
+
+// Submitting picks the real submit button, not a Cancel placed first.
+await load(`<form onsubmit="event.preventDefault(); window.sent = event.submitter && event.submitter.value"><input aria-label="First Name">
+  <button id=cancel onclick="window.cancelled = true; return false">Cancel</button><input type=submit value=Continue></form>`);
+r = await run({ kind: "act-type", name: "First Name", text: "Ada", submit: true });
+check("submit skips a Cancel button that comes first", (await ev("window.sent")) === "Continue" && !(await ev("window.cancelled")), JSON.stringify(r));
+
+// The AI cursor's bubble ("Waiting for …") is never read as page content.
+await load(`<p>page</p><fxmcp-cursor></fxmcp-cursor>`);
+await ev("document.querySelector('fxmcp-cursor').attachShadow({ mode: 'open' }).innerHTML = '<div>Waiting for never appears</div>'");
+r = await run({ kind: "act-wait", text: "never appears", timeoutMs: 600 });
+check("waits don't match the cursor bubble's own text", r.timedOut === true, JSON.stringify(r));
+r = await run({ kind: "act-find", query: "never appears" });
+check("page_find doesn't match the cursor bubble", r.count === 0, JSON.stringify(r));
+
+// Clicks land on the element under the pointer.
+await load(`<button id=b><span id=sp>Only the span listens</span></button>`);
+await ev("sp.addEventListener('click', () => window.spanHit = true)");
+await run({ kind: "act-click", name: "Only the span listens" });
+check("a click reaches the inner element a pointer would hit", (await ev("window.spanHit")) === true);
+
+// Typing like a person: key events, masks, focus that moves, editors that make their own edits.
+await load(`<input id=ac aria-label=City><div id=sug></div><input id=ph aria-label=Phone>
+  <input maxlength=1 aria-label="D1"><input maxlength=1 aria-label="D2">
+  <div contenteditable=true id=ed aria-label="Model editor"><p>old</p></div>`);
+await ev(`ac.addEventListener('keyup', () => sug.textContent = ac.value.length > 1 ? 'suggest ' + ac.value : '');
+  ph.addEventListener('keydown', (e) => { if (e.key.length === 1) { e.preventDefault(); if (/[0-9]/.test(e.key)) ph.value = (ph.value + e.key).replace(/^(\\d{3})(\\d)/, '($1) $2'); } });
+  const ds = [...document.querySelectorAll('[maxlength]')]; ds.forEach((d, i) => d.addEventListener('input', () => ds[i + 1] && ds[i + 1].focus()));
+  // A model-driven editor: it cancels beforeinput, edits its model, redraws later, and undoes edits it didn't make.
+  let model = 'old'; const draw = () => { ed.innerHTML = '<p>' + model.split('\\n').join('</p><p>') + '</p>'; };
+  ed.addEventListener('beforeinput', (e) => { e.preventDefault(); const sel = getSelection(); const all = sel.toString() === ed.innerText.replace(/\\n+$/, '') && sel.toString().length > 0;
+    if (all) model = ''; if (e.inputType === 'insertText') model += e.data; else if (e.inputType === 'insertParagraph') model += '\\n'; else if (e.inputType === 'deleteContentBackward') model = model.slice(0, -1);
+    setTimeout(() => { draw(); const r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }, 0); });
+  new MutationObserver(() => { if (ed.innerText.replace(/\\n+/g, '\\n').trim() !== model.trim()) setTimeout(draw, 0); }).observe(ed, { childList: true, subtree: true, characterData: true });`);
+r = await run({ kind: "act-type", name: "City", text: "Oslo" });
+check("typing fires keyup (autocomplete appears)", (await ev("sug.textContent")) === "suggest Oslo", JSON.stringify(r));
+await run({ kind: "act-type", name: "Phone", text: "5551" });
+check("typing into a field that masks on keydown", (await ev("ph.value")) === "(555) 1", await ev("ph.value"));
+r = await run({ kind: "act-type", name: "D1", text: "12" });
+check("typing follows focus the page moves (code boxes)", (await ev("[...document.querySelectorAll('[maxlength]')].map(x => x.value).join('')")) === "12" && r.spreadOver?.length === 2, JSON.stringify(r));
+r = await run({ kind: "act-type", name: "Model editor", text: "Hi\nthere" });
+await page.waitForTimeout(100);
+check("typing into a model-driven editor (beforeinput) keeps the text", (await ev("ed.innerText.replace(/\\n+/g, '|')")) === "Hi|there" && r.typed === true, JSON.stringify([r, await ev("ed.innerText")]));
+r = await run({ kind: "act-type", name: "City", text: "" });
+check("clearing a field reports the text that went", (await ev("ac.value")) === "" && /suggest Oslo/.test(JSON.stringify(r.changes || "")), JSON.stringify(r));
+
+// Names: tie-breaks, suggestions, landmarks by role.
+await load(`<main><div role=listbox><div role=option>Red panda Species</div><div role=option>Red Panda Records</div></div>
+  <button>Save</button><button>Log in</button></main>`);
+r = await run({ kind: "act-click", name: "Red panda", role: "option" });
+check("the one name written exactly that way wins over case-insensitive ones", r.clicked === true, JSON.stringify(r));
+r = await run({ kind: "act-click", name: "Save changes", waitMs: 0 });
+check("a missing name lists the closest ones", r.error?.code === "REF_NOT_FOUND" && /Closest on the page:[\s\S]*"Save"/.test(r.error.message), JSON.stringify(r));
+r = await run({ kind: "act-click", name: "Sign in", waitMs: 0 });
+check("suggestions know common synonyms (Sign in / Log in)", /"Log in"/.test(r.error?.message || ""), JSON.stringify(r));
+r = await run({ kind: "page-text", within: { role: "main" } });
+check("within accepts landmark roles", /Save/.test(r.text || ""), JSON.stringify(r));
+
+// Changes report text that appears or goes, and state flips.
+await load(`<p id=msg></p><button onclick="msg.textContent='Saved!'">Save</button><div id=n></div>`);
+r = await run({ kind: "act-click", name: "Save" });
+check("changes list text that appeared", /Saved!/.test(JSON.stringify(r.changes || "")), JSON.stringify(r));
+
+// Reading: markdown, phrases split across elements, modal first.
+await load(`<h1>Guide</h1><p>See the <a href="https://example.com/docs">docs</a>.</p><ul><li>One</li><li>Two <b>bold</b></li></ul>
+  <table><tr><th>Plan</th><th>Price</th></tr><tr><td>Pro</td><td>$5</td></tr></table><p>Add to <b>cart</b> now</p>`);
+r = await run({ kind: "page-text", format: "markdown" });
+check("markdown: headings, links, lists, tables", /^# Guide/m.test(r.text) && /\[docs\]\(https:\/\/example\.com\/docs\)/.test(r.text) && /- Two \*\*bold\*\*/.test(r.text) && /\| Pro \| \$5 \|/.test(r.text), r.text);
+r = await run({ kind: "act-find", query: "add to cart" });
+check("page_find matches a phrase split across elements", r.count >= 1, JSON.stringify(r));
+await load(`${'<p>filler</p>'.repeat(50)}<button>Behind</button><dialog id=d><h2>Confirm order</h2><button>Yes</button></dialog>`);
+await ev("d.showModal()");
+r = await snap({ maxChars: 400 });
+check("an open modal is listed first and flagged", /^\[ref=\d+\] dialog "Confirm order" \[modal\] \(shown first\)\n\s+\[ref=\d+\] heading "Confirm order"/.test(r.text) && /Confirm order/.test(r.modal || ""), r.text);
+
 // ---- cursor feedback ----
 await load(`<button>Go</button>`);
 await ev(`window.__said = []; window.__clicks = 0; window.__fxmcpCursor = { moveTo: async (el, n) => { window.__said.push(n); }, say: (n) => window.__said.push(n), click: () => window.__clicks++ };`);

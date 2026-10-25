@@ -89,7 +89,19 @@ export type BridgeMethod =
   | "cookies.forTab"
   | "sessions.recentlyClosed"
   | "sessions.restore"
-  | "cursor.say";
+  | "cursor.say"
+  // added in 0.5.2 (an older add-on lacks them: check hello.capabilities)
+  | "tab.navigate"
+  | "act.drag"
+  | "act.upload"
+  | "cookies.query"
+  | "cookies.set"
+  | "cookies.remove"
+  | "downloads.query"
+  | "downloads.start"
+  | "storage.get"
+  | "storage.set"
+  | "storage.remove";
 
 export interface BridgeCommand {
   id: string;
@@ -203,6 +215,10 @@ export const BRIDGE_ERRORS = {
   NAVIGATED: "NAVIGATED", // the page navigated away mid-command
   NOT_INTERACTABLE: "NOT_INTERACTABLE", // target is inert or behind a modal dialog
   PAUSED: "PAUSED", // the user paused AI control in the add-on
+  AMBIGUOUS: "AMBIGUOUS", // a name/selector target matched several elements
+  NAVIGATION_FAILED: "NAVIGATION_FAILED", // no history to go back/forward to
+  DOWNLOAD_FAILED: "DOWNLOAD_FAILED", // Firefox refused to start a download
+  COOKIE_REFUSED: "COOKIE_REFUSED", // Firefox refused to set a cookie
 } as const;
 
 // ----------------------------------------------------------- host config ---
