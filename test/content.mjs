@@ -272,6 +272,14 @@ await load(`<form onsubmit="event.preventDefault(); window.sent = event.submitte
 r = await run({ kind: "act-type", name: "First Name", text: "Ada", submit: true });
 check("submit skips a Cancel button that comes first", (await ev("window.sent")) === "Continue" && !(await ev("window.cancelled")), JSON.stringify(r));
 
+// The AI cursor's bubble ("Waiting for …") is never read as page content.
+await load(`<p>page</p><fxmcp-cursor></fxmcp-cursor>`);
+await ev("document.querySelector('fxmcp-cursor').attachShadow({ mode: 'open' }).innerHTML = '<div>Waiting for never appears</div>'");
+r = await run({ kind: "act-wait", text: "never appears", timeoutMs: 600 });
+check("waits don't match the cursor bubble's own text", r.timedOut === true, JSON.stringify(r));
+r = await run({ kind: "act-find", query: "never appears" });
+check("page_find doesn't match the cursor bubble", r.count === 0, JSON.stringify(r));
+
 // Clicks land on the element under the pointer.
 await load(`<button id=b><span id=sp>Only the span listens</span></button>`);
 await ev("sp.addEventListener('click', () => window.spanHit = true)");

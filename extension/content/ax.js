@@ -73,6 +73,7 @@ function flatParent(n) {
 /* An element's shadow root, closed ones included: Firefox lets content scripts
    see closed roots, where many web components keep their buttons. */
 function shadowOf(el) {
+  if (el.tagName === 'FXMCP-CURSOR') return null; // our own cursor and bubble aren't page content
   try { return el.openOrClosedShadowRoot || el.shadowRoot || null; } catch (e) { return el.shadowRoot || null; }
 }
 
