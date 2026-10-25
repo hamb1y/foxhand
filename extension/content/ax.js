@@ -19,6 +19,7 @@ var generations = new Set(); // snapshot generation ids issued for this document
 var nextRef = 1000 + Math.floor(Math.random() * 89000);
 var refMap = new Map();      // ref number -> WeakRef<Element>
 var elToRef = new WeakMap(); // Element -> ref number
+var refInfo = new Map();     // ref number -> {role, name} as last shown, to find a re-rendered element again
 
 /* The element's ref, assigning the next unused number the first time it's seen. */
 function refFor(el) {
@@ -40,7 +41,7 @@ function elForRef(r) {
 /* Forget refs whose elements were garbage-collected. */
 function pruneRefs() {
   if (!HAS_WEAKREF || refMap.size < 5000) return;
-  refMap.forEach(function (h, r) { if (!h.deref()) refMap.delete(r); });
+  refMap.forEach(function (h, r) { if (!h.deref()) { refMap.delete(r); refInfo.delete(r); } });
 }
 
 /* ------------------------------------------------------------------ errors */
@@ -242,7 +243,101 @@ function shortHref(href) {
 
 /* --------------------------------------------------------------- snapshot */
 
-function buildSnapshot(compact, maxChars) {
+/* The snapshot node and line for an element, or null when it has no role worth showing. */
+function nodeFor(el, compact) {
+  var tag = el.tagName;
+  var role = tagRole(el, compact);
+  if (!role) return null;
+  var name = computeName(el, tag);
+  var node = { ref: 0, role: role, name: name };
+  var flags = [];
+  if (isDisabled(el)) { node.disabled = true; flags.push('[disabled]'); }
+  else if (ariaDisabled(el)) { node.disabled = true; flags.push('[disabled]'); }
+  if (tag === 'INPUT') {
+    var it = String(el.type || 'text').toLowerCase();
+    if ((it === 'checkbox' || it === 'radio')) {
+      node.checked = !!el.checked;
+      flags.push(el.checked ? '[checked]' : '[unchecked]');
+    }
+    if (el.readOnly) { node.readonly = true; flags.push('[readonly]'); }
+    if (typeof el.value === 'string' && el.value && it !== 'checkbox' && it !== 'radio' &&
+        it !== 'submit' && it !== 'button' && it !== 'reset' && it !== 'password') {
+      node.value = String(el.value).slice(0, 200);
+    }
+    if (it === 'file') {
+      flags.push('[file' + (el.multiple ? 's' : '') + (el.accept ? ' ' + el.accept.slice(0, 40) : '') + ']');
+      if (el.files && el.files.length) node.value = Array.prototype.map.call(el.files, function (f) { return f.name; }).join(', ').slice(0, 200);
+    }
+  }
+  if (tag === 'TEXTAREA' && el.value) node.value = String(el.value).slice(0, 200);
+  if (tag === 'TEXTAREA' && el.readOnly) { node.readonly = true; flags.push('[readonly]'); }
+  if (tag === 'SELECT') {
+    try {
+      var sel = [];
+      for (var oi = 0; oi < el.options.length; oi++) {
+        if (el.options[oi].selected) sel.push(el.options[oi].text);
+      }
+      if (sel.length) node.value = sel.join(', ').slice(0, 200);
+    } catch (e) {}
+  }
+  if (el.isContentEditable && el.textContent) {
+    node.value = String(el.textContent).trim().slice(0, 200);
+  }
+  var ac = el.getAttribute && el.getAttribute('aria-checked');
+  if (tag !== 'INPUT' && (ac === 'true' || ac === 'false' || ac === 'mixed')) {
+    node.checked = ac === 'mixed' ? 'mixed' : ac === 'true';
+    flags.push(ac === 'true' ? '[checked]' : ac === 'mixed' ? '[mixed]' : '[unchecked]');
+  }
+  var exp = el.getAttribute && el.getAttribute('aria-expanded');
+  if (exp === 'true' || exp === 'false') {
+    node.expanded = exp === 'true';
+    flags.push(exp === 'true' ? '[expanded]' : '[collapsed]');
+  }
+  var sel2 = el.getAttribute && el.getAttribute('aria-selected');
+  if (sel2 === 'true') { node.selected = true; flags.push('[selected]'); }
+  var hm = HEADING_RE.exec(tag);
+  if (hm) node.level = Number(hm[1]);
+  else if (role === 'heading') {
+    var al = Number(el.getAttribute('aria-level'));
+    if (al >= 1 && al <= 9) node.level = al;
+  }
+  if (tag === 'A' && el.href) node.href = shortHref(el.href);
+  if (role === 'iframe') {
+    node.href = shortHref(el.src || '');
+    if (!frameDoc(el)) node.crossOrigin = true;
+  }
+  var ref = refFor(el);
+  node.ref = ref;
+  refInfo.set(ref, { role: role, name: name });
+  var line = '[ref=' + ref + '] ' + role + (name ? ' ' + JSON.stringify(name) : '');
+  if (node.value !== undefined && role !== 'heading' && role !== 'link' && role !== 'button') {
+    line += ' ' + JSON.stringify(String(node.value).slice(0, 80));
+  }
+  if (node.level) line += ' [h' + node.level + ']';
+  if (node.href) line += ' -> ' + node.href;
+  if (flags.length) line += ' ' + flags.join(' ');
+  if (node.crossOrigin) line += ' [cross-origin: its content isn\'t in this snapshot; open its URL in a tab to read it]';
+  else if (role === 'iframe') line += ' [its content follows]';
+  return { node: node, line: line };
+}
+
+/* Does el's box overlap its window's viewport? */
+function inViewport(el) {
+  try {
+    var r = el.getBoundingClientRect();
+    var w = el.ownerDocument.defaultView || window;
+    return r.bottom > 0 && r.right > 0 && r.top < w.innerHeight && r.left < w.innerWidth;
+  } catch (e) { return true; }
+}
+
+function scrollInfo() {
+  var r = scrollRoot();
+  return { y: Math.round(window.scrollY), viewportHeight: window.innerHeight, pageHeight: r ? r.scrollHeight : 0 };
+}
+
+/* The outline: one line per interesting element. `root` limits it to one part of
+   the page; `viewportOnly` keeps only what is on screen now. */
+function buildSnapshot(compact, maxChars, root, viewportOnly) {
   generation += 1;
   pruneRefs();
   var genId = 'g' + generation + '-' + docId + '-' + Date.now().toString(36);
@@ -253,14 +348,14 @@ function buildSnapshot(compact, maxChars) {
   var len = 0;
   var truncated = false;
 
-  var root = document.body || document.documentElement;
+  root = root || document.body || document.documentElement;
   if (!root) {
     return { generation: genId, url: location.href, title: document.title || '', truncated: false, nodes: [], text: '' };
   }
 
   // Walk light DOM plus open shadow roots (web components hide most of
-  // their UI there, e.g. YouTube, GitHub, Reddit). Stops once the text budget
-  // is spent, so huge pages don't cost a full walk.
+  // their UI there, e.g. YouTube, GitHub, Reddit) and same-origin frames.
+  // Stops once the text budget is spent, so huge pages don't cost a full walk.
   var stack = [root];
   outer:
   while (stack.length) {
@@ -270,74 +365,18 @@ function buildSnapshot(compact, maxChars) {
     var tag = el.tagName;
     if (el.shadowRoot) stack.push(el.shadowRoot);
     var fdoc = (tag === 'IFRAME' || tag === 'FRAME') ? frameDoc(el) : null;
-    if (fdoc && fdoc.body && visible(el)) stack.push(fdoc.body);
+    if (fdoc && fdoc.body && visible(el) && (!viewportOnly || inViewport(el))) stack.push(fdoc.body);
     if (tag && !SKIP_TAGS[tag]) {
       var interesting = isInteresting(el);
       var include = interesting || (!compact && hasDirectText(el));
-      if (include && visible(el)) {
-        var role = tagRole(el, compact);
-        if (role) {
-          var name = computeName(el, tag);
-          var node = { ref: 0, role: role, name: name };
-          var flags = [];
-          if (isDisabled(el)) { node.disabled = true; flags.push('[disabled]'); }
-          else if (ariaDisabled(el)) { node.disabled = true; flags.push('[disabled]'); }
-          if (tag === 'INPUT') {
-            var it = String(el.type || 'text').toLowerCase();
-            if ((it === 'checkbox' || it === 'radio')) {
-              node.checked = !!el.checked;
-              flags.push(el.checked ? '[checked]' : '[unchecked]');
-            }
-            if (el.readOnly) { node.readonly = true; flags.push('[readonly]'); }
-            if (typeof el.value === 'string' && el.value && it !== 'checkbox' && it !== 'radio' &&
-                it !== 'submit' && it !== 'button' && it !== 'reset' && it !== 'password') {
-              node.value = String(el.value).slice(0, 200);
-            }
-          }
-          if (tag === 'TEXTAREA' && el.value) node.value = String(el.value).slice(0, 200);
-          if (tag === 'TEXTAREA' && el.readOnly) { node.readonly = true; flags.push('[readonly]'); }
-          if (tag === 'SELECT') {
-            try {
-              var sel = [];
-              for (var oi = 0; oi < el.options.length; oi++) {
-                if (el.options[oi].selected) sel.push(el.options[oi].text);
-              }
-              if (sel.length) node.value = sel.join(', ').slice(0, 200);
-            } catch (e) {}
-          }
-          if (el.isContentEditable && el.textContent) {
-            node.value = String(el.textContent).trim().slice(0, 200);
-          }
-          var exp = el.getAttribute && el.getAttribute('aria-expanded');
-          if (exp === 'true' || exp === 'false') {
-            node.expanded = exp === 'true';
-            flags.push(exp === 'true' ? '[expanded]' : '[collapsed]');
-          }
-          var sel2 = el.getAttribute && el.getAttribute('aria-selected');
-          if (sel2 === 'true') { node.selected = true; flags.push('[selected]'); }
-          var hm = HEADING_RE.exec(tag);
-          if (hm) node.level = Number(hm[1]);
-          if (tag === 'A' && el.href) node.href = shortHref(el.href);
-          if (role === 'iframe') {
-            node.href = shortHref(el.src || '');
-            if (!frameDoc(el)) node.crossOrigin = true;
-          }
-          var ref = refFor(el);
-          node.ref = ref;
-          var line = '[ref=' + ref + '] ' + role + (name ? ' ' + JSON.stringify(name) : '');
-          if (node.value !== undefined && role !== 'heading' && role !== 'link' && role !== 'button') {
-            line += ' ' + JSON.stringify(String(node.value).slice(0, 80));
-          }
-          if (node.level) line += ' [h' + node.level + ']';
-          if (node.href) line += ' -> ' + node.href;
-          if (flags.length) line += ' ' + flags.join(' ');
-          if (node.crossOrigin) line += ' [cross-origin: its content isn\'t in this snapshot; open its URL in a tab to read it]';
-          else if (role === 'iframe') line += ' [its content follows]';
-          var add = line.length + (lines.length ? 1 : 0);
+      if (include && visible(el) && (!viewportOnly || inViewport(el))) {
+        var nl = nodeFor(el, compact);
+        if (nl) {
+          var add = nl.line.length + (lines.length ? 1 : 0);
           if (len + add > maxChars) { truncated = true; break outer; }
           len += add;
-          nodes.push(node);
-          lines.push(line);
+          nodes.push(nl.node);
+          lines.push(nl.line);
         }
       }
     }
@@ -351,7 +390,8 @@ function buildSnapshot(compact, maxChars) {
     title: document.title || '',
     truncated: truncated,
     nodes: nodes,
-    text: lines.join('\n')
+    text: lines.join('\n'),
+    scroll: scrollInfo()
   };
 }
 
@@ -362,37 +402,258 @@ function buildSnapshot(compact, maxChars) {
 function checkGeneration(msg) {
   if (msg.generation !== undefined && msg.generation !== null && msg.generation !== '' &&
       !generations.has(String(msg.generation))) {
-    throw be('REF_STALE', 'That snapshot is from a different page load (the page navigated or reloaded). Take a new snapshot_ax.');
+    throw be('REF_STALE', 'That snapshot is from a different page load (the page navigated or reloaded). Take a new page_snapshot.');
   }
 }
 
-function resolveTarget(msg) {
-  checkGeneration(msg);
-  if (msg.ref !== undefined && msg.ref !== null && msg.ref !== '') {
-    var el = elForRef(Number(msg.ref));
-    if (!el) {
-      throw be('REF_NOT_FOUND', 'Unknown ref ' + msg.ref + ' on this page (it may have navigated). Take a new snapshot_ax.');
+function given(v) { return v !== undefined && v !== null && v !== ''; }
+
+/* Does the message name a target (ref, selector, name/role or a point)? */
+function hasTarget(msg) {
+  return given(msg.ref) || given(msg.selector) || given(msg.name) || given(msg.role) || (given(msg.x) && given(msg.y));
+}
+
+function norm(s) { return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+
+/* All elements matching a CSS selector, in document order, looking into open
+   shadow roots and same-origin frames too. */
+function deepSelectAll(sel) {
+  var out = [];
+  (function walk(root) {
+    var all;
+    try { all = root.querySelectorAll('*'); } catch (e) { return; }
+    for (var i = 0; i < all.length; i++) {
+      var e = all[i];
+      if (e.matches(sel)) out.push(e);
+      if (e.shadowRoot) walk(e.shadowRoot);
+      if (e.tagName === 'IFRAME' || e.tagName === 'FRAME') { var d = frameDoc(e); if (d) walk(d); }
     }
-    if (!el.isConnected) {
-      throw be('REF_STALE', 'ref ' + msg.ref + ' was removed from the page. Take a new snapshot_ax.');
+  })(document);
+  return out;
+}
+
+function checkSelector(sel) {
+  try { document.querySelector(sel); } catch (e) { throw be('INVALID_PARAMS', 'Bad CSS selector: ' + sel); }
+}
+
+/* The first visible match of a selector (else the first match), anywhere on the page. */
+function deepSelect(sel) {
+  checkSelector(sel);
+  var fast = null;
+  try { fast = document.querySelector(sel); } catch (e) {}
+  if (fast && visible(fast)) return fast;
+  var all = deepSelectAll(sel);
+  for (var i = 0; i < all.length; i++) if (visible(all[i])) return all[i];
+  return fast || all[0] || null;
+}
+
+/* The innermost element at a viewport point, inside open shadow roots and same-origin frames. */
+function deepPoint(x, y) {
+  var doc = document, el = null;
+  for (var depth = 0; depth < 10; depth++) {
+    var hit = doc.elementFromPoint(x, y);
+    if (!hit) break;
+    while (hit.shadowRoot && hit.shadowRoot.elementFromPoint) {
+      var inner = hit.shadowRoot.elementFromPoint(x, y);
+      if (!inner || inner === hit) break;
+      hit = inner;
     }
-    return el;
+    el = hit;
+    if (hit.tagName !== 'IFRAME' && hit.tagName !== 'FRAME') break;
+    var fd = frameDoc(hit);
+    if (!fd) break;
+    var r = hit.getBoundingClientRect();
+    x -= r.left + hit.clientLeft; y -= r.top + hit.clientTop;
+    doc = fd;
   }
-  if (msg.selector) {
-    var found;
-    try { found = document.querySelector(String(msg.selector)); } catch (e) {
-      throw be('INVALID_PARAMS', 'Bad selector: ' + msg.selector);
-    }
-    if (!found) throw be('REF_NOT_FOUND', 'No element matches selector: ' + msg.selector);
-    return found;
+  return el;
+}
+
+var ACTION_ROLES = /^(button|link|checkbox|radio|switch|tab|menuitem|menuitemcheckbox|menuitemradio|option|combobox|textbox|searchbox|slider|spinbutton|treeitem|gridcell|listbox)$/;
+var CLICKABLE_SEL = 'a[href], button, input, select, textarea, summary, label, [role="button"], [role="link"], [role="tab"], ' +
+  '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], [role="checkbox"], [role="radio"], ' +
+  '[role="switch"], [role="treeitem"], [onclick], [tabindex]:not([tabindex="-1"])';
+
+function actionable(el) {
+  if (el.tagName === 'A' || el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'SELECT' ||
+      el.tagName === 'TEXTAREA' || el.tagName === 'SUMMARY' || el.isContentEditable) return true;
+  return ACTION_ROLES.test(tagRole(el, false)) || (el.hasAttribute && el.hasAttribute('onclick'));
+}
+
+/* The nearest clickable element at or above el (text often sits in a span inside the button). */
+function clickableAncestor(el) {
+  for (var n = el, i = 0; n && n.nodeType === 1 && i < 6; n = flatParent(n), i++) {
+    try { if (n.matches(CLICKABLE_SEL)) return n; } catch (e) {}
   }
   return null;
 }
 
-function mustResolve(msg) {
-  var el = resolveTarget(msg);
-  if (!el) throw be('INVALID_PARAMS', 'act requires ref or selector');
-  return el;
+/* Cheap pre-check before computing an accessible name. */
+function mayHaveName(el, needle) {
+  if (el.hasAttribute('aria-labelledby') || (el.labels && el.labels.length)) return true;
+  if (norm(el.textContent).indexOf(needle) >= 0) return true;
+  var attrs = ['aria-label', 'placeholder', 'title', 'alt', 'value', 'name'];
+  for (var i = 0; i < attrs.length; i++) if (norm(el.getAttribute(attrs[i])).indexOf(needle) >= 0) return true;
+  return false;
+}
+
+function roleMatches(el, want) {
+  var r = tagRole(el, false);
+  if (r === want) return true;
+  if (want === 'textbox') return r === 'searchbox' || (r === 'combobox' && el.tagName === 'INPUT');
+  return false;
+}
+
+function prefers(kind, el) {
+  if (kind === 'type' || kind === 'fill' || kind === 'upload') {
+    return isEditableField(el) || inputType(el) === 'file' || (el.tagName === 'LABEL' && !!el.control);
+  }
+  return actionable(el);
+}
+
+/* Elements whose accessible name matches msg.name (exact beats contained), with
+   msg.role as a filter. Falls back to visible text for elements with no role. */
+function byName(msg, kind) {
+  var needle = norm(msg.name);
+  var wantRole = given(msg.role) ? String(msg.role).trim().toLowerCase() : '';
+  var exact = [], partial = [];
+  var stack = [document.body || document.documentElement];
+  while (stack.length) {
+    var root = stack.pop();
+    if (!root) continue;
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, null);
+    for (var el = walker.currentNode; el; el = walker.nextNode()) {
+      if (el.shadowRoot) stack.push(el.shadowRoot);
+      if (el.tagName === 'IFRAME' || el.tagName === 'FRAME') { var fd = frameDoc(el); if (fd && fd.body) stack.push(fd.body); }
+      if (el.nodeType !== 1 || SKIP_TAGS[el.tagName]) continue;
+      if (wantRole ? !roleMatches(el, wantRole) : !isInteresting(el)) continue;
+      if (needle && !mayHaveName(el, needle)) continue;
+      if (!visible(el)) continue;
+      var nm = needle ? norm(computeName(el, el.tagName)) : '';
+      if (!needle || nm === needle) exact.push(el);
+      else if (nm.indexOf(needle) >= 0) partial.push(el);
+    }
+  }
+  var list = exact.length ? exact : partial;
+  if (!list.length && needle && !wantRole) list = byText(needle);
+  // A list item and the link inside it often share a name: keep the innermost.
+  list = list.filter(function (a) { return !list.some(function (b) { return b !== a && flatContains(a, b); }); });
+  var pref = list.filter(function (e) { return prefers(kind, e); });
+  return pref.length ? pref : list;
+}
+
+/* Visible text containing needle, mapped to its clickable ancestor (or the text's own element). */
+function byText(needle) {
+  var out = [];
+  (function walk(r) {
+    var walker = document.createTreeWalker(r, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, null);
+    for (var n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (n.nodeType === 1) {
+        if (n.shadowRoot) walk(n.shadowRoot);
+        if (n.tagName === 'IFRAME' || n.tagName === 'FRAME') { var fd = frameDoc(n); if (fd && fd.body) walk(fd.body); }
+        continue;
+      }
+      var parent = n.parentElement;
+      if (!parent || SKIP_TAGS[parent.tagName]) continue;
+      if (norm(n.nodeValue).indexOf(needle) < 0 || !visible(parent)) continue;
+      var el = clickableAncestor(parent) || parent;
+      if (out.indexOf(el) < 0) out.push(el);
+      if (out.length >= 50) return;
+    }
+  })(document.body || document.documentElement);
+  return out;
+}
+
+/* A short line naming el for an error or a change list: its snapshot line when it has a role. */
+function lineFor(el) {
+  try { var nl = nodeFor(el, true); if (nl) return nl.line; } catch (e) {}
+  return '[ref=' + refFor(el) + '] ' + describe(el) + quoted(textOf(el));
+}
+
+function describeTarget(msg) {
+  if (given(msg.ref)) return 'ref ' + msg.ref;
+  if (given(msg.selector)) return 'selector ' + JSON.stringify(String(msg.selector));
+  if (given(msg.x) && given(msg.y)) return 'point (' + msg.x + ', ' + msg.y + ')';
+  return (given(msg.role) ? String(msg.role) + ' ' : '') + (given(msg.name) ? JSON.stringify(String(msg.name)) : '');
+}
+
+/* One attempt at finding the target. Returns the element, or null when it isn't
+ * on the page (yet); throws when the request itself is wrong or ambiguous. */
+function findTarget(msg, kind) {
+  checkGeneration(msg);
+  if (given(msg.ref)) {
+    var r = Number(msg.ref);
+    var el = elForRef(r);
+    if (el && el.isConnected) return el;
+    var info = refInfo.get(r);
+    if (!el && !info) {
+      throw be('REF_NOT_FOUND', 'Unknown ref ' + msg.ref + ' on this page (refs come from page_snapshot on the current page). Take a new page_snapshot.');
+    }
+    // Re-rendered (React and friends replace nodes): the element with the same role and name, if exactly one.
+    if (info && info.name) {
+      var same = byName({ name: info.name, role: info.role }, kind).filter(function (e) {
+        return norm(computeName(e, e.tagName)) === norm(info.name);
+      });
+      if (same.length === 1) {
+        msg._notes = (msg._notes || []).concat('ref ' + r + ' was re-rendered by the page; used ' + describe(same[0]) + ', which has the same role and name.');
+        return same[0];
+      }
+    }
+    return null;
+  }
+  if (given(msg.selector)) return deepSelect(String(msg.selector));
+  if (given(msg.x) && given(msg.y)) {
+    var x = Number(msg.x), y = Number(msg.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) throw be('INVALID_PARAMS', 'x and y must be numbers (CSS pixels from the viewport\'s top-left).');
+    if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) {
+      throw be('INVALID_PARAMS', 'Point (' + x + ', ' + y + ') is outside the viewport (' + window.innerWidth + 'x' + window.innerHeight + ').');
+    }
+    return deepPoint(x, y);
+  }
+  if (given(msg.name) || given(msg.role)) {
+    var found = byName(msg, kind);
+    if (given(msg.nth)) {
+      var k = Number(msg.nth);
+      if (!(k >= 1)) throw be('INVALID_PARAMS', 'nth counts from 1.');
+      if (k > found.length) {
+        if (!found.length) return null;
+        throw be('NO_MATCH', 'Only ' + found.length + ' element(s) match ' + describeTarget(msg) + ', so there is no nth=' + k + '.');
+      }
+      return found[k - 1];
+    }
+    if (found.length > 1) {
+      var lines = found.slice(0, 8).map(lineFor);
+      throw be('AMBIGUOUS', found.length + ' elements match ' + describeTarget(msg) + ':\n' + lines.join('\n') +
+        (found.length > 8 ? '\n…' : '') + '\nPass one of these refs, add role, or pass nth (1 = first).');
+    }
+    return found[0] || null;
+  }
+  return null;
+}
+
+/* Find the target, waiting up to msg.waitMs (default 3s) for it to appear. */
+async function locate(msg, kind) {
+  if (!hasTarget(msg)) throw be('INVALID_PARAMS', 'Say which element: ref (from page_snapshot), name (its label or text, optionally with role), or selector.');
+  var waitMs = given(msg.waitMs) ? Math.max(0, Math.min(Number(msg.waitMs) || 0, 30000)) : 3000;
+  var start = Date.now();
+  for (;;) {
+    var el = findTarget(msg, kind);
+    if (el) return el;
+    if (Date.now() - start >= waitMs) break;
+    checkCancel(msg);
+    await sleep(150);
+  }
+  if (given(msg.ref)) {
+    throw be('REF_STALE', 'ref ' + msg.ref + ' was removed from the page' + (refInfo.get(Number(msg.ref)) ? ' and nothing with the same role and name replaced it' : '') +
+      '. Take a new page_snapshot.');
+  }
+  throw be('REF_NOT_FOUND', 'Nothing matches ' + describeTarget(msg) + (waitMs ? ' (waited ' + Math.round(waitMs / 100) / 10 + 's)' : '') +
+    '. Check page_snapshot or page_find for the exact wording.');
+}
+
+/* Synchronous best effort for the cursor: the target if it's already there. */
+function peekTarget(msg, kind) {
+  try { return hasTarget(msg) ? findTarget(Object.assign({}, msg), kind) : null; } catch (e) { return null; }
 }
 
 function isDisabled(el) {
@@ -428,7 +689,7 @@ function isInert(el) {
 }
 
 function assertActionable(el, what) {
-  if (!el.isConnected) throw be('REF_STALE', describe(el) + ' was removed from the page. Take a new snapshot_ax.');
+  if (!el.isConnected) throw be('REF_STALE', describe(el) + ' was removed from the page. Take a new page_snapshot.');
   assertEnabled(el, what);
   if (isInert(el)) {
     throw be('NOT_INTERACTABLE', describe(el) + ' is inert (behind a modal dialog or in an inert region), so a user couldn\'t reach it; ' + what + ' was not done.');
@@ -451,48 +712,89 @@ function mouseEvent(type, opts) {
 
 /* ------------------------------------------------------------------ actions */
 
-function refOf(el, msg) {
-  var r = elToRef.get(el);
-  if (r !== undefined) return r;
-  return msg && msg.ref !== undefined && msg.ref !== null && msg.ref !== '' ? Number(msg.ref) : undefined;
+function refOf(el) {
+  return el && el.nodeType === 1 ? refFor(el) : undefined;
 }
 
-function doClick(msg, target) {
-  var el = target || mustResolve(msg);
-  assertActionable(el, 'clicking it');
-  var button = (msg.button || 'left').toLowerCase();
-  var btnCode = button === 'middle' ? 1 : (button === 'right' ? 2 : 0);
-  try { el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }); } catch (e) {}
-  var rect = el.getBoundingClientRect();
-  var pos = { button: btnCode, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
+/* What a user's pointer would hit at el's centre, when that's something else
+   (a cookie banner, an overlay, a spinner). */
+function coveredBy(el) {
+  if (el.ownerDocument !== document) return null;
+  var r = el.getBoundingClientRect();
+  var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  if (cx < 0 || cy < 0 || cx >= window.innerWidth || cy >= window.innerHeight) return null;
+  var hit = deepPoint(cx, cy);
+  if (!hit || hit === el || flatContains(el, hit) || flatContains(hit, el)) return null;
+  // A <label> for the element, or an element it controls, is fine.
+  if (hit.tagName === 'LABEL' && hit.control === el) return null;
+  return hit;
+}
+
+/* Press and release at a point on el, then the click itself (or dblclick/contextmenu). */
+function pressOn(el, pos, btnCode) {
   var ptr = function (type) {
-    try { el.dispatchEvent(new PointerEvent(type, Object.assign({ bubbles: true, cancelable: true, composed: true, pointerType: 'mouse' }, pos))); } catch (e) {}
+    try { el.dispatchEvent(new PointerEvent(type, Object.assign({ bubbles: true, cancelable: true, composed: true, pointerType: 'mouse', isPrimary: true }, pos))); } catch (e) {}
   };
   ptr('pointerover');
   el.dispatchEvent(mouseEvent('mouseover', pos));
+  ptr('pointermove');
+  el.dispatchEvent(mouseEvent('mousemove', pos));
   ptr('pointerdown');
-  el.dispatchEvent(mouseEvent('mousedown', pos));
-  try { el.focus({ preventScroll: true }); } catch (e) { try { el.focus(); } catch (e2) {} }
+  el.dispatchEvent(mouseEvent('mousedown', Object.assign({ buttons: btnCode === 2 ? 2 : btnCode === 1 ? 4 : 1 }, pos)));
+  var f = el.closest ? (el.closest('a[href], button, input, select, textarea, summary, [tabindex], [contenteditable=""], [contenteditable="true"]') || el) : el;
+  try { f.focus({ preventScroll: true }); } catch (e) { try { f.focus(); } catch (e2) {} }
   ptr('pointerup');
   el.dispatchEvent(mouseEvent('mouseup', pos));
+}
+
+async function doClick(msg, target) {
+  var el = target || await locate(msg, 'click');
+  var atPoint = !target && !given(msg.ref) && !given(msg.selector) && !given(msg.name) && !given(msg.role);
+  assertActionable(el, 'clicking it');
+  var button = (msg.button || 'left').toLowerCase();
+  var btnCode = button === 'middle' ? 1 : (button === 'right' ? 2 : 0);
+  var mods = normalizeMods(msg.modifiers);
+  var pos;
+  if (atPoint) {
+    pos = { clientX: Number(msg.x), clientY: Number(msg.y) };
+  } else {
+    try { el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }); } catch (e) {}
+    var rect = el.getBoundingClientRect();
+    pos = { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
+  }
+  pos = Object.assign({ button: btnCode, detail: 1 }, mods, pos);
+  var cover = atPoint ? null : coveredBy(el);
+  pressOn(el, pos, btnCode);
   // The page's pointer handlers ran: it may have removed or disabled the element.
   if (!el.isConnected || isDisabled(el)) {
-    return { clicked: false, ref: refOf(el, msg), note: 'The page ' + (el.isConnected ? 'disabled' : 'removed') + ' the element while it was being pressed, so the click didn\'t complete.' };
+    return { clicked: false, ref: refOf(el), note: 'The page ' + (el.isConnected ? 'disabled' : 'removed') + ' the element while it was being pressed, so the click didn\'t complete.' };
   }
   if (btnCode === 2) {
     el.dispatchEvent(mouseEvent('contextmenu', pos));
   } else if (btnCode === 1) {
     el.dispatchEvent(mouseEvent('auxclick', pos));
-  } else if (typeof el.click === 'function') {
+  } else if (typeof el.click === 'function' && !atPoint && !mods.ctrlKey && !mods.shiftKey && !mods.metaKey && !mods.altKey) {
     // Exactly one click: el.click() fires the click event AND runs default
     // actions (follow link, toggle checkbox, submit). Dispatching a synthetic
     // 'click' as well would double-toggle checkboxes and double-submit forms.
     el.click();
   } else {
+    // At a point (canvas apps read clientX/Y) or with modifiers: a positioned click event.
+    // Dispatching it still runs the default action of a link or input it lands in.
     el.dispatchEvent(mouseEvent('click', pos));
   }
-  var out = { clicked: true, ref: refOf(el, msg) };
+  if (msg.double && btnCode === 0 && el.isConnected) {
+    pressOn(el, Object.assign({}, pos, { detail: 2 }), 0);
+    el.dispatchEvent(mouseEvent('click', Object.assign({}, pos, { detail: 2 })));
+    el.dispatchEvent(mouseEvent('dblclick', Object.assign({}, pos, { detail: 2 })));
+  }
+  var out = { clicked: true, ref: refOf(el) };
+  if (atPoint) out.hit = lineFor(el);
   if (ariaDisabled(el)) out.warning = 'The element is marked aria-disabled, so the page may have ignored the click.';
+  else if (cover) {
+    out.warning = 'Something else covers this element: ' + lineFor(cover) + '. The click went to the element anyway; ' +
+      'if nothing happened, close that overlay (or click it) first.';
+  }
   return out;
 }
 
@@ -518,6 +820,7 @@ function isTextField(el) {
 /* The element that will actually take a value. A ref to a wrapper with exactly
    one field inside resolves to that field; anything else non-editable throws. */
 function editableTarget(el) {
+  if (el.tagName === 'LABEL' && el.control) el = el.control;
   var tag = el.tagName;
   var ok = el.isContentEditable || tag === 'TEXTAREA' || tag === 'SELECT' ||
     (tag === 'INPUT' && !NON_TEXT_INPUTS[inputType(el)]);
@@ -529,7 +832,7 @@ function editableTarget(el) {
     else {
       var what = tag === 'INPUT' ? 'a ' + inputType(el) + ' input' : describe(el);
       throw be('NOT_EDITABLE', describe(el) + ' is ' + (what === describe(el) ? 'not a text field' : what) +
-        ', so it can\'t take a value' + (tag === 'BUTTON' || NON_TEXT_INPUTS[inputType(el)] ? ' (use act_click)' : '') + '.');
+        ', so it can\'t take a value' + (inputType(el) === 'file' ? ' (use page_upload)' : tag === 'BUTTON' || NON_TEXT_INPUTS[inputType(el)] ? ' (use page_click)' : '') + '.');
     }
   }
   if (isDisabled(el)) throw be('ELEMENT_DISABLED', describe(el) + ' is disabled.');
@@ -798,9 +1101,9 @@ function invalidField(form, btn) {
 }
 
 /* Click a submit button; any failure becomes a note (the text is already typed). */
-function clickSubmit(btn) {
+async function clickSubmit(btn) {
   try {
-    var r = doClick({}, btn);
+    var r = await doClick({}, btn);
     if (r.clicked === false) return { submitted: false, note: r.note };
   } catch (e) {
     return { submitted: false, note: e.message };
@@ -808,12 +1111,11 @@ function clickSubmit(btn) {
   return { submitted: 'button', via: describe(btn) };
 }
 
-/* An explicit submit button from msg.submitRef / msg.submitSelector, or null. */
-function submitTarget(msg) {
-  var hasRef = msg.submitRef !== undefined && msg.submitRef !== null && msg.submitRef !== '';
-  if (!hasRef && !msg.submitSelector) return null;
+/* An explicit submit button from msg.submitRef / submitSelector / submitName, or null. */
+async function submitTarget(msg) {
+  if (!given(msg.submitRef) && !given(msg.submitSelector) && !given(msg.submitName)) return null;
   try {
-    return mustResolve({ ref: hasRef ? msg.submitRef : undefined, selector: msg.submitSelector, generation: msg.generation });
+    return await locate({ ref: msg.submitRef, selector: msg.submitSelector, name: msg.submitName, generation: msg.generation, opId: msg.opId, waitMs: 1000 }, 'click');
   } catch (e) {
     throw be(e.code || 'INVALID_PARAMS', 'Submit target: ' + e.message + ' Nothing was typed.');
   }
@@ -833,7 +1135,7 @@ async function submitField(el, msg, explicit) {
     if (!(await whenEnabled(explicit, msg))) {
       return { submitted: false, note: describe(explicit) + ' stayed disabled; the page may consider the input incomplete.' };
     }
-    return clickSubmit(explicit);
+    return await clickSubmit(explicit);
   }
   var form = el.form || (el.closest && el.closest('form'));
   if (form) {
@@ -854,7 +1156,7 @@ async function submitField(el, msg, explicit) {
     form.addEventListener('submit', onSubmit, true); // forms in shadow roots
     var out;
     try {
-      if (btn) out = clickSubmit(btn);
+      if (btn) out = await clickSubmit(btn);
       else if (typeof form.requestSubmit === 'function') { form.requestSubmit(); out = { submitted: 'form' }; }
       else { form.submit(); return { submitted: 'form' }; }
     } finally {
@@ -875,7 +1177,7 @@ async function submitField(el, msg, explicit) {
     if (!(await whenEnabled(cb.button, msg))) {
       return { submitted: false, note: describe(cb.button) + ' stayed disabled; the page may consider the input incomplete.' };
     }
-    return clickSubmit(cb.button);
+    return await clickSubmit(cb.button);
   }
   checkCancel(msg);
   var before = fieldText(el);
@@ -888,17 +1190,27 @@ async function submitField(el, msg, explicit) {
   return {
     submitted: false,
     note: 'Pressed Enter once but saw no reaction (field and URL unchanged), and there is no form or Send button next to this field. ' +
-      'Check the page with snapshot_ax before retrying, since it may still be sending; to use a button, pass submitRef.'
+      'Check the page with page_snapshot before retrying, since it may still be sending; to use a button, pass submitRef.'
   };
 }
 
 async function doType(msg) {
-  var el = editableTarget(mustResolve(msg));
+  var el;
+  if (hasTarget(msg)) el = editableTarget(await locate(msg, 'type'));
+  else {
+    el = deepActive();
+    if (!el || el === document.body || el === document.documentElement) {
+      throw be('NOT_EDITABLE', 'Nothing has focus to type into. Pass the field (ref, or name such as its label or placeholder).');
+    }
+    el = editableTarget(el);
+  }
   var text = (msg.text === undefined || msg.text === null) ? '' : String(msg.text);
-  var explicit = submitTarget(msg);
+  var explicit = await submitTarget(msg);
   checkCancel(msg);
+  if (msg.append && isTextField(el) && !el.isContentEditable) text = String(el.value) + text;
+  else if (msg.append && el.isContentEditable) text = (el.innerText || '').replace(/\n$/, '') + text;
   setValue(el, text);
-  var out = { typed: true, ref: refOf(el, msg) };
+  var out = { typed: true, ref: refOf(el) };
   if (isTextField(el) && inputType(el) !== 'password' && fieldText(el) !== text.trim()) {
     out.value = fieldText(el).slice(0, 200);
     out.note = 'The page changed the value after typing.';
@@ -907,30 +1219,35 @@ async function doType(msg) {
   return out;
 }
 
+function fieldSpec(f, msg) {
+  return { ref: f.ref, selector: f.selector, name: f.name, role: f.role, nth: f.nth, generation: msg.generation, opId: msg.opId };
+}
+
 async function doFillForm(msg) {
   var fields = msg.fields || [];
-  if (!fields.length) throw be('INVALID_PARAMS', 'act.fillForm needs at least one field');
+  if (!fields.length) throw be('INVALID_PARAMS', 'page_fill needs at least one field');
   // Resolve and check every field before changing anything.
-  var targets = fields.map(function (f, i) {
+  var targets = [];
+  for (var j = 0; j < fields.length; j++) {
     try {
-      if ((f.ref === undefined || f.ref === null || f.ref === '') && !f.selector) {
-        throw be('INVALID_PARAMS', 'needs a ref or selector');
-      }
-      var el = editableTarget(resolveTarget({ ref: f.ref, selector: f.selector, generation: msg.generation }));
-      checkValue(el, f.value === undefined || f.value === null ? '' : String(f.value));
-      return el;
+      var spec = fieldSpec(fields[j], msg);
+      if (!hasTarget(spec)) throw be('INVALID_PARAMS', 'needs a ref, name or selector');
+      var el0 = editableTarget(await locate(Object.assign(spec, { waitMs: j ? 500 : 3000 }), 'fill'));
+      checkValue(el0, fields[j].value === undefined || fields[j].value === null ? '' : String(fields[j].value));
+      if (targets.indexOf(el0) >= 0) throw be('INVALID_PARAMS', 'is the same field as fields[' + targets.indexOf(el0) + ']');
+      targets.push(el0);
     } catch (e) {
-      throw be(e.code || 'INVALID_PARAMS', 'fields[' + i + ']: ' + e.message + ' Nothing was filled.');
+      throw be(e.code || 'INVALID_PARAMS', 'fields[' + j + ']: ' + e.message + ' Nothing was filled.');
     }
-  });
-  var explicit = submitTarget(msg);
+  }
+  var explicit = await submitTarget(msg);
   for (var i = 0; i < targets.length; i++) {
     try {
       checkCancel(msg);
       // Earlier writes can make the page re-render: find the field again.
       var f = fields[i];
       var v = f.value === undefined || f.value === null ? '' : String(f.value);
-      var el = editableTarget(mustResolve({ ref: f.ref, selector: f.selector, generation: msg.generation }));
+      var el = targets[i].isConnected ? targets[i] : editableTarget(await locate(Object.assign(fieldSpec(f, msg), { waitMs: 1000 }), 'fill'));
       checkValue(el, v);
       setValue(el, v);
       targets[i] = el;
@@ -939,17 +1256,80 @@ async function doFillForm(msg) {
         ' fields before this one; the rest were not changed.');
     }
   }
-  var out = { filled: targets.length };
+  var out = { filled: targets.length, refs: targets.map(refOf) };
   if (msg.submit || explicit) Object.assign(out, await submitField(targets[targets.length - 1], msg, explicit));
   return out;
 }
 
-function doSelect(msg) {
-  var el = mustResolve(msg);
+/* Visible options of a custom (ARIA) dropdown: inside its listbox if it names one, else anywhere. */
+function ariaOptions(el) {
+  var scope = null;
+  var id = el.getAttribute('aria-controls') || el.getAttribute('aria-owns');
+  if (id) {
+    var root = el.getRootNode ? el.getRootNode() : document;
+    scope = (root.getElementById ? root : document).getElementById(id.split(/\s+/)[0]);
+  }
+  if (!scope && tagRole(el, false) === 'listbox') scope = el;
+  var opts = scope ? Array.prototype.slice.call(scope.querySelectorAll('[role="option"], [role="menuitem"], [role="menuitemradio"], [role="treeitem"]'))
+    : deepSelectAll('[role="option"], [role="menuitemradio"]');
+  return opts.filter(visible);
+}
+
+function pickOption(opts, value) {
+  var v = norm(value);
+  var tests = [
+    function (o) { return norm(computeName(o, o.tagName)) === v; },
+    function (o) { return norm(o.getAttribute('data-value') || o.getAttribute('value')) === v; },
+    function (o) { return norm(computeName(o, o.tagName)).indexOf(v) === 0; },
+    function (o) { return norm(computeName(o, o.tagName)).indexOf(v) >= 0; }
+  ];
+  for (var t = 0; t < tests.length; t++) {
+    var hits = opts.filter(tests[t]);
+    if (hits.length) return hits[0];
+  }
+  return null;
+}
+
+/* A custom dropdown: open it, wait for its options, click the one that matches each value. */
+async function selectCustom(el, msg) {
+  var values = (msg.values || []).map(String);
+  var picked = [];
+  for (var i = 0; i < values.length; i++) {
+    var opts = ariaOptions(el);
+    if (!opts.length || (el.getAttribute('aria-expanded') === 'false')) {
+      await doClick({}, el);
+      for (var t = 0; t < 20; t++) {
+        await sleep(100);
+        checkCancel(msg);
+        opts = ariaOptions(el);
+        if (opts.length) break;
+      }
+    }
+    if (!opts.length) {
+      throw be('NO_MATCH', describe(el) + ' showed no options after it was clicked. Take a page_snapshot to see what opened, then page_click the option.');
+    }
+    var o = pickOption(opts, values[i]);
+    if (!o) {
+      var names = opts.slice(0, 30).map(function (x) { return JSON.stringify(shortName(x)); });
+      throw be('NO_MATCH', 'No option matches ' + JSON.stringify(values[i]) + ' in ' + describe(el) + '. Options: ' + names.join(', ') + (opts.length > 30 ? ', …' : '') + '.');
+    }
+    var label = shortName(o);
+    await doClick({}, o);
+    picked.push(label);
+    await sleep(100);
+  }
+  return { selected: picked, labels: picked, custom: true };
+}
+
+async function doSelect(msg) {
+  var el = await locate(msg, 'select');
+  if (el.tagName === 'LABEL' && el.control) el = el.control;
   if (el.tagName !== 'SELECT') {
-    throw be('INVALID_PARAMS', describe(el) + ' is not a <select>. For custom dropdowns, act_click to open it, then act_click the option.');
+    var inner = el.querySelector && el.querySelector('select');
+    if (inner && visible(inner)) el = inner;
   }
   assertActionable(el, 'selecting');
+  if (el.tagName !== 'SELECT') return await selectCustom(el, msg);
   var idx = matchOptions(el, (msg.values || []).map(String));
   try { el.focus(); } catch (e) {}
   selectIndices(el, idx);
@@ -959,24 +1339,149 @@ function doSelect(msg) {
   };
 }
 
-function doHover(msg) {
-  var el = mustResolve(msg);
-  try { el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' }); } catch (e) {}
-  var rect = el.getBoundingClientRect();
-  var pos = { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
-  var ptr = function (type, bubbles) {
-    try { el.dispatchEvent(new PointerEvent(type, Object.assign({ bubbles: bubbles, cancelable: bubbles, composed: true, pointerType: 'mouse' }, pos))); } catch (e) {}
+async function doHover(msg) {
+  var el = await locate(msg, 'hover');
+  var atPoint = !given(msg.ref) && !given(msg.selector) && !given(msg.name) && !given(msg.role);
+  var pos;
+  if (atPoint) pos = { clientX: Number(msg.x), clientY: Number(msg.y) };
+  else {
+    try { el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' }); } catch (e) {}
+    var rect = el.getBoundingClientRect();
+    pos = { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
+  }
+  // Enter every element from the outside in, as a real pointer would.
+  var chain = [];
+  for (var n = el; n && n.nodeType === 1; n = flatParent(n)) chain.unshift(n);
+  var ptr = function (t, type, bubbles) {
+    try { t.dispatchEvent(new PointerEvent(type, Object.assign({ bubbles: bubbles, cancelable: bubbles, composed: true, pointerType: 'mouse', isPrimary: true }, pos))); } catch (e) {}
   };
-  ptr('pointerover', true);
-  ptr('pointerenter', false);
+  ptr(el, 'pointerover', true);
   el.dispatchEvent(mouseEvent('mouseover', pos));
-  el.dispatchEvent(mouseEvent('mouseenter', Object.assign({ bubbles: false, cancelable: false }, pos)));
-  ptr('pointermove', true);
+  chain.forEach(function (t) {
+    ptr(t, 'pointerenter', false);
+    t.dispatchEvent(mouseEvent('mouseenter', Object.assign({ bubbles: false, cancelable: false }, pos)));
+  });
+  ptr(el, 'pointermove', true);
   el.dispatchEvent(mouseEvent('mousemove', pos));
   return {
     hovered: true,
-    note: 'Sent pointer/mouse hover events, which open JavaScript-driven menus and tooltips. Pure CSS :hover styles can\'t be triggered from an extension; if nothing appeared, try act_click.'
+    ref: refOf(el),
+    note: 'Sent pointer/mouse hover events, which open JavaScript-driven menus and tooltips. Pure CSS :hover styles can\'t be triggered from an extension; if nothing appeared, page_click it instead.'
   };
+}
+
+/* Press on one element (or point), move in steps, release on another. Also runs
+   HTML drag-and-drop for draggable elements. */
+async function doDrag(msg) {
+  var from = await locate(msg, 'drag');
+  var toSpec = { ref: msg.toRef, selector: msg.toSelector, name: msg.toName, role: msg.toRole, x: msg.toX, y: msg.toY, generation: msg.generation, opId: msg.opId };
+  if (!hasTarget(toSpec)) throw be('INVALID_PARAMS', 'Say where to drop: toRef, toName, toSelector, or toX and toY.');
+  var to = await locate(toSpec, 'drag');
+  var center = function (el, x, y) {
+    if (given(x) && given(y)) return { clientX: Number(x), clientY: Number(y) };
+    var r = el.getBoundingClientRect();
+    return { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+  };
+  var fromPoint = !given(msg.ref) && !given(msg.selector) && !given(msg.name) && !given(msg.role);
+  if (!fromPoint) { try { from.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }); } catch (e) {} }
+  var a = center(from, fromPoint ? msg.x : undefined, fromPoint ? msg.y : undefined);
+  var toPoint = !given(toSpec.ref) && !given(toSpec.selector) && !given(toSpec.name) && !given(toSpec.role);
+  var b = center(to, toPoint ? msg.toX : undefined, toPoint ? msg.toY : undefined);
+  var ptr = function (el, type, pos, buttons) {
+    try { el.dispatchEvent(new PointerEvent(type, Object.assign({ bubbles: true, cancelable: true, composed: true, pointerType: 'mouse', isPrimary: true, buttons: buttons }, pos))); } catch (e) {}
+    var mt = type.replace('pointer', 'mouse');
+    el.dispatchEvent(mouseEvent(mt, Object.assign({ buttons: buttons }, pos)));
+  };
+  ptr(from, 'pointerdown', a, 1);
+  var dt = null;
+  var html5 = from.draggable || (from.closest && from.closest('[draggable="true"]'));
+  if (html5) {
+    try { dt = new DataTransfer(); } catch (e) { dt = null; }
+    from.dispatchEvent(new DragEvent('dragstart', Object.assign({ bubbles: true, cancelable: true, composed: true, dataTransfer: dt }, a)));
+  }
+  var steps = 8, over = from;
+  for (var i = 1; i <= steps; i++) {
+    var p = { clientX: a.clientX + (b.clientX - a.clientX) * i / steps, clientY: a.clientY + (b.clientY - a.clientY) * i / steps };
+    var under = deepPoint(p.clientX, p.clientY) || to;
+    ptr(under, 'pointermove', p, 1);
+    if (html5) {
+      if (under !== over) under.dispatchEvent(new DragEvent('dragenter', Object.assign({ bubbles: true, cancelable: true, composed: true, dataTransfer: dt }, p)));
+      under.dispatchEvent(new DragEvent('dragover', Object.assign({ bubbles: true, cancelable: true, composed: true, dataTransfer: dt }, p)));
+    }
+    over = under;
+    await sleep(16);
+    checkCancel(msg);
+  }
+  if (html5) {
+    to.dispatchEvent(new DragEvent('drop', Object.assign({ bubbles: true, cancelable: true, composed: true, dataTransfer: dt }, b)));
+    from.dispatchEvent(new DragEvent('dragend', Object.assign({ bubbles: true, cancelable: false, composed: true, dataTransfer: dt }, b)));
+  }
+  ptr(to, 'pointerup', b, 0);
+  return { dragged: true, from: lineFor(from), to: lineFor(to) };
+}
+
+function base64Bytes(b64) {
+  var bin = atob(String(b64).replace(/^data:[^,]*,/, '').replace(/\s+/g, ''));
+  var out = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/* Put files into a file input (or drop them on a drop zone), like choosing them in the file picker. */
+async function doUpload(msg) {
+  var files = (msg.files || []).map(function (f, i) {
+    if (!f || !f.name) throw be('INVALID_PARAMS', 'files[' + i + '] needs a name.');
+    var data = given(f.base64) ? base64Bytes(f.base64) : new TextEncoder().encode(String(f.text === undefined ? '' : f.text));
+    return new File([data], String(f.name), { type: String(f.mimeType || ''), lastModified: Date.now() });
+  });
+  if (!files.length) throw be('INVALID_PARAMS', 'page_upload needs at least one file.');
+  var el;
+  if (hasTarget(msg)) el = await locate(msg, 'upload');
+  else {
+    var inputs = deepSelectAll('input[type="file"]').filter(function (i) { return !isDisabled(i); });
+    if (inputs.length !== 1) {
+      throw be(inputs.length ? 'AMBIGUOUS' : 'REF_NOT_FOUND', inputs.length
+        ? inputs.length + ' file inputs are on the page:\n' + inputs.slice(0, 8).map(lineFor).join('\n') + '\nPass the ref of the one to use.'
+        : 'No file input is on the page. Pass the drop zone or the upload button as the target, or page_click the upload button first.');
+    }
+    el = inputs[0];
+  }
+  var input = el;
+  if (inputType(input) !== 'file') {
+    if (input.tagName === 'LABEL' && input.control && inputType(input.control) === 'file') input = input.control;
+    else {
+      var inner = input.querySelector && input.querySelector('input[type="file"]');
+      if (!inner && input.getRootNode) { var host = input.closest && input.closest('form'); inner = host && host.querySelector('input[type="file"]'); }
+      input = inner || null;
+    }
+  }
+  var dt = new DataTransfer();
+  files.forEach(function (f) { dt.items.add(f); });
+  if (!input) {
+    // No input: drop the files on the element, the way drag-and-drop zones expect.
+    var r = el.getBoundingClientRect();
+    var pos = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+    ['dragenter', 'dragover', 'drop'].forEach(function (t) {
+      el.dispatchEvent(new DragEvent(t, Object.assign({ bubbles: true, cancelable: true, composed: true, dataTransfer: dt }, pos)));
+    });
+    return { uploaded: files.length, via: 'drop on ' + describe(el), files: files.map(function (f) { return f.name; }) };
+  }
+  if (isDisabled(input)) throw be('ELEMENT_DISABLED', describe(input) + ' is disabled.');
+  if (files.length > 1 && !input.multiple) throw be('INVALID_PARAMS', describe(input) + ' takes only one file; got ' + files.length + '.');
+  input.files = dt.files;
+  input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+  var out = { uploaded: input.files.length, ref: refOf(input), files: files.map(function (f) { return f.name + ' (' + f.size + ' bytes)'; }) };
+  if (input.accept) {
+    var acc = input.accept.split(',').map(function (a) { return a.trim().toLowerCase(); });
+    var bad = files.filter(function (f) {
+      return !acc.some(function (a) {
+        return a === f.type || (a.slice(-2) === '/*' && f.type.indexOf(a.slice(0, -1)) === 0) || (a[0] === '.' && f.name.toLowerCase().slice(-a.length) === a);
+      });
+    });
+    if (bad.length) out.warning = 'The input accepts ' + input.accept + ', so the page may reject ' + bad.map(function (f) { return f.name; }).join(', ') + '.';
+  }
+  return out;
 }
 
 /* ---------------------------------------------------------------- scroll */
@@ -990,7 +1495,7 @@ function windowScrolls(vertical) {
   return vertical ? r.scrollHeight - r.clientHeight > 20 : r.scrollWidth - r.clientWidth > 20;
 }
 
-function doScroll(msg) {
+async function doScroll(msg) {
   var dir0 = String(msg.direction || 'down').toLowerCase();
   if (msg.to === 'top' || msg.to === 'bottom') {
     var box0 = windowScrolls(true) ? null : mainScroller(true);
@@ -1001,19 +1506,37 @@ function doScroll(msg) {
     return { scrolled: true, to: msg.to, container: box0 ? describe(box0) : undefined, atEnd: atEnd(b0, msg.to === 'top' ? -1 : 1, true) };
   }
   var target = null;
-  if (msg.ref !== undefined && msg.ref !== null && msg.ref !== '' || msg.selector) {
-    target = resolveTarget(msg);
+  if (given(msg.ref) || given(msg.selector) || given(msg.name)) target = await locate(msg, 'scroll');
+  var vertical = dir0 !== 'left' && dir0 !== 'right';
+  var sign = (dir0 === 'up' || dir0 === 'left') ? -1 : 1;
+  if (target && !given(msg.direction) && !given(msg.pixels)) {
+    try { target.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }); } catch (e) {}
+    return { scrolled: true, ref: refOf(target), inView: inViewport(target) };
   }
   if (target) {
-    try { target.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }); } catch (e) {}
-    return { scrolled: true, ref: refOf(target, msg) };
+    // A direction with a target: scroll inside it (or the nearest box around it that scrolls).
+    var box = scrollableAround(target, vertical);
+    if (!box) throw be('NOT_SUPPORTED', describe(target) + ' and the elements around it can\'t scroll ' + (vertical ? 'vertically' : 'sideways') + '.');
+    var bpx = given(msg.pixels) ? Number(msg.pixels) : Math.round((vertical ? box.clientHeight : box.clientWidth) * 0.8);
+    var bx = box.scrollLeft, by = box.scrollTop;
+    box.scrollBy({ left: vertical ? 0 : sign * bpx, top: vertical ? sign * bpx : 0, behavior: 'instant' });
+    return { scrolled: box.scrollLeft !== bx || box.scrollTop !== by, container: describe(box), x: box.scrollLeft, y: box.scrollTop, atEnd: atEnd(box, sign, vertical) };
   }
-  var vertical = dir0 !== 'left' && dir0 !== 'right';
   // Default: most of a screen, so consecutive scrolls overlap a little.
   var px = msg.pixels !== undefined ? Number(msg.pixels) : Math.round((vertical ? window.innerHeight : window.innerWidth) * 0.8);
   if (!Number.isFinite(px) || px <= 0) px = 500;
-  var sign = (dir0 === 'up' || dir0 === 'left') ? -1 : 1;
   return scrollBy(vertical ? 0 : sign * px, vertical ? sign * px : 0);
+}
+
+function scrollableAround(el, vertical) {
+  for (var n = el; n && n.nodeType === 1; n = flatParent(n)) {
+    var cs;
+    try { cs = getComputedStyle(n); } catch (e) { continue; }
+    var ov = vertical ? cs.overflowY : cs.overflowX;
+    var room = vertical ? n.scrollHeight - n.clientHeight : n.scrollWidth - n.clientWidth;
+    if (room > 2 && /auto|scroll|overlay/.test(ov)) return n;
+  }
+  return null;
 }
 
 /* Scroll the window, or the page's main inner scroller when the window can't
@@ -1065,9 +1588,14 @@ function mainScroller(vertical) {
   return best;
 }
 
+/* A short name for el in messages: its role and name with its ref, e.g. button “Send” (ref=12). */
 function describe(el) {
   var r = elToRef.get(el);
-  if (r !== undefined) return 'ref=' + r;
+  var role = '', name = '';
+  try { role = tagRole(el, false) || ''; } catch (e) {}
+  try { name = shortName(el); } catch (e) {}
+  if (r !== undefined && (role || name)) return (role || el.tagName.toLowerCase()) + (name ? ' “' + name + '”' : '') + ' (ref=' + r + ')';
+  if (r !== undefined) return el.tagName.toLowerCase() + ' (ref=' + r + ')';
   return el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
 }
 
@@ -1321,10 +1849,39 @@ async function keyDefault(key, mods, el, msg) {
   return '';
 }
 
+/* "Ctrl+Shift+K" -> key "K" plus modifiers. A lone "+" is the plus key. */
+function splitCombo(raw, modifiers) {
+  var parts = raw.length > 1 ? raw.split('+') : [raw];
+  if (raw.length > 1 && raw.slice(-1) === '+') { parts = raw.slice(0, -2).split('+').concat('+'); }
+  var key = parts.pop();
+  var mods = (Array.isArray(modifiers) ? modifiers : modifiers ? [modifiers] : []).concat(parts.filter(Boolean));
+  return { key: KEY_ALIASES[key.toLowerCase()] || key, mods: normalizeMods(mods) };
+}
+
 async function doKey(msg) {
+  var times = msg.times === undefined ? 1 : Math.floor(Number(msg.times));
+  if (!Number.isFinite(times) || times < 1 || times > 50) throw be('INVALID_PARAMS', 'times must be 1 to 50.');
+  if (hasTarget(msg)) {
+    var t0 = await locate(msg, 'key');
+    if (t0.tagName === 'LABEL' && t0.control) t0 = t0.control;
+    try { t0.focus({ preventScroll: false }); } catch (e) {}
+  }
+  var last = null, effects = [];
+  for (var i = 0; i < times; i++) {
+    checkCancel(msg);
+    last = await pressKey(msg);
+    if (effects.indexOf(last.effect) < 0) effects.push(last.effect);
+    if (times > 1) await sleep(20);
+  }
+  if (times > 1) { last.times = times; last.effect = effects.join('; '); }
+  return last;
+}
+
+async function pressKey(msg) {
   var raw = String(msg.key);
-  var key = KEY_ALIASES[raw.toLowerCase()] || raw;
-  var mods = normalizeMods(msg.modifiers);
+  var sp = splitCombo(raw, msg.modifiers);
+  var key = sp.key;
+  var mods = sp.mods;
   var target = deepActive() || document.body;
   var init = Object.assign({}, mods);
   if (KEY_CODES[key] !== undefined) { init.keyCode = KEY_CODES[key]; init.which = KEY_CODES[key]; init.code = key === ' ' ? 'Space' : key; }
@@ -1364,39 +1921,72 @@ function checkCancel(msg) {
 
 function sleep(ms) { return new Promise(function (res) { setTimeout(res, ms); }); }
 
+/* Wait for text or an element to appear, or with gone:true to go away. With nothing
+   to wait for, wait until the page stops changing. */
 async function doWait(msg) {
   var timeoutMs = msg.timeoutMs !== undefined ? Number(msg.timeoutMs) : 10000;
   if (!Number.isFinite(timeoutMs) || timeoutMs < 0) timeoutMs = 10000;
   timeoutMs = Math.min(timeoutMs, 60000);
   var start = Date.now();
-  var wantText = (msg.text !== undefined && msg.text !== null && String(msg.text) !== '') ? String(msg.text).toLowerCase() : null;
-  var wantSel = msg.selector ? String(msg.selector) : null;
-  if (wantSel) {
-    try { document.querySelector(wantSel); } catch (e) { throw be('INVALID_PARAMS', 'Bad selector: ' + wantSel); }
-  }
-  if (!wantText && !wantSel) {
-    var until = start + Math.min(timeoutMs, 1000);
-    for (var left; (left = until - Date.now()) > 0;) { checkCancel(msg); await sleep(Math.min(100, left)); }
+  var wantText = given(msg.text) ? norm(msg.text) : null;
+  var spec = { selector: msg.selector, name: msg.name, role: msg.role, ref: msg.ref, generation: msg.generation };
+  var wantEl = given(spec.selector) || given(spec.name) || given(spec.role) || given(spec.ref);
+  if (given(spec.selector)) checkSelector(String(spec.selector));
+  if (!wantText && !wantEl) {
+    await settle(Math.max(300, timeoutMs), 500);
     checkCancel(msg);
-    return { found: true, elapsedMs: Date.now() - start };
+    return { found: true, settled: true, elapsedMs: Date.now() - start };
   }
+  var gone = !!msg.gone;
   for (;;) {
     checkCancel(msg);
-    var ok = false;
+    var el = null, ok = true;
     try {
-      if (wantSel && document.querySelector(wantSel)) ok = true;
-      if (!ok && wantText && document.body && (document.body.innerText || '').toLowerCase().indexOf(wantText) >= 0) ok = true;
-    } catch (e) {}
-    if (ok) return { found: true, elapsedMs: Date.now() - start };
-    if (Date.now() - start >= timeoutMs) return { found: false, elapsedMs: Date.now() - start };
+      if (wantEl) {
+        el = given(spec.ref) && !elForRef(Number(spec.ref)) ? null : findTarget(Object.assign({}, spec), 'wait');
+        if (el && !visible(el)) el = null;
+        if (!el) ok = false;
+      }
+      if (ok && wantText) ok = norm(document.body ? document.body.innerText : '').indexOf(wantText) >= 0 || deepTextHas(wantText);
+    } catch (e) {
+      if (e.code === 'AMBIGUOUS') ok = true; // several matches: it's there
+      else if (e.code === 'INVALID_PARAMS') throw e;
+      else ok = false;
+    }
+    if (ok !== gone) {
+      var out = { found: !gone, gone: gone || undefined, elapsedMs: Date.now() - start };
+      if (el && !gone) { out.ref = refOf(el); out.line = lineFor(el); }
+      return out;
+    }
+    if (Date.now() - start >= timeoutMs) {
+      return { found: gone, timedOut: true, elapsedMs: Date.now() - start,
+        note: gone ? 'It was still on the page when the wait ran out.' : 'It did not appear before the wait ran out.' };
+    }
     await sleep(100);
   }
+}
+
+/* Text inside open shadow roots, which body.innerText leaves out. */
+function deepTextHas(needle) {
+  var hit = false;
+  (function walk(root) {
+    if (hit) return;
+    var all = root.querySelectorAll('*');
+    for (var i = 0; i < all.length && !hit; i++) {
+      var sr = all[i].shadowRoot;
+      if (sr) {
+        if (norm(sr.textContent).indexOf(needle) >= 0) { hit = true; return; }
+        walk(sr);
+      }
+    }
+  })(document);
+  return hit;
 }
 
 /* Visible text matches: up to 20 with snippets, and how many there are in all. */
 function doFind(msg) {
   var q = String(msg.query === undefined || msg.query === null ? '' : msg.query).toLowerCase();
-  if (!q) throw be('INVALID_PARAMS', 'act.find needs a query');
+  if (!q) throw be('INVALID_PARAMS', 'page_find needs a query');
   var root = document.body || document.documentElement;
   var matches = [], count = 0;
   var shown = new Map(); // parent element -> visible?
@@ -1422,8 +2012,10 @@ function doFind(msg) {
         count++;
         if (matches.length >= 20) continue;
         var m = { snippet: val.slice(Math.max(0, idx - 30), idx + q.length + 30).replace(/\s+/g, ' ').trim() };
-        var ref = elToRef.get(parent);
-        if (ref !== undefined) m.ref = ref;
+        var at = clickableAncestor(parent) || parent;
+        m.ref = refFor(at);
+        if (at !== parent || isInteresting(at)) m.element = describe(at);
+        if (!inViewport(parent)) m.offscreen = true;
         matches.push(m);
       }
     }
@@ -1483,16 +2075,17 @@ async function cursorBefore(msg) {
   var el = null;
   try {
     switch (msg.kind) {
-      case 'act-click': case 'act-type': case 'act-select': case 'act-hover':
-        el = resolveTarget(msg);
+      case 'act-click': case 'act-type': case 'act-select': case 'act-hover': case 'act-drag': case 'act-upload': case 'act-key':
+        el = peekTarget(msg, msg.kind.slice(4));
+        if (!el && msg.kind === 'act-type') el = deepActive();
         break;
       case 'act-fillForm': {
         var f = (msg.fields || [])[0];
-        if (f) el = resolveTarget({ ref: f.ref, selector: f.selector, generation: msg.generation });
+        if (f) el = peekTarget(fieldSpec(f, msg), 'fill');
         break;
       }
       case 'act-scroll':
-        if ((msg.ref !== undefined && msg.ref !== null && msg.ref !== '') || msg.selector) el = resolveTarget(msg);
+        if (given(msg.ref) || given(msg.selector) || given(msg.name)) el = peekTarget(msg, 'scroll');
         break;
     }
   } catch (e) { el = null; } // a bad target is reported by the action itself
@@ -1513,12 +2106,14 @@ async function cursorBefore(msg) {
       dflt = el ? say('curScrollTo', name) : msg.to === 'top' ? say('curScrollTop') : msg.to === 'bottom' ? say('curScrollBottom')
         : say({ up: 'curScrollUp', left: 'curScrollLeft', right: 'curScrollRight' }[String(msg.direction || '').toLowerCase()] || 'curScrollDown');
       break;
-    case 'act-key': dflt = isSecret(deepActive()) ? say('curKey') : say('curKey', String(msg.key)); break;
-    case 'act-wait': dflt = (msg.text || msg.selector) ? say('curWait', clip(msg.text || msg.selector)) : say('curWait'); break;
+    case 'act-key': dflt = isSecret(el || deepActive()) ? say('curKey') : say('curKey', String(msg.key)); break;
+    case 'act-wait': dflt = (msg.text || msg.name || msg.selector) ? say('curWait', clip(msg.text || msg.name || msg.selector)) : say('curWait'); break;
+    case 'act-drag': dflt = say('curDrag', name); break;
+    case 'act-upload': dflt = say('curUpload', clip((msg.files || []).map(function (x) { return x && x.name; }).join(', '))); break;
     case 'act-find': dflt = say('curFind', clip(msg.query)); break;
     default: dflt = say('curRead');
   }
-  var shape = msg.kind === 'act-click' ? 'hand'
+  var shape = (msg.kind === 'act-click' || msg.kind === 'act-drag') ? 'hand'
     : (msg.kind === 'act-type' || msg.kind === 'act-fillForm') ? 'text'
     : msg.kind === 'act-wait' ? 'wait' : 'arrow';
   if (el) {
@@ -1649,6 +2244,200 @@ function settle(maxMs, quietMs) {
   });
 }
 
+/* ---------------------------------------------------------------- changes */
+
+/* What an action changed on the page, so the agent rarely needs a new snapshot to
+   see the effect: elements that appeared, how many went away, expanded/collapsed
+   toggles and new messages in alerts, status regions and dialogs. */
+var WATCH_SEL = 'a[href],button,input,select,textarea,summary,[role],[contenteditable=""],[contenteditable="true"],h1,h2,h3,h4,h5,h6,dialog[open]';
+var LIVE_SEL = '[role="alert"],[role="status"],[role="log"],[aria-live]:not([aria-live="off"]),output,[role="alertdialog"],[role="dialog"],dialog[open]';
+var TRACKED = { 'act-click': 1, 'act-type': 1, 'act-fillForm': 1, 'act-select': 1, 'act-key': 1, 'act-hover': 1, 'act-drag': 1, 'act-upload': 1 };
+
+function shownFast(el) {
+  try { if (el.checkVisibility) return el.checkVisibility({ checkVisibilityCSS: true }) && !axHidden(el); } catch (e) {}
+  return visible(el);
+}
+
+function watchState() {
+  var shown = new Set(), expanded = new Map(), live = new Map();
+  var els = deepSelectAll(WATCH_SEL + ',' + LIVE_SEL);
+  if (els.length > 5000) els = els.slice(0, 5000);
+  els.forEach(function (el) {
+    if (!shownFast(el)) return;
+    var isLive = false;
+    try { isLive = el.matches(LIVE_SEL); } catch (e) {}
+    if (isLive) live.set(el, norm(el.innerText || el.textContent).slice(0, 300));
+    shown.add(el);
+    var x = el.getAttribute('aria-expanded');
+    if (x !== null) expanded.set(el, x);
+  });
+  return { shown: shown, expanded: expanded, live: live, url: location.href, title: document.title || '' };
+}
+
+function diffState(before) {
+  var after = watchState();
+  var out = {};
+  if (after.url !== before.url) out.url = after.url;
+  if (after.title !== before.title) out.title = after.title;
+  var added = [];
+  after.shown.forEach(function (el) {
+    if (before.shown.has(el) || !isInteresting(el)) return;
+    added.push(el);
+  });
+  var removed = 0;
+  before.shown.forEach(function (el) { if (!after.shown.has(el)) removed++; });
+  if (added.length) {
+    out.added = added.slice(0, 15).map(lineFor);
+    if (added.length > 15) out.addedMore = added.length - 15;
+  }
+  if (removed) out.removed = removed;
+  var toggled = [];
+  after.expanded.forEach(function (v, el) {
+    var b = before.expanded.get(el);
+    if (b !== undefined && b !== v) toggled.push(lineFor(el));
+  });
+  if (toggled.length) out.toggled = toggled.slice(0, 10);
+  var messages = [];
+  after.live.forEach(function (t, el) {
+    if (t && before.live.get(el) !== t && messages.indexOf(t) < 0) messages.push(t);
+  });
+  if (messages.length) out.messages = messages.slice(0, 5);
+  return Object.keys(out).length ? out : null;
+}
+
+function startWatch(msg) {
+  var w = { kind: msg.kind, before: null, count: 0, last: 0, unloading: false };
+  try { w.before = watchState(); } catch (e) { return null; }
+  try {
+    w.mo = new MutationObserver(function (records) {
+      for (var i = 0; i < records.length; i++) {
+        if (records[i].target && records[i].target.nodeName === 'FXMCP-CURSOR') continue;
+        w.count++;
+        w.last = Date.now();
+      }
+    });
+    w.mo.observe(document.documentElement || document, { subtree: true, childList: true, characterData: true, attributes: true });
+  } catch (e) {}
+  w.onUnload = function () { w.unloading = true; };
+  window.addEventListener('beforeunload', w.onUnload);
+  window.addEventListener('pagehide', w.onUnload);
+  return w;
+}
+
+/* After the action: give the page a moment to react, then report what changed. */
+async function finishWatch(w, result) {
+  try {
+    var start = Date.now();
+    for (;;) {
+      if (w.unloading) break;
+      var now = Date.now();
+      if (!w.count && now - start > 400) break;           // nothing reacted
+      if (w.count && now - w.last >= 300 && now - start >= 150) break; // reacted, then went quiet
+      if (now - start > 2500) break;
+      await sleep(50);
+    }
+    if (result && typeof result === 'object' && !Array.isArray(result)) {
+      if (w.unloading) {
+        result.navigating = true;
+      } else {
+        var ch = diffState(w.before);
+        if (ch) result.changes = ch;
+        else if (!w.count && /click|hover|drag/.test(w.kind)) result.changes = 'none: the page did not change';
+      }
+    }
+  } catch (e) {} // reporting must never fail the action
+  finally {
+    if (w.mo) w.mo.disconnect();
+    window.removeEventListener('beforeunload', w.onUnload);
+    window.removeEventListener('pagehide', w.onUnload);
+  }
+  return result;
+}
+
+/* ---------------------------------------------------------------- reading */
+
+/* The part of the page a read is limited to: msg.within = {ref|selector|name|role}. */
+async function scopeRoot(msg) {
+  var w = msg.within;
+  if (!w || typeof w !== 'object' || !hasTarget(w)) return null;
+  var el = await locate(Object.assign({ generation: msg.generation, opId: msg.opId, waitMs: 2000 }, w), 'read');
+  if (el.tagName === 'IFRAME' || el.tagName === 'FRAME') { var d = frameDoc(el); if (d && d.body) return d.body; }
+  return el;
+}
+
+function pageText(root) {
+  if (!root) return '';
+  var t = '';
+  try { t = root.innerText || ''; } catch (e) {}
+  if (!t && root.shadowRoot) try { t = root.shadowRoot.textContent || ''; } catch (e) {}
+  return String(t).replace(/\n{3,}/g, '\n\n');
+}
+
+/* Document coordinates of an element (crossing same-origin frames), for screenshots. */
+function docRect(el) {
+  var r = el.getBoundingClientRect();
+  var x = r.left, y = r.top;
+  var win = el.ownerDocument.defaultView;
+  while (win && win !== window && win.frameElement) {
+    var fr = win.frameElement.getBoundingClientRect();
+    x += fr.left + (win.frameElement.clientLeft || 0);
+    y += fr.top + (win.frameElement.clientTop || 0);
+    win = win.parent;
+  }
+  return { x: Math.max(0, x + window.scrollX), y: Math.max(0, y + window.scrollY), width: r.width, height: r.height };
+}
+
+function pageMetrics() {
+  var r = scrollRoot();
+  return {
+    width: Math.max(r ? r.scrollWidth : 0, window.innerWidth), height: Math.max(r ? r.scrollHeight : 0, window.innerHeight),
+    viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,
+    scrollX: window.scrollX, scrollY: window.scrollY, devicePixelRatio: window.devicePixelRatio || 1
+  };
+}
+
+var STORAGE_VALUE_MAX = 20000;
+
+/* The page's own localStorage / sessionStorage. */
+function doPageStorage(msg) {
+  var area = msg.area === 'session' ? 'session' : 'local';
+  var st;
+  try { st = area === 'session' ? window.sessionStorage : window.localStorage; } catch (e) {
+    throw be('NOT_SUPPORTED', 'This page can\'t use ' + area + 'Storage (' + (e && e.message) + ').');
+  }
+  if (!st) throw be('NOT_SUPPORTED', 'This page has no ' + area + 'Storage.');
+  var key = given(msg.key) ? String(msg.key) : null;
+  switch (msg.op) {
+    case 'get': {
+      if (key === null) {
+        var keys = [];
+        for (var i = 0; i < st.length && keys.length < 500; i++) {
+          var k = st.key(i);
+          keys.push({ key: k, chars: String(st.getItem(k) || '').length });
+        }
+        return { area: area, origin: location.origin, count: st.length, keys: keys, truncated: st.length > keys.length };
+      }
+      var v = st.getItem(key);
+      if (v === null) return { area: area, origin: location.origin, key: key, found: false };
+      var cut = v.length > STORAGE_VALUE_MAX;
+      return { area: area, origin: location.origin, key: key, found: true, value: cut ? v.slice(0, STORAGE_VALUE_MAX) : v, chars: v.length, truncated: cut || undefined };
+    }
+    case 'set': {
+      if (key === null) throw be('INVALID_PARAMS', 'storage_set needs a key.');
+      var val = typeof msg.value === 'string' ? msg.value : JSON.stringify(msg.value === undefined ? null : msg.value);
+      try { st.setItem(key, val); } catch (e) { throw be('PAYLOAD_TOO_LARGE', 'The page\'s ' + area + 'Storage refused it: ' + (e && e.message)); }
+      return { area: area, origin: location.origin, key: key, saved: true, chars: val.length };
+    }
+    case 'remove': {
+      if (key === null) throw be('INVALID_PARAMS', 'storage_remove needs a key.');
+      var had = st.getItem(key) !== null;
+      st.removeItem(key);
+      return { area: area, origin: location.origin, key: key, removed: had };
+    }
+    default: throw be('INVALID_PARAMS', 'Unknown storage op: ' + msg.op);
+  }
+}
+
 /* ------------------------------------------------------------------ dispatch */
 
 async function handleMessage(msg) {
@@ -1661,16 +2450,22 @@ async function handleMessage(msg) {
   checkCancel(msg);
   var acts = /^act-/.test(msg.kind);
   if (acts) beginDialogs(msg);
+  var watch = null;
   try {
     if (msg.cursor) await cursorBefore(msg);
     checkCancel(msg); // the glide takes a moment
+    if (TRACKED[msg.kind] && msg.changes !== false) watch = startWatch(msg);
     var result = await dispatch(msg);
+    if (watch) { result = await finishWatch(watch, result); watch = null; }
+    if (msg._notes && result && typeof result === 'object') result.notes = (result.notes || []).concat(msg._notes);
     if (msg.cursor) cursorAfter(msg, result, null);
     return withDialogLog(result);
   } catch (e) {
     if (msg.cursor) cursorAfter(msg, null, e);
     throw e;
   } finally {
+    if (watch && watch.mo) watch.mo.disconnect();
+    if (watch) { window.removeEventListener('beforeunload', watch.onUnload); window.removeEventListener('pagehide', watch.onUnload); }
     if (acts) endDialogs();
   }
 }
@@ -1680,47 +2475,55 @@ async function dispatch(msg) {
     case 'ax-snapshot': {
       await settle(1500);
       var maxChars = (msg.maxChars !== undefined && Number.isFinite(Number(msg.maxChars))) ? Number(msg.maxChars) : 50000;
-      return buildSnapshot(msg.compact !== false, maxChars);
+      var sroot = await scopeRoot(msg);
+      var snap = buildSnapshot(msg.compact !== false, maxChars, sroot, !!msg.viewportOnly);
+      if (sroot) snap.within = lineFor(sroot);
+      if (snap.truncated) {
+        snap.hint = 'Cut off at ' + maxChars + ' characters. To see the rest: pass viewportOnly:true after page_scroll, ' +
+          'limit it with within:{ref} to one region, or use page_find to locate something specific.';
+      }
+      return snap;
     }
     case 'page-text': {
       await settle(1500);
-      var mc = (msg.maxChars !== undefined && Number.isFinite(Number(msg.maxChars))) ? Number(msg.maxChars) : 50000;
-      var t = '';
-      try {
-        var tr = document.body || document.documentElement;
-        t = tr ? tr.innerText || '' : '';
-      } catch (e) { t = ''; }
-      t = String(t);
-      var trunc = t.length > mc;
-      return { text: trunc ? t.slice(0, mc) : t, truncated: trunc, url: location.href, title: document.title || '' };
+      var mc = (msg.maxChars !== undefined && Number.isFinite(Number(msg.maxChars))) ? Number(msg.maxChars) : 20000;
+      var off = Math.max(0, Math.floor(Number(msg.offset) || 0));
+      var troot = await scopeRoot(msg);
+      var t = pageText(troot || document.body || document.documentElement);
+      var part = t.slice(off, off + mc);
+      var out = { text: part, totalChars: t.length, offset: off, truncated: off + mc < t.length, url: location.href, title: document.title || '' };
+      if (out.truncated) out.nextOffset = off + part.length;
+      if (troot) out.within = lineFor(troot);
+      return out;
     }
     case 'page-html': {
       var mc2 = (msg.maxChars !== undefined && Number.isFinite(Number(msg.maxChars))) ? Number(msg.maxChars) : 50000;
       var html;
-      if (msg.selector) {
-        var sel;
-        try { sel = document.querySelector(String(msg.selector)); } catch (e) {
-          throw be('INVALID_PARAMS', 'Bad selector: ' + msg.selector);
-        }
-        if (!sel) throw be('REF_NOT_FOUND', 'No element matches selector: ' + msg.selector);
-        html = sel.outerHTML;
-      } else {
-        html = document.documentElement ? document.documentElement.outerHTML : '';
-      }
+      var hroot = msg.selector ? deepSelect(String(msg.selector)) : await scopeRoot(msg);
+      if (msg.selector && !hroot) throw be('REF_NOT_FOUND', 'No element matches selector: ' + msg.selector);
+      html = hroot ? hroot.outerHTML : (document.documentElement ? document.documentElement.outerHTML : '');
       html = String(html).replace(/<fxmcp-cursor\b[^>]*><\/fxmcp-cursor>/g, ''); // our overlay isn't page content
-      html = String(html);
       var trunc2 = html.length > mc2;
-      return { html: trunc2 ? html.slice(0, mc2) : html, truncated: trunc2, url: location.href, title: document.title || '' };
+      return { html: trunc2 ? html.slice(0, mc2) : html, truncated: trunc2, totalChars: html.length, url: location.href, title: document.title || '' };
     }
-    case 'act-click': return doClick(msg);
-    case 'act-type': return doType(msg);
-    case 'act-fillForm': return doFillForm(msg);
-    case 'act-select': return doSelect(msg);
-    case 'act-hover': return doHover(msg);
-    case 'act-scroll': return doScroll(msg);
+    case 'page-storage': return doPageStorage(msg);
+    case 'page-metrics': return pageMetrics();
+    case 'element-rect': {
+      var rel = await locate(msg, 'read');
+      try { rel.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' }); } catch (e) {}
+      return Object.assign({ rect: docRect(rel), line: lineFor(rel) }, pageMetrics());
+    }
+    case 'act-click': return await doClick(msg);
+    case 'act-type': return await doType(msg);
+    case 'act-fillForm': return await doFillForm(msg);
+    case 'act-select': return await doSelect(msg);
+    case 'act-hover': return await doHover(msg);
+    case 'act-scroll': return await doScroll(msg);
     case 'act-key': return await doKey(msg);
     case 'act-wait': return await doWait(msg);
     case 'act-find': await settle(1500); return doFind(msg);
+    case 'act-drag': return await doDrag(msg);
+    case 'act-upload': return await doUpload(msg);
     default:
       throw be('UNKNOWN_METHOD', 'Unknown content kind: ' + msg.kind);
   }

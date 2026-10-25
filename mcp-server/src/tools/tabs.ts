@@ -8,41 +8,25 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ExtensionBridge } from "../bridge/bridge.js";
 import type { ServerConfig } from "../config.js";
-import { callBridge, requireConfirm, tabIdField } from "./helpers.js";
-
-function text(t: string) {
-  const res: { content: { type: "text"; text: string }[]; isError?: boolean } = {
-    content: [{ type: "text" as const, text: t }],
-  };
-  if (t.startsWith("ERROR")) res.isError = true;
-  return res;
-}
+import { callBridge, confirmField, refusal, requireConfirm, tabIdField, text } from "./helpers.js";
 
 const waitForLoadField = z
   .boolean()
   .optional()
-  .describe("Wait for the page load to complete before returning (default true)");
+  .describe("Wait for the page to finish loading before returning (default true)");
 
 const loadTimeoutField = z
   .number()
   .int()
   .positive()
   .optional()
-  .describe("Max ms to wait for load (default 20000, max 60000)");
+  .describe("Max ms to wait for the load (default 20000, max 60000)");
 
 function loadTimeout(ms: number | undefined): number {
   return Math.min(Math.max(ms ?? 20000, 1000), 60000);
 }
 
-function refusal(t: string) {
-  return { content: [{ type: "text" as const, text: t }], isError: true };
-}
-
 const windowIdField = z.number().int().positive().describe("Firefox window id");
-const confirmField = z
-  .boolean()
-  .optional()
-  .describe("Pass true to confirm a destructive action (required unless the user turned the guard off)");
 
 export function registerTabTools(
   server: McpServer,
@@ -50,48 +34,32 @@ export function registerTabTools(
   config: ServerConfig,
 ): void {
   server.registerTool(
-    "tabs_list",
+    "tab_query",
     {
-      description: "List all open tabs (id, url, title, active/pinned/audible state).",
+      description:
+        "List or find tabs. query \"*\" (or nothing) lists every tab; other text matches URL or title, case-insensitively. " +
+        "Each tab has id, url, title, windowId and active/pinned/audible flags. Usually your first call.",
       inputSchema: {
-        includeDiscarded: z.boolean().optional().describe("Include discarded (unloaded) tabs (default true; false leaves them out)"),
-      },
-    },
-    async (args) =>
-      text(await callBridge(bridge, "tabs.list", { includeDiscarded: args.includeDiscarded })),
-  );
-
-  server.registerTool(
-    "tabs_query",
-    {
-      description: "Find tabs by URL/title pattern and state flags.",
-      inputSchema: {
+        query: z.string().optional().describe("\"*\" for all tabs, or text to look for in the URL or title"),
         urlPattern: z
           .string()
           .optional()
-          .describe("Substring or regex matched against tab URLs (no backreferences or nested quantifiers like (a+)+)"),
-        titlePattern: z.string().optional().describe("Substring or regex matched against tab titles (same rules)"),
-        audible: z.boolean().optional().describe("Only tabs currently producing sound"),
-        pinned: z.boolean().optional().describe("Only pinned (or only unpinned) tabs"),
-        active: z.boolean().optional().describe("Only the active tab(s)"),
+          .describe("Regex on the URL (no backreferences or nested quantifiers like (a+)+)"),
+        titlePattern: z.string().optional().describe("Regex on the title (same rules)"),
+        active: z.boolean().optional().describe("Only the active tab of each window (true) or only background tabs (false)"),
+        pinned: z.boolean().optional().describe("Only pinned (true) or unpinned (false) tabs"),
+        audible: z.boolean().optional().describe("Only tabs playing sound"),
+        windowId: z.number().int().positive().optional().describe("Only tabs in this window"),
+        includeDiscarded: z.boolean().optional().describe("Include unloaded (discarded) tabs (default true)"),
       },
     },
-    async (args) =>
-      text(
-        await callBridge(bridge, "tabs.query", {
-          urlPattern: args.urlPattern,
-          titlePattern: args.titlePattern,
-          audible: args.audible,
-          pinned: args.pinned,
-          active: args.active,
-        }),
-      ),
+    async (args) => text(await callBridge(bridge, "tabs.query", { ...args })),
   );
 
   server.registerTool(
-    "active_tab",
+    "tab_check_active",
     {
-      description: "Get the currently active tab (id, url, title, window).",
+      description: "The tab the user is looking at in the focused window (id, url, title, windowId).",
       inputSchema: {},
     },
     async () => text(await callBridge(bridge, "active.tab")),
@@ -100,10 +68,15 @@ export function registerTabTools(
   server.registerTool(
     "tab_create",
     {
-      description: "Open a new tab, optionally with a URL. Waits for the page to load by default. Returns the new tab info.",
+      description:
+        "Open a new tab. A URL without a scheme gets one: \"example.com\" opens https://example.com, " +
+        "\"localhost:3000\" opens http://localhost:3000. Pass duplicateOf to copy an existing tab (with its history) instead. " +
+        "Waits for the page to load by default and returns the new tab.",
       inputSchema: {
-        url: z.string().optional().describe("URL to open (defaults to new-tab page)"),
-        active: z.boolean().optional().describe("Focus the new tab (default true)"),
+        url: z.string().optional().describe("Address to open (default: the new-tab page)"),
+        duplicateOf: z.number().int().positive().optional().describe("Duplicate this tab instead of opening a URL"),
+        active: z.boolean().optional().describe("Switch to the new tab (default true)"),
+        windowId: z.number().int().positive().optional().describe("Open it in this window (default: the current one)"),
         waitForLoad: waitForLoadField,
         timeoutMs: loadTimeoutField,
       },
@@ -115,7 +88,7 @@ export function registerTabTools(
         await callBridge(
           bridge,
           "tab.create",
-          { url: args.url, active: args.active, waitForLoad: wait, timeoutMs: t },
+          { url: args.url, duplicateOf: args.duplicateOf, active: args.active, windowId: args.windowId, waitForLoad: wait, timeoutMs: t },
           { timeoutMs: t + 10000 },
         ),
       );
@@ -126,22 +99,25 @@ export function registerTabTools(
     "tab_navigate",
     {
       description:
-        "Navigate a tab to a URL (defaults to the active tab). Waits for the page to load by default; " +
-        "result.loadComplete=false means it timed out but navigation is still in progress.",
+        "Load a URL in a tab, or go back, forward or reload with `go`. Missing http(s):// is added like tab_create. " +
+        "Waits for the load by default; loadComplete=false means it was still loading when the wait ran out.",
       inputSchema: {
         tabId: tabIdField,
-        url: z.string().describe("URL to navigate to"),
+        url: z.string().optional().describe("Address to open"),
+        go: z.enum(["back", "forward", "reload"]).optional().describe("History step or reload, instead of url"),
+        bypassCache: z.boolean().optional().describe("With go:\"reload\": hard reload, skipping the cache"),
         waitForLoad: waitForLoadField,
         timeoutMs: loadTimeoutField,
       },
     },
     async (args) => {
+      if (!args.url && !args.go) return refusal("ERROR [INVALID_PARAMS]: pass url, or go: \"back\" | \"forward\" | \"reload\"");
       const t = loadTimeout(args.timeoutMs);
       return text(
         await callBridge(
           bridge,
-          "tab.update",
-          { tabId: args.tabId, url: args.url, waitForLoad: args.waitForLoad !== false, timeoutMs: t },
+          "tab.navigate",
+          { tabId: args.tabId, url: args.url, go: args.url ? undefined : args.go, bypassCache: args.bypassCache, waitForLoad: args.waitForLoad !== false, timeoutMs: t },
           { timeoutMs: t + 10000 },
         ),
       );
@@ -149,11 +125,22 @@ export function registerTabTools(
   );
 
   server.registerTool(
+    "tab_focus",
+    {
+      description: "Switch to a tab and bring its window to the front. page_screenshot works without this.",
+      inputSchema: {
+        tabId: z.number().int().positive().describe("Tab to switch to"),
+      },
+    },
+    async (args) => text(await callBridge(bridge, "tab.update", { tabId: args.tabId, active: true })),
+  );
+
+  server.registerTool(
     "tab_close",
     {
       description:
-        "Close one or more tabs (tabIds), one tab (tabId), or the active tab (neither). " +
-        "Destructive: needs confirm:true unless the guard is disabled.",
+        "Close tabs: several (tabIds), one (tabId), or the active tab (neither). " +
+        "Destructive: needs confirm:true unless the user turned the guard off. session_restore can reopen them.",
       inputSchema: {
         tabIds: z.array(z.number().int().positive()).min(1).optional().describe("Tab ids to close"),
         tabId: tabIdField,
@@ -168,71 +155,33 @@ export function registerTabTools(
   );
 
   server.registerTool(
-    "tab_duplicate",
-    {
-      description: "Duplicate a tab (defaults to the active tab).",
-      inputSchema: { tabId: tabIdField },
-    },
-    async (args) => text(await callBridge(bridge, "tab.duplicate", { tabId: args.tabId })),
-  );
-
-  server.registerTool(
-    "tab_move",
-    {
-      description: "Move a tab to a new index, optionally to another window.",
-      inputSchema: {
-        tabId: tabIdField,
-        index: z.number().int().min(0).describe("Target 0-based index in the tab strip"),
-        windowId: z.number().int().positive().optional().describe("Move to this window"),
-      },
-    },
-    async (args) =>
-      text(
-        await callBridge(bridge, "tab.move", {
-          tabId: args.tabId,
-          index: args.index,
-          windowId: args.windowId,
-        }),
-      ),
-  );
-
-  server.registerTool(
     "tab_pin",
     {
-      description: "Pin a tab (defaults to the active tab).",
-      inputSchema: { tabId: tabIdField },
+      description: "Pin a tab, or unpin it with pinned:false (defaults to the active tab).",
+      inputSchema: {
+        tabId: tabIdField,
+        pinned: z.boolean().optional().describe("true to pin (default), false to unpin"),
+      },
     },
-    async (args) => text(await callBridge(bridge, "tab.pin", { tabId: args.tabId })),
-  );
-
-  server.registerTool(
-    "tab_unpin",
-    {
-      description: "Unpin a tab (defaults to the active tab).",
-      inputSchema: { tabId: tabIdField },
-    },
-    async (args) => text(await callBridge(bridge, "tab.unpin", { tabId: args.tabId })),
+    async (args) => text(await callBridge(bridge, "tab.pin", { tabId: args.tabId, pinned: args.pinned ?? true })),
   );
 
   server.registerTool(
     "tab_mute",
     {
-      description: "Mute or unmute a tab (defaults to the active tab).",
+      description: "Mute a tab, or unmute it with muted:false (defaults to the active tab).",
       inputSchema: {
         tabId: tabIdField,
-        muted: z.boolean().optional().describe("True to mute, false to unmute (default true)"),
+        muted: z.boolean().optional().describe("true to mute (default), false to unmute"),
       },
     },
-    async (args) =>
-      text(
-        await callBridge(bridge, "tab.mute", { tabId: args.tabId, muted: args.muted ?? true }),
-      ),
+    async (args) => text(await callBridge(bridge, "tab.mute", { tabId: args.tabId, muted: args.muted ?? true })),
   );
 
   server.registerTool(
-    "window_list",
+    "window_query",
     {
-      description: "List open Firefox windows (id, focused, tab count).",
+      description: "List Firefox windows (id, focused, private, tab count).",
       inputSchema: {},
     },
     async () => text(await callBridge(bridge, "windows.list")),
@@ -241,9 +190,9 @@ export function registerTabTools(
   server.registerTool(
     "window_create",
     {
-      description: "Open a new window, optionally with a URL.",
+      description: "Open a new window, optionally with a URL (missing http(s):// is added).",
       inputSchema: {
-        url: z.string().optional().describe("URL to open in the new window"),
+        url: z.string().optional().describe("Address to open in the new window"),
       },
     },
     async (args) => text(await callBridge(bridge, "window.create", { url: args.url })),
@@ -261,7 +210,7 @@ export function registerTabTools(
   server.registerTool(
     "window_close",
     {
-      description: "Close a window and all its tabs. Destructive: needs confirm:true unless the guard is disabled.",
+      description: "Close a window and all its tabs. Destructive: needs confirm:true unless the user turned the guard off.",
       inputSchema: {
         windowId: windowIdField,
         confirm: confirmField,
@@ -272,53 +221,5 @@ export function registerTabTools(
       if (denied) return refusal(denied);
       return text(await callBridge(bridge, "window.remove", { windowId: args.windowId }));
     },
-  );
-
-  server.registerTool(
-    "nav_back",
-    {
-      description: "Go back in a tab's history (defaults to the active tab).",
-      inputSchema: { tabId: tabIdField },
-    },
-    async (args) => text(await callBridge(bridge, "nav.back", { tabId: args.tabId })),
-  );
-
-  server.registerTool(
-    "nav_forward",
-    {
-      description: "Go forward in a tab's history (defaults to the active tab).",
-      inputSchema: { tabId: tabIdField },
-    },
-    async (args) => text(await callBridge(bridge, "nav.forward", { tabId: args.tabId })),
-  );
-
-  server.registerTool(
-    "nav_reload",
-    {
-      description: "Reload a tab (defaults to the active tab).",
-      inputSchema: {
-        tabId: tabIdField,
-        bypassCache: z.boolean().optional().describe("Hard reload, bypassing the cache"),
-      },
-    },
-    async (args) =>
-      text(
-        await callBridge(bridge, "nav.reload", {
-          tabId: args.tabId,
-          bypassCache: args.bypassCache,
-        }),
-      ),
-  );
-
-  server.registerTool(
-    "focus_tab",
-    {
-      description: "Activate (focus) a tab by id.",
-      inputSchema: {
-        tabId: z.number().int().positive().describe("Firefox tab id to activate"),
-      },
-    },
-    async (args) =>
-      text(await callBridge(bridge, "tab.update", { tabId: args.tabId, active: true })),
   );
 }

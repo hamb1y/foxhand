@@ -1,5 +1,89 @@
 # Changelog
 
+## 0.5.2
+
+The tools are reworked so agents can read and act on pages more reliably. The
+names now follow one pattern, `<thing>_<verb>`. **Agents and prompts that call
+tools by their old names need updating.**
+
+### Renamed and merged
+
+| Before | Now |
+|---|---|
+| `tabs_list`, `tabs_query` | `tab_query` (`query: "*"` lists every tab) |
+| `active_tab` | `tab_check_active` |
+| `nav_back`, `nav_forward`, `nav_reload` | `tab_navigate` with `go: "back"`, `"forward"` or `"reload"` |
+| `tab_duplicate` | `tab_create` with `duplicateOf` |
+| `tab_pin`, `tab_unpin` | `tab_pin` with `pinned: false` to unpin |
+| `focus_tab` | `tab_focus` |
+| `window_list` | `window_query` |
+| `snapshot_ax` | `page_snapshot` |
+| `screenshot` | `page_screenshot` |
+| `act_click`, `act_type`, `act_select`, `act_hover`, `act_scroll`, `act_key`, `act_wait` | `page_click`, `page_type`, `page_select`, `page_hover`, `page_scroll`, `page_key`, `page_wait` |
+| `act_fill_form` | `page_fill` |
+| `act_find` | `page_find` |
+| `bookmarks_search`, `bookmarks_create`, `bookmarks_remove` | `bookmark_query`, `bookmark_create`, `bookmark_remove` |
+| `history_search` | `history_query` |
+| `downloads_list` | `download_query` |
+| `cookies_for_tab` | `cookie_query` |
+| `sessions_recently_closed`, `sessions_restore` | `session_query`, `session_restore` |
+| `wait_for_tab_event` | `event_wait` |
+| `cursor_note` | `thought` |
+
+`tab_move` is removed. The `thought` argument on every tool is gone too: the
+`thought` tool shows a note, and it stays on the next page action within
+30 seconds. Otherwise the cursor describes each action itself.
+
+### Acting on pages
+
+- **Find elements by what they say.** Every page tool takes `name` (visible
+  text or label), with optional `role` and `nth`, as well as `ref` and
+  `selector`. When several elements match, the error lists them.
+- **Refs last longer.** A ref keeps pointing at its element until the page
+  navigates, so one snapshot serves several actions.
+- **Results say what changed.** Every action reports the elements that
+  appeared, menus that opened or closed, new alert and status messages, and the
+  new URL or title, or that nothing changed. The agent rarely needs a new
+  snapshot after each step.
+- **Clicks at a point.** `page_click` takes `x`,`y`, for maps, editors and games
+  drawn on a canvas.
+- **`page_type` finds fields by label or placeholder** and handles rich editors,
+  checkboxes and selects.
+- **`page_select` opens custom dropdowns** (comboboxes and listboxes) as well as
+  `<select>`.
+- **`page_key` performs the default action** when the page doesn't: Tab moves
+  focus, Enter submits, and text keys edit.
+- **`page_scroll` finds the inner scroller** of chat apps and can scroll an
+  element into view.
+- **`page_wait` waits for things to go** (`gone: true`, for spinners) or for
+  the page to settle.
+- **New: `page_drag`** for sortable lists, sliders and map panning, and
+  **`page_upload`** to attach files the agent supplies.
+
+### Reading pages
+
+- **`page_text` comes in chunks.** Long pages no longer flood the agent's
+  context: follow `nextOffset` for more. `within` reads one region.
+- **`page_snapshot` can read one region** (`within`) or only what's on screen
+  (`viewportOnly`), and includes shadow DOM.
+- **`page_screenshot` captures one element or the whole page**, as PNG or
+  smaller JPEG, at any scale.
+- **`page_find` returns the ref to click** for each match and whether it's off
+  screen.
+
+### Browser data
+
+- **`download_query` says where files landed**: path on disk, size, progress,
+  whether the file still exists and why a download failed.
+- **New: `download_start`** downloads a URL with the browser's cookies and
+  returns the path.
+- **Cookies can be written.** New `cookie_set` and `cookie_remove` (needs
+  `confirm:true`).
+- **New: a notebook for the agent.** `storage_get`, `storage_set` and
+  `storage_remove` keep JSON values in the add-on across pages and restarts.
+  With `area: "local"` or `"session"` they read and write the page's own
+  storage.
+
 ## 0.5.0
 
 WebMCP Controller is now **Foxhand**. [WebMCP](https://webmachinelearning.github.io/webmcp/)

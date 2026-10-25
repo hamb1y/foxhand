@@ -80,6 +80,13 @@ const PAGES = {
   '/big': `<title>Big</title>${Array.from({ length: 4000 }, (_, i) => `<div><a href="/x${i}">Link ${i}</a> <button>B${i}</button></div>`).join('')}`,
   '/download': `<title>Download</title><a href="/file.txt" download>Get file</a>`,
   '/frag': `<title>Frag</title><a href="#sec">Jump</a><div style="height:3000px"></div><h2 id="sec">Section</h2>`,
+  '/spin': `<title>Spin</title><div id="sp" role="status">Loading…</div><script>setTimeout(() => document.getElementById('sp').remove(), 1500)</script>`,
+  '/names': `<title>Names</title><button onclick="document.title='first'">Save</button><button onclick="document.title='second'">Save</button>
+        <label>City <input oninput="document.title='city:'+this.value"></label>
+        <canvas width="200" height="100" onclick="document.title='canvas:'+event.offsetX+','+event.offsetY" style="position:absolute;left:0;top:200px"></canvas>`,
+  '/drop': `<title>Drop</title><div draggable="true" id="card" style="width:80px;height:40px">Card</div>
+        <div id="zone" style="width:200px;height:100px;margin-top:40px" ondragover="event.preventDefault()" ondrop="event.preventDefault(); document.title='dropped'">Zone</div>
+        <input type="file" aria-label="Attachment" onchange="this.files[0].text().then((t) => document.title='file:'+this.files[0].name+':'+t)">`,
 };
 function fixtureServer() {
   const srv = createServer((req, res) => {
@@ -223,121 +230,155 @@ const title = async (tabId) => (await tool('page_info', { tabId })).json?.title;
 /* ------------------------------------------------------------ scenario */
 async function scenario() {
   const tools = await client.listTools();
-  ok('lists 44 tools', tools.tools.length === 44, tools.tools.length);
+  ok('lists 45 tools', tools.tools.length === 45, tools.tools.length);
 
   let t = await tool('extension_status');
   ok('extension_status says connected', /connected/i.test(t.text) && !t.isError, t.text);
 
-  t = await tool('tab_create', { url: F('/'), waitForLoad: true, thought: 'Opening the fixture' });
+  await tool('thought', { thought: 'Opening the fixture' });
+  t = await tool('tab_create', { url: F('/').replace(/^http:\/\//, ''), waitForLoad: true });
   const tabId = t.json?.id;
-  ok('tab_create waits for load', t.json?.loadComplete === true && tabId, t.text);
+  ok('tab_create adds http:// to an address without a scheme and waits for load', t.json?.loadComplete === true && tabId, t.text);
 
-  t = await tool('tabs_list');
-  ok('tabs_list includes the new tab', Array.isArray(t.json) && t.json.some((x) => x.id === tabId), t.text);
+  t = await tool('tab_query', { query: '*' });
+  ok('tab_query * includes the new tab', Array.isArray(t.json) && t.json.some((x) => x.id === tabId), t.text);
 
-  t = await tool('tabs_query', { urlPattern: '127\\.0\\.0\\.1' });
-  ok('tabs_query by url', Array.isArray(t.json) && t.json.some((x) => x.id === tabId), t.text);
+  t = await tool('tab_query', { query: 'HOME' });
+  ok('tab_query by title text', Array.isArray(t.json) && t.json.some((x) => x.id === tabId), t.text);
+  t = await tool('tab_query', { urlPattern: '127\\.0\\.0\\.1' });
+  ok('tab_query by url', Array.isArray(t.json) && t.json.some((x) => x.id === tabId), t.text);
 
-  t = await tool('tabs_query', { urlPattern: '(a+)+' });
-  ok('tabs_query rejects catastrophic regex', t.isError || /not supported/.test(t.text), t.text);
+  t = await tool('tab_query', { urlPattern: '(a+)+' });
+  ok('tab_query rejects catastrophic regex', t.isError || /not supported/.test(t.text), t.text);
 
-  t = await tool('active_tab');
-  ok('active_tab is the new tab', t.json?.id === tabId, t.text);
+  t = await tool('tab_check_active');
+  ok('tab_check_active is the new tab', t.json?.id === tabId, t.text);
 
-  t = await tool('snapshot_ax', { tabId });
+  t = await tool('page_snapshot', { tabId });
   const snap = t.text;
   ok('snapshot has refs', /\[ref=\d+\] button "Click me"/.test(snap), snap.slice(0, 500));
   ok('snapshot marks disabled', /button "Can't touch"[^\n]*\[disabled\]/.test(snap), snap.slice(0, 800));
 
-  t = await tool('act_click', { tabId, ref: refOf(snap, '"Click me"') });
-  ok('act_click', /clicked/.test(t.text) && (await title(tabId)) === 'clicked', t.text);
+  t = await tool('page_click', { tabId, ref: refOf(snap, '"Click me"') });
+  ok('page_click', /clicked/.test(t.text) && (await title(tabId)) === 'clicked', t.text);
 
-  t = await tool('act_click', { tabId, ref: refOf(snap, `"Can't touch"`) });
-  ok('act_click refuses disabled', t.isError && /DISABLED/.test(t.text), t.text);
+  t = await tool('page_click', { tabId, ref: refOf(snap, `"Can't touch"`) });
+  ok('page_click refuses disabled', t.isError && /DISABLED/.test(t.text), t.text);
 
   t = await tool('page_text', { tabId });
   ok('page_text excludes hidden', /quick brown fox/.test(t.text) && !/secret fox/.test(t.text), t.text.slice(0, 300));
 
-  t = await tool('act_find', { tabId, query: 'fox' });
-  ok('act_find counts visible occurrences', /"count": 2/.test(t.text), t.text);
+  t = await tool('page_find', { tabId, query: 'fox' });
+  ok('page_find counts visible occurrences', /"count": 2/.test(t.text), t.text);
 
   t = await tool('page_html', { tabId, selector: 'h1' });
-  ok('page_html selector', /<h1>Fixture home<\/h1>/.test(t.text) && /URL:/.test(t.text), t.text);
+  ok('page_html selector', /<h1>Fixture home<\/h1>/.test(t.text) && /url:/i.test(t.text), t.text);
 
-  t = await tool('screenshot', { tabId });
-  ok('screenshot returns an image', (t.r.content || []).some((c) => c.type === 'image' && c.data.length > 1000), JSON.stringify(t.r.content?.map((c) => c.type)));
+  t = await tool('page_screenshot', { tabId });
+  ok('page_screenshot returns an image', (t.r.content || []).some((c) => c.type === 'image' && c.data.length > 1000), JSON.stringify(t.r.content?.map((c) => c.type)));
 
   // Forms
   t = await tool('tab_navigate', { tabId, url: F('/form'), waitForLoad: true });
   ok('tab_navigate waits for load', t.json?.loadComplete === true, t.text);
-  const fs1 = (await tool('snapshot_ax', { tabId })).text;
-  t = await tool('act_fill_form', { tabId, fields: [{ ref: refOf(fs1, 'textbox "Name"'), value: 'Ada' }, { ref: refOf(fs1, 'combobox'), value: 'us' }, { ref: refOf(fs1, 'checkbox "Agree"'), value: 'true' }], submit: true });
-  ok('act_fill_form + submit (select is exact-value-first, case-insensitive fallback)', (await title(tabId)) === 'submitted:Ada:US:yes', `${t.text} title=${await title(tabId)}`);
-  t = await tool('act_select', { tabId, ref: refOf(fs1, 'combobox'), values: ['g'] });
-  ok('act_select refuses disabled optgroup', t.isError, t.text);
-  t = await tool('act_type', { tabId, ref: refOf(fs1, 'textbox "Bio"') ?? refOf(fs1, 'textbox[^\\n]*readonly'), text: 'x' });
-  ok('act_type refuses read-only', t.isError && /read-only|NOT_EDITABLE/.test(t.text), t.text);
+  const fs1 = (await tool('page_snapshot', { tabId })).text;
+  t = await tool('page_fill', { tabId, fields: [{ ref: refOf(fs1, 'textbox "Name"'), value: 'Ada' }, { ref: refOf(fs1, 'combobox'), value: 'us' }, { ref: refOf(fs1, 'checkbox "Agree"'), value: 'true' }], submit: true });
+  ok('page_fill + submit (select is exact-value-first, case-insensitive fallback)', (await title(tabId)) === 'submitted:Ada:US:yes', `${t.text} title=${await title(tabId)}`);
+  t = await tool('page_select', { tabId, ref: refOf(fs1, 'combobox'), values: ['g'] });
+  ok('page_select refuses disabled optgroup', t.isError, t.text);
+  t = await tool('page_type', { tabId, ref: refOf(fs1, 'textbox "Bio"') ?? refOf(fs1, 'textbox[^\\n]*readonly'), text: 'x' });
+  ok('page_type refuses read-only', t.isError && /read-only|NOT_EDITABLE/.test(t.text), t.text);
 
   // Chat composer: exactly one send
   await tool('tab_navigate', { tabId, url: F('/chat'), waitForLoad: true });
-  const cs = (await tool('snapshot_ax', { tabId })).text;
-  t = await tool('act_type', { tabId, ref: refOf(cs, 'textbox "Message"'), text: 'hello', submit: true });
+  const cs = (await tool('page_snapshot', { tabId })).text;
+  t = await tool('page_type', { tabId, ref: refOf(cs, 'textbox "Message"'), text: 'hello', submit: true });
   await sleep(400);
   ok('chat submit sends exactly once', (await title(tabId)) === 'sent 1: hello', `${t.text} title=${await title(tabId)}`);
 
   // Keys
-  t = await tool('act_click', { tabId, ref: refOf(cs, 'textbox "Message"') });
-  t = await tool('act_key', { tabId, key: 'a' });
-  ok('act_key types a printable key', /typed/.test(t.text), t.text);
-  t = await tool('act_key', { tabId, key: 'a', modifiers: ['Ctrl'] });
-  ok('act_key Ctrl+A selects all', /selected all/.test(t.text), t.text);
+  t = await tool('page_click', { tabId, ref: refOf(cs, 'textbox "Message"') });
+  t = await tool('page_key', { tabId, key: 'a' });
+  ok('page_key types a printable key', /typed/.test(t.text), t.text);
+  t = await tool('page_key', { tabId, key: 'a', modifiers: ['Ctrl'] });
+  ok('page_key Ctrl+A selects all', /selected all/.test(t.text), t.text);
 
   // Scroll + wait + shadow + fragment
   await tool('tab_navigate', { tabId, url: F('/long'), waitForLoad: true });
-  t = await tool('act_scroll', { tabId, to: 'bottom' });
-  ok('act_scroll to bottom', /"atEnd": true/.test(t.text), t.text);
+  t = await tool('page_scroll', { tabId, to: 'bottom' });
+  ok('page_scroll to bottom', /"atEnd": true/.test(t.text), t.text);
   await tool('tab_navigate', { tabId, url: F('/late'), waitForLoad: true });
-  t = await tool('act_wait', { tabId, text: 'Arrived late', timeoutMs: 5000 });
-  ok('act_wait sees late content', /"found": true/.test(t.text), t.text);
+  t = await tool('page_wait', { tabId, text: 'Arrived late', timeoutMs: 5000 });
+  ok('page_wait sees late content', /"found": true/.test(t.text), t.text);
   await tool('tab_navigate', { tabId, url: F('/shadow'), waitForLoad: true });
-  const ss = (await tool('snapshot_ax', { tabId })).text;
-  t = await tool('act_click', { tabId, ref: refOf(ss, '"Inside shadow"') });
+  const ss = (await tool('page_snapshot', { tabId })).text;
+  t = await tool('page_click', { tabId, ref: refOf(ss, '"Inside shadow"') });
   ok('click inside open shadow root', (await title(tabId)) === 'shadow clicked', `${t.text} ${ss.slice(0, 300)}`);
   await tool('tab_navigate', { tabId, url: F('/frag'), waitForLoad: true });
   const t0 = Date.now();
   t = await tool('tab_navigate', { tabId, url: F('/frag#sec'), waitForLoad: true });
   ok('fragment navigation returns at once', t.json?.loadComplete === true && Date.now() - t0 < 5000, t.text);
 
+  // Targets without refs, waits for things to go, chunked text
+  await tool('tab_navigate', { tabId, url: F('/names'), waitForLoad: true });
+  t = await tool('page_click', { tabId, name: 'Save', role: 'button' });
+  ok('two buttons with one name: AMBIGUOUS lists both', t.isError && /AMBIGUOUS/.test(t.text), t.text);
+  t = await tool('page_click', { tabId, name: 'Save', role: 'button', nth: 2 });
+  ok('name + role + nth clicks the second', (await title(tabId)) === 'second', t.text);
+  t = await tool('page_type', { tabId, name: 'City', text: 'Oslo' });
+  ok('page_type by label', (await title(tabId)) === 'city:Oslo', t.text);
+  ok('actions report what changed', /changes/.test(t.text), t.text);
+  t = await tool('page_click', { tabId, x: 50, y: 250 });
+  ok('page_click at x,y (canvas)', /^canvas:/.test(await title(tabId) ?? ''), `${t.text} title=${await title(tabId)}`);
+  t = await tool('page_click', { tabId });
+  ok('page_click with no target is refused clearly', t.isError && /needs an element/.test(t.text), t.text);
+  await tool('tab_navigate', { tabId, url: F('/spin'), waitForLoad: true });
+  t = await tool('page_wait', { tabId, text: 'Loading…', gone: true, timeoutMs: 6000 });
+  ok('page_wait gone:true waits for a spinner to go', !t.isError, t.text);
+  await tool('tab_navigate', { tabId, url: F('/long'), waitForLoad: true });
+  t = await tool('page_text', { tabId, maxChars: 500 });
+  ok('page_text chunks long pages', /more follows/.test(t.text) && /offset: \d+/.test(t.text), t.text.slice(-200));
+  const next = Number(/offset: (\d+)/.exec(t.text)?.[1]);
+  t = await tool('page_text', { tabId, maxChars: 500, offset: next });
+  ok('page_text offset continues', /chars \d+-\d+ of \d+/.test(t.text) && !/Paragraph 0\b/.test(t.text), t.text.slice(0, 200));
+  t = await tool('page_snapshot', { tabId, within: { selector: '#p5' }, compact: false });
+  ok('page_snapshot within one region', /Paragraph 5/.test(t.text) && !/Paragraph 6\b/.test(t.text), t.text.slice(0, 300));
+  t = await tool('page_screenshot', { tabId, selector: '#bottom', format: 'jpeg', scale: 0.5 });
+  ok('element screenshot as jpeg', (t.r.content || []).some((c) => c.type === 'image' && c.mimeType === 'image/jpeg'), t.text);
+  await tool('tab_navigate', { tabId, url: F('/drop'), waitForLoad: true });
+  t = await tool('page_drag', { tabId, name: 'Card', toSelector: '#zone' });
+  ok('page_drag onto a drop zone', (await title(tabId)) === 'dropped', `${t.text} title=${await title(tabId)}`);
+  t = await tool('page_upload', { tabId, name: 'Attachment', files: [{ name: 'a.txt', text: 'hi', mimeType: 'text/plain' }] });
+  await sleep(200);
+  ok('page_upload sets a file input', (await title(tabId)) === 'file:a.txt:hi', `${t.text} title=${await title(tabId)}`);
+
   // Navigation history
-  t = await tool('nav_back', { tabId });
-  ok('nav_back', !t.isError, t.text);
-  t = await tool('nav_forward', { tabId });
-  ok('nav_forward', !t.isError, t.text);
-  t = await tool('nav_reload', { tabId });
-  ok('nav_reload', !t.isError, t.text);
+  t = await tool('tab_navigate', { tabId, go: 'back' });
+  ok('tab_navigate go back', !t.isError, t.text);
+  t = await tool('tab_navigate', { tabId, go: 'forward' });
+  ok('tab_navigate go forward', !t.isError, t.text);
+  t = await tool('tab_navigate', { tabId, go: 'reload' });
+  ok('tab_navigate go reload', !t.isError, t.text);
 
   // Tab management
-  t = await tool('tab_duplicate', { tabId });
+  t = await tool('tab_create', { duplicateOf: tabId });
   const dupId = t.json?.id;
-  ok('tab_duplicate', !!dupId && dupId !== tabId, t.text);
+  ok('tab_create duplicateOf', !!dupId && dupId !== tabId, t.text);
   t = await tool('tab_pin', { tabId: dupId });
   ok('tab_pin', t.json?.pinned === true, t.text);
-  t = await tool('tab_unpin', { tabId: dupId });
-  ok('tab_unpin', t.json?.pinned === false, t.text);
+  t = await tool('tab_pin', { tabId: dupId, pinned: false });
+  ok('tab_pin pinned:false unpins', t.json?.pinned === false, t.text);
   t = await tool('tab_mute', { tabId: dupId });
   ok('tab_mute', t.json?.muted === true, t.text);
-  t = await tool('tab_move', { tabId: dupId, index: 0 });
-  ok('tab_move', t.json?.index === 0, t.text);
-  t = await tool('focus_tab', { tabId });
-  ok('focus_tab', !t.isError, t.text);
+  t = await tool('tab_focus', { tabId });
+  ok('tab_focus', !t.isError, t.text);
   t = await tool('tab_close', { tabIds: [dupId] });
   ok('tab_close needs confirm', t.isError && /confirm/.test(t.text), t.text);
   t = await tool('tab_close', { tabIds: [dupId], confirm: true });
   ok('tab_close with confirm', !t.isError, t.text);
 
   // Windows
-  t = await tool('window_list');
-  ok('window_list', Array.isArray(t.json) && t.json.length >= 1, t.text);
+  t = await tool('window_query');
+  ok('window_query', Array.isArray(t.json) && t.json.length >= 1, t.text);
   t = await tool('window_create', { url: F('/') });
   const winId = t.json?.id;
   ok('window_create', !!winId, t.text);
@@ -347,37 +388,52 @@ async function scenario() {
   ok('window_close', !t.isError, t.text);
 
   // Browser data
-  t = await tool('bookmarks_create', { title: 'Live test mark', url: F('/') });
+  t = await tool('bookmark_create', { title: 'Live test mark', url: F('/') });
   const bmId = t.json?.id;
-  ok('bookmarks_create', !!bmId, t.text);
-  t = await tool('bookmarks_search', { query: 'Live test mark' });
-  ok('bookmarks_search', Array.isArray(t.json) && t.json.some((b) => b.id === bmId), t.text);
-  t = await tool('bookmarks_remove', { id: bmId, confirm: true });
-  ok('bookmarks_remove', !t.isError, t.text);
-  t = await tool('history_search', { query: '127.0.0.1' });
-  ok('history_search', Array.isArray(t.json), t.text);
-  t = await tool('downloads_list');
-  ok('downloads_list', Array.isArray(t.json), t.text);
-  t = await tool('cookies_for_tab', { tabId });
-  ok('cookies_for_tab', Array.isArray(t.json), t.text);
-  t = await tool('sessions_recently_closed');
-  ok('sessions_recently_closed', Array.isArray(t.json) && t.json.length > 0, t.text);
+  ok('bookmark_create', !!bmId, t.text);
+  t = await tool('bookmark_query', { query: 'Live test mark' });
+  ok('bookmark_query', Array.isArray(t.json) && t.json.some((b) => b.id === bmId), t.text);
+  t = await tool('bookmark_remove', { id: bmId, confirm: true });
+  ok('bookmark_remove', !t.isError, t.text);
+  t = await tool('history_query', { query: '127.0.0.1' });
+  ok('history_query', Array.isArray(t.json), t.text);
+  t = await tool('download_query');
+  ok('download_query', Array.isArray(t.json), t.text);
+  t = await tool('cookie_set', { tabId, name: 'livetest', value: 'v1', expiresInSeconds: 600 });
+  ok('cookie_set', !t.isError && t.json?.set === true, t.text);
+  t = await tool('cookie_query', { tabId, name: 'livetest' });
+  ok('cookie_query sees it', t.json?.cookies?.some((c) => c.name === 'livetest' && c.value === 'v1'), t.text);
+  t = await tool('cookie_remove', { tabId, name: 'livetest', confirm: true });
+  ok('cookie_remove', t.json?.removed >= 1, t.text);
+  t = await tool('storage_set', { key: 'live/test', value: { n: 1, list: ['a'] } });
+  ok('storage_set (agent)', !t.isError, t.text);
+  t = await tool('storage_get', { key: 'live/test' });
+  ok('storage_get (agent) returns the JSON', t.json?.found === true && t.json?.value?.list?.[0] === 'a', t.text);
+  t = await tool('storage_get', { prefix: 'live/' });
+  ok('storage_get lists keys by prefix', t.json?.keys?.some((k) => k.key === 'live/test'), t.text);
+  t = await tool('storage_remove', { key: 'live/test' });
+  ok('storage_remove (agent)', t.json?.removed === true, t.text);
+  t = await tool('storage_set', { area: 'local', tabId, key: 'lt', value: 'page-value' });
+  t = await tool('storage_get', { area: 'local', tabId, key: 'lt' });
+  ok('page localStorage round trip', t.json?.value === 'page-value', t.text);
+  t = await tool('session_query');
+  ok('session_query', Array.isArray(t.json) && t.json.length > 0, t.text);
   const sid = t.json?.[0]?.tab?.sessionId ?? t.json?.[0]?.window?.sessionId;
-  t = await tool('sessions_restore', { sessionId: sid });
-  ok('sessions_restore', !t.isError, t.text);
+  t = await tool('session_restore', { sessionId: sid });
+  ok('session_restore', !t.isError, t.text);
 
   // Meta
-  t = await tool('cursor_note', { note: 'Hello from the live test', tabId });
-  ok('cursor_note', !t.isError, t.text);
-  const waitP = tool('wait_for_tab_event', { types: ['tab.updated'], timeoutMs: 15000 });
+  t = await tool('thought', { thought: 'Hello from the live test', tabId });
+  ok('thought', !t.isError, t.text);
+  const waitP = tool('event_wait', { types: ['tab.updated'], timeoutMs: 15000 });
   await sleep(300);
-  await tool('nav_reload', { tabId });
+  await tool('tab_navigate', { tabId, go: 'reload' });
   t = await waitP;
-  ok('wait_for_tab_event sees a reload', !t.isError && /tab\.updated/.test(t.text), t.text);
+  ok('event_wait sees a reload', !t.isError && /tab\.updated/.test(t.text), t.text);
 
   // Restricted pages
   await tool('tab_navigate', { tabId, url: 'about:blank', waitForLoad: true });
-  t = await tool('snapshot_ax', { tabId });
+  t = await tool('page_snapshot', { tabId });
   ok('restricted page error is clear', t.isError && /RESTRICTED_PAGE/.test(t.text), t.text);
 }
 
@@ -388,89 +444,91 @@ const ext = (expr) => bidi.evaluate(popupCtx, expr);
 async function edges() {
   let t = await tool('tab_create', { url: F('/alert'), waitForLoad: true });
   const tabId = t.json?.id;
-  let snap = (await tool('snapshot_ax', { tabId })).text;
-  t = await timed(() => tool('act_click', { tabId, ref: refOf(snap, '"Warn me"') }));
+  let snap = (await tool('page_snapshot', { tabId })).text;
+  t = await timed(() => tool('page_click', { tabId, ref: refOf(snap, '"Warn me"') }));
   ok('click that opens an alert returns promptly', t.ms < 8000, `${t.ms}ms ${t.text}`);
   ok('click that opens an alert says so', /alert|dialog/i.test(t.text), t.text);
-  t = await timed(() => tool('snapshot_ax', { tabId }));
+  t = await timed(() => tool('page_snapshot', { tabId }));
   ok('page with an open alert: next call is prompt and explains', t.ms < 8000 && /alert|dialog/i.test(t.text), `${t.ms}ms ${t.text.slice(0, 300)}`);
 
   await tool('tab_navigate', { tabId, url: F('/confirm'), waitForLoad: true });
-  snap = (await tool('snapshot_ax', { tabId })).text;
-  t = await timed(() => tool('act_click', { tabId, ref: refOf(snap, '"Delete"') }));
+  snap = (await tool('page_snapshot', { tabId })).text;
+  t = await timed(() => tool('page_click', { tabId, ref: refOf(snap, '"Delete"') }));
   ok('click that opens confirm() returns promptly', t.ms < 8000, `${t.ms}ms ${t.text}`);
 
   t = await timed(() => tool('tab_navigate', { tabId, url: F('/leave'), waitForLoad: true }));
-  snap = (await tool('snapshot_ax', { tabId })).text;
-  await tool('act_type', { tabId, ref: refOf(snap, 'textbox "Draft"'), text: 'unsaved' });
+  snap = (await tool('page_snapshot', { tabId })).text;
+  await tool('page_type', { tabId, ref: refOf(snap, 'textbox "Draft"'), text: 'unsaved' });
   t = await timed(() => tool('tab_navigate', { tabId, url: F('/'), waitForLoad: true, timeoutMs: 8000 }));
   ok('navigating away from a page with a leave prompt returns and explains', t.ms < 12000 && (t.json?.loadComplete === true || /leave|unload|prompt|dialog/i.test(t.text)), `${t.ms}ms ${t.text.slice(0, 300)}`);
 
   t = await tool('tab_create', { url: F('/blank'), waitForLoad: true });
   const blankTab = t.json?.id;
-  snap = (await tool('snapshot_ax', { tabId: blankTab })).text;
-  const before = (await tool('tabs_list')).json.length;
-  t = await tool('act_click', { tabId: blankTab, ref: refOf(snap, 'link "Open home') });
+  snap = (await tool('page_snapshot', { tabId: blankTab })).text;
+  const before = (await tool('tab_query')).json.length;
+  t = await tool('page_click', { tabId: blankTab, ref: refOf(snap, 'link "Open home') });
   await sleep(800);
-  const after = (await tool('tabs_list')).json.length;
+  const after = (await tool('tab_query')).json.length;
   ok('target=_blank click opens a tab', after === before + 1, `${before} -> ${after}`);
   ok('target=_blank click tells the agent about the new tab', /new tab|tabId|opened/i.test(t.text), t.text);
 
   await tool('tab_navigate', { tabId, url: F('/editor'), waitForLoad: true });
-  snap = (await tool('snapshot_ax', { tabId })).text;
-  t = await tool('act_type', { tabId, ref: refOf(snap, 'textbox "Editor"'), text: 'Hello editor' });
-  ok('act_type into contenteditable', (await title(tabId)) === 'ed:Hello editor', `${t.text} title=${await title(tabId)}`);
+  snap = (await tool('page_snapshot', { tabId })).text;
+  t = await tool('page_type', { tabId, ref: refOf(snap, 'textbox "Editor"'), text: 'Hello editor' });
+  ok('page_type into contenteditable', (await title(tabId)) === 'ed:Hello editor', `${t.text} title=${await title(tabId)}`);
 
   await tool('tab_navigate', { tabId, url: F('/react'), waitForLoad: true });
-  snap = (await tool('snapshot_ax', { tabId })).text;
-  t = await tool('act_type', { tabId, ref: refOf(snap, 'textbox "Controlled"'), text: 'abc' });
-  ok('act_type into a React-style controlled input', /^react:abc:/.test(await title(tabId)), `${t.text} title=${await title(tabId)}`);
+  snap = (await tool('page_snapshot', { tabId })).text;
+  t = await tool('page_type', { tabId, ref: refOf(snap, 'textbox "Controlled"'), text: 'abc' });
+  ok('page_type into a React-style controlled input', /^react:abc:/.test(await title(tabId)), `${t.text} title=${await title(tabId)}`);
 
   await tool('tab_navigate', { tabId, url: F('/iframe'), waitForLoad: true });
-  snap = (await tool('snapshot_ax', { tabId })).text;
+  snap = (await tool('page_snapshot', { tabId })).text;
   ok('snapshot tells the agent an iframe is there', /\] (iframe|frame)\b[^\n]*Inner frame/i.test(snap), snap.slice(0, 400));
 
   await tool('tab_navigate', { tabId, url: F('/hover'), waitForLoad: true });
-  snap = (await tool('snapshot_ax', { tabId })).text;
-  await tool('act_hover', { tabId, ref: refOf(snap, '"Menu"') });
-  snap = (await tool('snapshot_ax', { tabId })).text;
-  ok('act_hover opens a JS menu', /link "Item"/.test(snap), snap.slice(0, 300));
+  snap = (await tool('page_snapshot', { tabId })).text;
+  await tool('page_hover', { tabId, ref: refOf(snap, '"Menu"') });
+  snap = (await tool('page_snapshot', { tabId })).text;
+  ok('page_hover opens a JS menu', /link "Item"/.test(snap), snap.slice(0, 300));
 
   await tool('tab_navigate', { tabId, url: F('/big'), waitForLoad: true });
-  t = await timed(() => tool('snapshot_ax', { tabId, maxChars: 2000 }));
+  t = await timed(() => tool('page_snapshot', { tabId, maxChars: 2000 }));
   ok('small snapshot of a huge page is fast and says it is truncated', t.ms < 3000 && /truncated/i.test(t.text), `${t.ms}ms ${t.text.slice(-300)}`);
-  t = await timed(() => tool('snapshot_ax', { tabId }));
+  t = await timed(() => tool('page_snapshot', { tabId }));
   ok('full snapshot of a huge page stays under the native-message limit', !t.isError, `${t.ms}ms ${t.text.slice(0, 300)}`);
 
   await tool('tab_navigate', { tabId, url: F('/download'), waitForLoad: true });
-  snap = (await tool('snapshot_ax', { tabId })).text;
-  const dl = tool('wait_for_tab_event', { types: ['download.done'], timeoutMs: 15000 });
+  snap = (await tool('page_snapshot', { tabId })).text;
+  const dl = tool('event_wait', { types: ['download.done'], timeoutMs: 15000 });
   await sleep(200);
-  await tool('act_click', { tabId, ref: refOf(snap, '"Get file"') });
+  await tool('page_click', { tabId, ref: refOf(snap, '"Get file"') });
   t = await dl;
   ok('download.done event arrives', /download\.done/.test(t.text), t.text);
-  t = await tool('downloads_list');
-  ok('downloads_list shows it', /webmcp-live/.test(t.text), t.text.slice(0, 300));
+  t = await tool('download_query', { query: 'webmcp-live' });
+  ok('download_query shows where it landed', /webmcp-live/.test(t.json?.[0]?.path ?? ''), t.text.slice(0, 300));
+  t = await tool('download_start', { url: F('/file.txt'), filename: 'foxhand-live/started.txt' });
+  ok('download_start waits and returns the path', t.json?.state === 'complete' && /started/.test(t.json?.path ?? ''), t.text);
 
   t = await timed(() => tool('tab_navigate', { tabId, url: F('/slow'), waitForLoad: true }));
   ok('slow page load is waited for', t.json?.loadComplete === true && t.ms >= 2500, `${t.ms}ms ${t.text}`);
 
   // Pause mid-command: the wait stops right away and later commands say why.
   await tool('tab_navigate', { tabId, url: F('/'), waitForLoad: true });
-  const w = timed(() => tool('act_wait', { tabId, text: 'never appears', timeoutMs: 20000 }));
+  const w = timed(() => tool('page_wait', { tabId, text: 'never appears', timeoutMs: 20000 }));
   await sleep(700);
   await ext(`browser.runtime.sendMessage({ type: 'set-paused', paused: true })`);
   t = await w;
   ok('pausing stops a running command', t.ms < 5000 && t.isError, `${t.ms}ms ${t.text}`);
-  t = await tool('tabs_list');
+  t = await tool('tab_query');
   ok('commands while paused are refused with a reason', t.isError && /PAUSED/.test(t.text), t.text);
   await ext(`browser.runtime.sendMessage({ type: 'set-paused', paused: false })`);
-  t = await tool('tabs_list');
+  t = await tool('tab_query');
   ok('resume works', !t.isError, t.text);
 
   // A client that gives up: the command stops in Firefox too.
   const ac = new AbortController();
-  const gone = client.callTool({ name: 'act_wait', arguments: { tabId, text: 'never', timeoutMs: 20000 } }, undefined, { signal: ac.signal }).catch((e) => e);
+  const gone = client.callTool({ name: 'page_wait', arguments: { tabId, text: 'never', timeoutMs: 20000 } }, undefined, { signal: ac.signal }).catch((e) => e);
   await sleep(700);
   ac.abort();
   await gone;
@@ -488,7 +546,7 @@ async function robustness() {
 
   // PDF in Firefox's viewer: add-ons can't script it; say so plainly.
   t = await tool('tab_navigate', { tabId, url: F('/doc.pdf'), waitForLoad: true });
-  t = await tool('snapshot_ax', { tabId });
+  t = await tool('page_snapshot', { tabId });
   ok('PDF tab gives a clear error', t.isError && /pdf/i.test(t.text), t.text);
 
   // A discarded (sleeping) tab.
@@ -502,17 +560,17 @@ async function robustness() {
     await sleep(1500);
     console.log('after reload', JSON.stringify(await ext(`browser.tabs.get(${sleepy}).then(t => ({ d: t.discarded, s: t.status, u: t.url }))`)));
   }
-  t = await tool('snapshot_ax', { tabId: sleepy });
+  t = await tool('page_snapshot', { tabId: sleepy });
   ok('snapshot of a discarded tab wakes it and works', !t.isError && /Click me/.test(t.text), t.text.slice(0, 300));
 
   // Several commands at once, on different tabs.
-  const many = await Promise.all([1, 2, 3, 4, 5].map(() => tool('snapshot_ax', { tabId: sleepy })).concat([tool('tabs_list'), tool('page_info', { tabId: sleepy })]));
+  const many = await Promise.all([1, 2, 3, 4, 5].map(() => tool('page_snapshot', { tabId: sleepy })).concat([tool('tab_query'), tool('page_info', { tabId: sleepy })]));
   ok('parallel commands all succeed', many.every((x) => !x.isError), many.filter((x) => x.isError).map((x) => x.text).join(' | '));
 
   // Text too big for one native message.
   await tool('tab_navigate', { tabId: sleepy, url: F('/chat'), waitForLoad: true });
-  const cs = (await tool('snapshot_ax', { tabId: sleepy })).text;
-  t = await tool('act_type', { tabId: sleepy, ref: refOf(cs, 'textbox "Message"'), text: 'x'.repeat(1_200_000) });
+  const cs = (await tool('page_snapshot', { tabId: sleepy })).text;
+  t = await tool('page_type', { tabId: sleepy, ref: refOf(cs, 'textbox "Message"'), text: 'x'.repeat(1_200_000) });
   ok('oversized input is refused with a clear error', t.isError && /too large|1 MB|PAYLOAD/i.test(t.text), t.text.slice(0, 300));
 
   // A new token: the old one stops working at once, the new one works.
@@ -523,13 +581,13 @@ async function robustness() {
   await client.close();
   client = new Client({ name: 'live-test', version: '1' });
   await client.connect(new StreamableHTTPClientTransport(new URL(st.url), { requestInit: { headers: { Authorization: `Bearer ${st.token}` } } }));
-  t = await tool('tabs_list');
+  t = await tool('tab_query');
   ok('new token works', !t.isError, t.text);
 
   // The helper dies: Firefox starts it again and the same URL and token work.
   if (!flag('--installed') && process.platform !== 'win32') {
     spawnSync('pkill', ['-f', `${path.join(root, 'mcp-server/dist/host.js')}`]);
-    const back = await until(async () => { const r = await tool('tabs_list').catch((e) => ({ isError: true, text: String(e) })); return !r.isError && r; }, 30000, 'helper back').catch((e) => ({ isError: true, text: String(e) }));
+    const back = await until(async () => { const r = await tool('tab_query').catch((e) => ({ isError: true, text: String(e) })); return !r.isError && r; }, 30000, 'helper back').catch((e) => ({ isError: true, text: String(e) }));
     ok('helper restarts after a crash and keeps serving', !back.isError, back.text);
   }
 }
@@ -537,28 +595,28 @@ async function robustness() {
 async function realSites() {
   let t = await tool('tab_create', { url: 'https://en.wikipedia.org/wiki/Main_Page', waitForLoad: true, timeoutMs: 30000 });
   const tabId = t.json?.id;
-  let snap = (await tool('snapshot_ax', { tabId })).text;
+  let snap = (await tool('page_snapshot', { tabId })).text;
   const search = refOf(snap, '(searchbox|combobox|textbox) "Search Wikipedia');
   ok('wikipedia: search box found', !!search, snap.slice(0, 600));
-  t = await tool('act_type', { tabId, ref: search, text: 'Firefox', submit: true });
-  await tool('act_wait', { tabId, text: 'Mozilla', timeoutMs: 15000 });
+  t = await tool('page_type', { tabId, ref: search, text: 'Firefox', submit: true });
+  await tool('page_wait', { tabId, text: 'Mozilla', timeoutMs: 15000 });
   t = await tool('page_info', { tabId });
   ok('wikipedia: search submitted', /Firefox/.test(t.json?.title || ''), `${t.text}`);
 
   t = await tool('tab_navigate', { tabId, url: 'https://html.duckduckgo.com/html/', waitForLoad: true, timeoutMs: 30000 });
-  snap = (await tool('snapshot_ax', { tabId })).text;
+  snap = (await tool('page_snapshot', { tabId })).text;
   const q = refOf(snap, '(searchbox|textbox|combobox)');
-  t = await tool('act_type', { tabId, ref: q, text: 'webmcp controller firefox', submit: true });
-  await tool('act_wait', { tabId, selector: '.result, .results', timeoutMs: 15000 });
+  t = await tool('page_type', { tabId, ref: q, text: 'webmcp controller firefox', submit: true });
+  await tool('page_wait', { tabId, selector: '.result, .results', timeoutMs: 15000 });
   t = await tool('page_text', { tabId, maxChars: 2000 });
   ok('duckduckgo: results page', /result|webmcp/i.test(t.text), t.text.slice(0, 300));
 
   t = await tool('tab_navigate', { tabId, url: 'https://github.com/hamb1y/webmcp-controller', waitForLoad: true, timeoutMs: 30000 });
-  snap = (await tool('snapshot_ax', { tabId })).text;
+  snap = (await tool('page_snapshot', { tabId })).text;
   const rel = refOf(snap, 'link "WebMCP Controller helper v');
   ok('github: release link in snapshot', !!rel, snap.slice(0, 600));
   if (rel) {
-    t = await tool('act_click', { tabId, ref: rel });
+    t = await tool('page_click', { tabId, ref: rel });
     const url = await until(async () => { const u = (await tool('page_info', { tabId })).json?.url || ''; return /releases/.test(u) && u; }, 15000, 'release page').catch((e) => String(e));
     ok('github: click navigated to the release', /releases\/tag/.test(url), `${t.text} ${url}`);
   }
@@ -572,7 +630,7 @@ try {
     // Debug aid: write what the agent would see for one URL.
     const t = await tool('tab_create', { url: arg('--dump'), waitForLoad: true, timeoutMs: 30000 });
     if (process.env.DUMP_DELAY) await sleep(Number(process.env.DUMP_DELAY));
-    const snap = await tool('snapshot_ax', { tabId: t.json?.id });
+    const snap = await tool('page_snapshot', { tabId: t.json?.id });
     writeFileSync(path.join(tmp, '..', 'webmcp-dump.txt'), snap.text);
     console.log(`wrote ${path.join(tmp, '..', 'webmcp-dump.txt')} (${snap.text.length} chars)`);
   } else {

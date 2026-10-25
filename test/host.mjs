@@ -44,9 +44,9 @@ child.stdout.on("data", (d) => {
   }
 });
 const post = (m) => { const b = Buffer.from(JSON.stringify(m)); const h = Buffer.alloc(4); h.writeUInt32LE(b.length); child.stdin.write(Buffer.concat([h, b])); };
-// Commands: tabs.list answers at once; anything else is left hanging (like a long act.wait).
+// Commands: tabs.query answers at once; anything else is left hanging (like a long act.wait).
 function onHostMessage(m) {
-  if (m.method === "tabs.list") post({ id: m.id, ok: true, result: [{ id: 1, title: "t", url: "https://example.com/" }] });
+  if (m.method === "tabs.query") post({ id: m.id, ok: true, result: [{ id: 1, title: "t", url: "https://example.com/" }] });
 }
 const waitFor = async (pred, ms = 5000) => {
   for (let t = 0; t < ms; t += 25) { const m = fromHost.find(pred); if (m) return m; await sleep(25); }
@@ -109,8 +109,8 @@ check("DELETE /mcp -> 405", r.status === 405, String(r.status));
 r = await req(PORT, { method: "GET", headers: { authorization: "Bearer nope" } });
 check("GET /mcp still needs the token", r.status === 401, String(r.status));
 
-r = await call(PORT, "tabs_list");
-check("tabs_list works", r.status === 200 && /example\.com/.test(resultText(r)), resultText(r));
+r = await call(PORT, "tab_query");
+check("tab_query works", r.status === 200 && /example\.com/.test(resultText(r)), resultText(r));
 
 // DNS rebinding / cross-site guards.
 r = await req(PORT, { headers: { host: "evil.example:" + PORT }, body: { jsonrpc: "2.0", id: 1, method: "tools/list" } });
@@ -142,7 +142,7 @@ r = await req(PORT, { body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "too
 check("body over the HTTP limit -> 413", r.status === 413, String(r.status));
 
 // Larger than one native message: refused before it reaches Firefox.
-r = await call(PORT, "act_type", { ref: 1, text: "x".repeat(1100 * 1024) });
+r = await call(PORT, "page_type", { ref: 1, text: "x".repeat(1100 * 1024) });
 check("oversized command -> PAYLOAD_TOO_LARGE", r.json?.result?.isError && /PAYLOAD_TOO_LARGE/.test(resultText(r)), resultText(r).slice(0, 120));
 
 // Cancellation by dropping the HTTP request.
@@ -151,7 +151,7 @@ const ac = new AbortController();
 const pending = fetch(`http://127.0.0.1:${PORT}/mcp`, {
   method: "POST", signal: ac.signal,
   headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: "Bearer " + TOKEN },
-  body: JSON.stringify({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "act_wait", arguments: { text: "never", timeoutMs: 60000 } } }),
+  body: JSON.stringify({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "page_wait", arguments: { text: "never", timeoutMs: 60000 } } }),
 }).catch(() => "aborted");
 let cmd = await waitFor((m) => m.method === "act.wait");
 ac.abort();
@@ -161,7 +161,7 @@ check("closing the request cancels the command in Firefox", !!cancel, cmd ? "" :
 
 // Cancellation by notifications/cancelled.
 fromHost.length = 0;
-const slow = call(PORT, "act_wait", { text: "never", timeoutMs: 60000 }, 77);
+const slow = call(PORT, "page_wait", { text: "never", timeoutMs: 60000 }, 77);
 cmd = await waitFor((m) => m.method === "act.wait");
 await req(PORT, { body: { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: 77, reason: "test" } } });
 cancel = cmd && (await waitFor((m) => m.cancel === cmd.id));
@@ -172,11 +172,11 @@ check("cancelled request finishes promptly", slowRes !== null);
 // Protocol mismatch: the add-on reconnects speaking a newer protocol.
 post(hello(99));
 await sleep(200);
-r = await call(PORT, "tabs_list");
+r = await call(PORT, "tab_query");
 check("protocol mismatch refuses commands", /PROTOCOL_MISMATCH/.test(resultText(r)) && /update the helper/.test(resultText(r)), resultText(r));
 post(hello(1));
 await sleep(200);
-r = await call(PORT, "tabs_list");
+r = await call(PORT, "tab_query");
 check("matching protocol works again", /example\.com/.test(resultText(r)), resultText(r));
 
 // A port that's busy (another Firefox profile, or the old helper still exiting) is retried until it frees up.
@@ -189,7 +189,7 @@ check("busy port is reported", st?.port === BUSY && !st.listening && /^Port /.te
 await new Promise((res) => blocker.close(res));
 for (let t = 0; t < 8000; t += 100) { st = lastStatus(); if (st?.listening) break; await sleep(100); }
 check("helper takes the port once it's free", st?.listening && st.port === BUSY && !st.error, JSON.stringify(st && { listening: st.listening, error: st.error }));
-r = await call(BUSY, "tabs_list");
+r = await call(BUSY, "tab_query");
 check("and serves on it", /example\.com/.test(resultText(r)), resultText(r));
 
 // Another loopback address (Linux routes all of 127/8 to lo): its own Host must be accepted.
@@ -211,7 +211,7 @@ post({ id: 1, ok: "yes" });
 post({ event: "tab.updated", data: null });
 post({ hostConfig: { port: "x", token: 7 } });
 await sleep(200);
-r = await call(BUSY, "tabs_list");
+r = await call(BUSY, "tab_query");
 check("malformed native messages are ignored", /example\.com/.test(resultText(r)), resultText(r));
 
 // Firefox closing the pipe ends the helper and frees the port.

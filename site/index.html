@@ -158,7 +158,7 @@
       <a class="btn orange" href="https://addons.mozilla.org/firefox/addon/webmcp-controller/">Add to Firefox</a>
       <a class="btn" href="#setup">How setup works</a>
     </div>
-    <p class="meta">Free and open source (MPL-2.0) · Version 0.5.0 · <a href="#name">Formerly WebMCP Controller</a></p>
+    <p class="meta">Free and open source (MPL-2.0) · Version 0.5.2 · <a href="#name">Formerly WebMCP Controller</a></p>
   </header>
 
   <figure class="hero-shot">
@@ -237,25 +237,25 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre></div>
   </section>
 
   <section aria-labelledby="tools-h">
-    <p class="eyebrow">44 tools</p>
+    <p class="eyebrow">45 tools</p>
     <h2 id="tools-h">What the agent can do.</h2>
-    <p class="sub">It reads pages through an accessibility snapshot, then clicks, types and fills forms by reference, the way a screen reader sees the page. Full descriptions are in the <a href="https://github.com/hamb1y/foxhand#tools">README</a>.</p>
+    <p class="sub">It reads pages through an accessibility snapshot, then clicks, types and fills forms by reference or by an element's visible name, the way a screen reader sees the page. Full descriptions are in the <a href="https://github.com/hamb1y/foxhand#tools">README</a>.</p>
     <div class="tools">
       <div>
-        <h3>Tabs and windows <span>19</span></h3>
-        <ul><li>tabs_list</li><li>tabs_query</li><li>active_tab</li><li>tab_create</li><li>tab_navigate</li><li>tab_close</li><li>tab_duplicate</li><li>tab_move</li><li>tab_pin</li><li>tab_unpin</li><li>tab_mute</li><li>window_list</li><li>window_create</li><li>window_focus</li><li>window_close</li><li>nav_back</li><li>nav_forward</li><li>nav_reload</li><li>focus_tab</li></ul>
+        <h3>Tabs and windows <span>12</span></h3>
+        <ul><li>tab_query</li><li>tab_check_active</li><li>tab_create</li><li>tab_navigate</li><li>tab_focus</li><li>tab_close</li><li>tab_pin</li><li>tab_mute</li><li>window_query</li><li>window_create</li><li>window_focus</li><li>window_close</li></ul>
       </div>
       <div>
-        <h3>Reading pages <span>5</span></h3>
-        <ul><li>snapshot_ax</li><li>page_text</li><li>page_html</li><li>screenshot</li><li>page_info</li></ul>
-        <h3 style="margin-top:28px">Acting on pages <span>9</span></h3>
-        <ul><li>act_click</li><li>act_type</li><li>act_fill_form</li><li>act_select</li><li>act_hover</li><li>act_scroll</li><li>act_key</li><li>act_wait</li><li>act_find</li></ul>
+        <h3>Reading pages <span>6</span></h3>
+        <ul><li>page_snapshot</li><li>page_text</li><li>page_html</li><li>page_screenshot</li><li>page_info</li><li>page_find</li></ul>
+        <h3 style="margin-top:28px">Acting on pages <span>10</span></h3>
+        <ul><li>page_click</li><li>page_type</li><li>page_fill</li><li>page_select</li><li>page_hover</li><li>page_scroll</li><li>page_key</li><li>page_wait</li><li>page_drag</li><li>page_upload</li></ul>
       </div>
       <div>
-        <h3>Browser data <span>8</span></h3>
-        <ul><li>bookmarks_search</li><li>bookmarks_create</li><li>bookmarks_remove</li><li>history_search</li><li>downloads_list</li><li>cookies_for_tab</li><li>sessions_recently_closed</li><li>sessions_restore</li></ul>
+        <h3>Browser data <span>14</span></h3>
+        <ul><li>bookmark_query</li><li>bookmark_create</li><li>bookmark_remove</li><li>history_query</li><li>download_query</li><li>download_start</li><li>cookie_query</li><li>cookie_set</li><li>cookie_remove</li><li>storage_get</li><li>storage_set</li><li>storage_remove</li><li>session_query</li><li>session_restore</li></ul>
         <h3 style="margin-top:28px">Meta <span>3</span></h3>
-        <ul><li>extension_status</li><li>wait_for_tab_event</li><li>cursor_note</li></ul>
+        <ul><li>extension_status</li><li>thought</li><li>event_wait</li></ul>
       </div>
     </div>
     <ul class="fixes" aria-label="Built for real pages">
@@ -277,7 +277,7 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre></div>
       <dl class="facts">
         <div><dt>Pause at any moment</dt><dd>Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd>, or Pause AI in the popup, and every command stops until you resume.</dd></div>
         <div><dt>See where it acts</dt><dd>A cursor glides to whatever the AI clicks or types into, and says why in an orange bubble. It never blocks your own input.</dd></div>
-        <div><dt>Asks before it destroys</dt><dd>Closing tabs or windows and deleting bookmarks need explicit confirmation. No tool reads saved passwords, and cookies are read-only.</dd></div>
+        <div><dt>Asks before it destroys</dt><dd>Closing tabs or windows and deleting bookmarks or cookies need explicit confirmation. No tool reads saved passwords.</dd></div>
         <div><dt>Stays on your computer</dt><dd>The helper listens on <code>localhost</code> only, and every request needs a 256-bit token. Nothing leaves your machine unless the AI tool you connect sends it somewhere.</dd></div>
         <div class="warn"><dt>Pages can try to trick the agent</dt><dd>A web page can contain instructions aimed at your AI. Don't point it at anything you wouldn't let a stranger click through.</dd></div>
       </dl>

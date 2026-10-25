@@ -708,6 +708,28 @@
       }
     }
   },
+  "curDrag": {
+    "message": "Arrastrando algo"
+  },
+  "curDragNamed": {
+    "message": "Arrastrando “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curUpload": {
+    "message": "Adjuntando un archivo"
+  },
+  "curUploadNamed": {
+    "message": "Adjuntando “$P1$”",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
   "curRead": {
     "message": "Leyendo la página"
   },
@@ -962,6 +984,72 @@
   },
   "lblCursorSayPast": {
     "message": "Dijo algo"
+  },
+  "lblTabNavigateNow": {
+    "message": "Abriendo una página"
+  },
+  "lblTabNavigatePast": {
+    "message": "Abrió una página"
+  },
+  "lblActDragNow": {
+    "message": "Arrastrando"
+  },
+  "lblActDragPast": {
+    "message": "Arrastró"
+  },
+  "lblActUploadNow": {
+    "message": "Adjuntando un archivo"
+  },
+  "lblActUploadPast": {
+    "message": "Adjuntó un archivo"
+  },
+  "lblCookiesQueryNow": {
+    "message": "Leyendo cookies"
+  },
+  "lblCookiesQueryPast": {
+    "message": "Leyó cookies"
+  },
+  "lblCookiesSetNow": {
+    "message": "Guardando una cookie"
+  },
+  "lblCookiesSetPast": {
+    "message": "Guardó una cookie"
+  },
+  "lblCookiesRemoveNow": {
+    "message": "Borrando una cookie"
+  },
+  "lblCookiesRemovePast": {
+    "message": "Borró una cookie"
+  },
+  "lblDownloadsQueryNow": {
+    "message": "Revisando descargas"
+  },
+  "lblDownloadsQueryPast": {
+    "message": "Revisó las descargas"
+  },
+  "lblDownloadsStartNow": {
+    "message": "Descargando un archivo"
+  },
+  "lblDownloadsStartPast": {
+    "message": "Descargó un archivo"
+  },
+  "lblStorageGetNow": {
+    "message": "Leyendo datos guardados"
+  },
+  "lblStorageGetPast": {
+    "message": "Leyó datos guardados"
+  },
+  "lblStorageSetNow": {
+    "message": "Guardando datos"
+  },
+  "lblStorageSetPast": {
+    "message": "Guardó datos"
+  },
+  "lblStorageRemoveNow": {
+    "message": "Borrando datos guardados"
+  },
+  "lblStorageRemovePast": {
+    "message": "Borró datos guardados"
   },
   "obTitle": {
     "message": "Te damos la bienvenida a Foxhand"

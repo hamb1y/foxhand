@@ -708,6 +708,28 @@
       }
     }
   },
+  "curDrag": {
+    "message": "Ziehe etwas"
+  },
+  "curDragNamed": {
+    "message": "Ziehe „$P1$“",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curUpload": {
+    "message": "Hänge eine Datei an"
+  },
+  "curUploadNamed": {
+    "message": "Hänge „$P1$“ an",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
   "curRead": {
     "message": "Lese die Seite"
   },
@@ -962,6 +984,72 @@
   },
   "lblCursorSayPast": {
     "message": "Etwas gesagt"
+  },
+  "lblTabNavigateNow": {
+    "message": "Öffnet eine Seite"
+  },
+  "lblTabNavigatePast": {
+    "message": "Seite geöffnet"
+  },
+  "lblActDragNow": {
+    "message": "Zieht"
+  },
+  "lblActDragPast": {
+    "message": "Gezogen"
+  },
+  "lblActUploadNow": {
+    "message": "Hängt eine Datei an"
+  },
+  "lblActUploadPast": {
+    "message": "Datei angehängt"
+  },
+  "lblCookiesQueryNow": {
+    "message": "Liest Cookies"
+  },
+  "lblCookiesQueryPast": {
+    "message": "Cookies gelesen"
+  },
+  "lblCookiesSetNow": {
+    "message": "Setzt ein Cookie"
+  },
+  "lblCookiesSetPast": {
+    "message": "Cookie gesetzt"
+  },
+  "lblCookiesRemoveNow": {
+    "message": "Löscht ein Cookie"
+  },
+  "lblCookiesRemovePast": {
+    "message": "Cookie gelöscht"
+  },
+  "lblDownloadsQueryNow": {
+    "message": "Prüft Downloads"
+  },
+  "lblDownloadsQueryPast": {
+    "message": "Downloads geprüft"
+  },
+  "lblDownloadsStartNow": {
+    "message": "Lädt eine Datei herunter"
+  },
+  "lblDownloadsStartPast": {
+    "message": "Datei heruntergeladen"
+  },
+  "lblStorageGetNow": {
+    "message": "Liest gespeicherte Daten"
+  },
+  "lblStorageGetPast": {
+    "message": "Gespeicherte Daten gelesen"
+  },
+  "lblStorageSetNow": {
+    "message": "Speichert Daten"
+  },
+  "lblStorageSetPast": {
+    "message": "Daten gespeichert"
+  },
+  "lblStorageRemoveNow": {
+    "message": "Löscht gespeicherte Daten"
+  },
+  "lblStorageRemovePast": {
+    "message": "Gespeicherte Daten gelöscht"
   },
   "obTitle": {
     "message": "Willkommen bei Foxhand"

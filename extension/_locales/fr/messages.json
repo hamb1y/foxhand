@@ -708,6 +708,28 @@
       }
     }
   },
+  "curDrag": {
+    "message": "Glissement d’un élément"
+  },
+  "curDragNamed": {
+    "message": "Glissement de « $P1$ »",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "curUpload": {
+    "message": "Ajout d’un fichier"
+  },
+  "curUploadNamed": {
+    "message": "Ajout de « $P1$ »",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
   "curRead": {
     "message": "Lecture de la page"
   },
@@ -962,6 +984,72 @@
   },
   "lblCursorSayPast": {
     "message": "A dit quelque chose"
+  },
+  "lblTabNavigateNow": {
+    "message": "Ouverture d’une page"
+  },
+  "lblTabNavigatePast": {
+    "message": "A ouvert une page"
+  },
+  "lblActDragNow": {
+    "message": "Glissement"
+  },
+  "lblActDragPast": {
+    "message": "A glissé un élément"
+  },
+  "lblActUploadNow": {
+    "message": "Ajout d’un fichier"
+  },
+  "lblActUploadPast": {
+    "message": "A ajouté un fichier"
+  },
+  "lblCookiesQueryNow": {
+    "message": "Lecture des cookies"
+  },
+  "lblCookiesQueryPast": {
+    "message": "A lu les cookies"
+  },
+  "lblCookiesSetNow": {
+    "message": "Création d’un cookie"
+  },
+  "lblCookiesSetPast": {
+    "message": "A créé un cookie"
+  },
+  "lblCookiesRemoveNow": {
+    "message": "Suppression d’un cookie"
+  },
+  "lblCookiesRemovePast": {
+    "message": "A supprimé un cookie"
+  },
+  "lblDownloadsQueryNow": {
+    "message": "Vérification des téléchargements"
+  },
+  "lblDownloadsQueryPast": {
+    "message": "A vérifié les téléchargements"
+  },
+  "lblDownloadsStartNow": {
+    "message": "Téléchargement d’un fichier"
+  },
+  "lblDownloadsStartPast": {
+    "message": "A téléchargé un fichier"
+  },
+  "lblStorageGetNow": {
+    "message": "Lecture des données enregistrées"
+  },
+  "lblStorageGetPast": {
+    "message": "A lu des données enregistrées"
+  },
+  "lblStorageSetNow": {
+    "message": "Enregistrement de données"
+  },
+  "lblStorageSetPast": {
+    "message": "A enregistré des données"
+  },
+  "lblStorageRemoveNow": {
+    "message": "Suppression de données enregistrées"
+  },
+  "lblStorageRemovePast": {
+    "message": "A supprimé des données enregistrées"
   },
   "obTitle": {
     "message": "Bienvenue dans Foxhand"

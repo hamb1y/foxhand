@@ -129,7 +129,7 @@ async function extShot(ctx, page, name, box, until = box, pad = 0) {
   await bidi.evaluate(ctx, `browser.tabs.getCurrent().then((t) => browser.tabs.update(t.id, { active: true })).then(() => 1)`);
   await sleep(1000);
   // The setup page's "Connect your AI" step turns green on the first command after it opens.
-  await tool('tabs_list');
+  await tool('tab_query', { query: '*' });
   await sleep(1500);
   await bidi.evaluate(ctx, mask());
   // Headless Firefox ignores window resizes: the window is sized at launch, and the shot is
@@ -153,17 +153,19 @@ async function main() {
   const ext = await start();
 
   // 1. The AI cursor at work on a real site.
-  await tool('tab_create', { url: 'https://en.wikipedia.org/wiki/Main_Page', waitForLoad: true, thought: 'Opening Wikipedia' });
+  await tool('tab_create', { url: 'https://en.wikipedia.org/wiki/Main_Page', waitForLoad: true });
   const wiki = await contextFor('wikipedia.org');
   await viewport(wiki, 1280, 800);
   await sleep(500);
-  let snap = await tool('snapshot_ax', {});
-  await tool('act_type', { ref: refOf(snap, 'searchbox|combobox "Search'), text: 'Red panda', submit: true, generation: snap.generation, thought: 'Looking up the red panda, the animal Firefox is named after' });
+  let snap = await tool('page_snapshot', {});
+  await tool('thought', { thought: 'Looking up the red panda, the animal Firefox is named after' });
+  await tool('page_type', { ref: refOf(snap, 'searchbox|combobox "Search'), text: 'Red panda', submit: true, generation: snap.generation });
   await until(async () => (await tool('page_info', {})).title?.startsWith('Red panda'), 20000, 'article');
   await sleep(1200);
-  snap = await tool('snapshot_ax', {});
+  snap = await tool('page_snapshot', {});
   // The article's own heading: hovering a link would open Wikipedia's preview over everything.
-  await tool('act_hover', { ref: refOf(snap, 'heading "Red panda"'), thought: 'Reading up on the red panda, the animal Firefox is named after' });
+  await tool('thought', { thought: 'Reading up on the red panda, the animal Firefox is named after' });
+  await tool('page_hover', { ref: refOf(snap, 'heading "Red panda"') });
   await sleep(900);
   await shot(wiki, 'cursor');
   // Link previews (og:image): the title, the bubble and the photo, at 1200×630.

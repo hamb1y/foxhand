@@ -44,13 +44,17 @@ var CAPABILITIES = [
   'bookmarks.search', 'bookmarks.create', 'bookmarks.remove',
   'history.search', 'downloads.list',
   'cookies.forTab', 'sessions.recentlyClosed', 'sessions.restore',
-  'cursor.say'
+  'cursor.say',
+  'tab.navigate', 'act.drag', 'act.upload',
+  'cookies.query', 'cookies.set', 'cookies.remove',
+  'downloads.query', 'downloads.start',
+  'storage.get', 'storage.set', 'storage.remove'
 ];
 
 /* Methods whose thought is shown by the content script as part of the action itself. */
 var CONTENT_METHODS = /^(page\.(snapshot|text|html)|act\.)/;
 /* Methods that navigate or close the page: a note shown there would vanish immediately. */
-var NO_NOTE_METHODS = /^(tab\.(create|update|close|duplicate)|nav\.|window\.|sessions\.restore|page\.shot)/;
+var NO_NOTE_METHODS = /^(tab\.(create|update|navigate|close|duplicate)|nav\.|window\.|sessions\.restore|page\.shot)/;
 
 var CFG = { token: '', port: DEFAULT_PORT, bind: DEFAULT_BIND, allowWsl: false, confirmDestructive: true, showCursor: true };
 var paused = false;        // the user paused AI control: every command is refused until they resume
@@ -301,7 +305,7 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
 /* The page went away (navigated, reloaded, closed) before its content script replied. */
 var PAGE_GONE_RE = /destroyed before|message manager disconnected|context is inactive|page (was )?unloaded/i;
-var READ_KINDS = /^(ax-snapshot|page-text|page-html|act-find)$/;
+var READ_KINDS = /^(ax-snapshot|page-text|page-html|act-find|page-storage|page-metrics|element-rect)$/;
 
 /* sendToTab, but an action that navigated the page before replying isn't reported as a failure
  * (the AI would repeat a click that worked), and a read retries once on the page that replaced it. */
@@ -335,6 +339,7 @@ async function actOn(tabId, p, ctx, msg) {
   ctx.signal.addEventListener('abort', stop);
   try {
     var result = await sendToPage(tabId, p, msg);
+    if (result && typeof result === 'object' && (result.navigating || result.pageChanged)) result = await afterNavigation(tabId, result, ctx.signal);
     if (OPENS_TABS.test(msg.kind)) {
       await sleep(250); // the new tab is created just after the click returns
       if (opened.length) result = await withOpenedTabs(result, opened);
@@ -346,7 +351,26 @@ async function actOn(tabId, p, ctx, msg) {
   }
 }
 
-var OPENS_TABS = /^act-(click|key|type|fillForm)$/;
+/* The action started a navigation: wait (briefly) for the new page, then say where it landed. */
+async function afterNavigation(tabId, result, signal) {
+  var until = Date.now() + 8000, tab = null;
+  await sleep(150);
+  while (Date.now() < until && !(signal && signal.aborted)) {
+    try { tab = await call(B.tabs, 'get', tabId); } catch (e) { return result; }
+    if (tab.status === 'complete') break;
+    await sleep(150);
+  }
+  if (!tab) return result;
+  result.url = tab.url || '';
+  result.title = tab.title || '';
+  result.loaded = tab.status === 'complete';
+  result.note = 'The page navigated' + (result.loaded ? ' and finished loading' : ' (still loading)') +
+    '. Refs from before are gone: take page_snapshot before acting again.';
+  delete result.pageChanged;
+  return result;
+}
+
+var OPENS_TABS = /^act-(click|key|type|fillForm|drag)$/;
 
 async function withOpenedTabs(result, ids) {
   var tabs = [];
@@ -372,7 +396,9 @@ function shoot(tab, p) {
 
 async function shootNow(tab, p) {
   var format = p.format === 'jpeg' ? 'jpeg' : 'png';
-  var opts = format === 'jpeg' ? { format: format, quality: 80 } : { format: format };
+  var opts = format === 'jpeg' ? { format: format, quality: Math.max(10, Math.min(100, num(p.quality, 80))) } : { format: format };
+  if (p.rect) opts.rect = p.rect;
+  if (p.scale !== undefined) opts.scale = p.scale;
   try { tab = await call(B.tabs, 'get', tab.id); } catch (e) {} // may have changed while queued
   // Fast path (Firefox 125+): capture a background tab without switching to it.
   if (!tab.active && B.tabs && typeof B.tabs.captureTab === 'function') {
@@ -541,6 +567,140 @@ function safeRegExp(src) {
   return new RegExp(src);
 }
 
+/* Copy the params that were given (not undefined/null) onto msg. */
+function pick(p, keys, msg) {
+  msg = msg || {};
+  keys.forEach(function (k) { if (p[k] !== undefined && p[k] !== null) msg[k] = p[k]; });
+  return msg;
+}
+
+/* How an action names its element: a snapshot ref, a CSS selector, an accessible
+ * name (+ role, nth), or a point. The content script resolves them (see locate in ax.js). */
+var TARGET_KEYS = ['ref', 'selector', 'name', 'role', 'nth', 'x', 'y', 'generation', 'waitMs'];
+
+function hasTargetParams(p) {
+  return ['ref', 'selector', 'name', 'x'].some(function (k) { return p[k] !== undefined && p[k] !== null && p[k] !== ''; });
+}
+
+/* A page action: resolve the tab, forward the target and the action's own fields. */
+async function act(p, ctx, kind, keys, base) {
+  var tab = await resolveTab(p.tabId);
+  assertContentAllowed(tab);
+  var msg = pick(p, TARGET_KEYS.concat(['changes'], keys), Object.assign({ kind: kind }, base || {}));
+  return await actOn(tab.id, p, ctx, msg);
+}
+
+/* Agent storage: a small key-value store in the add-on that outlives tabs, pages
+ * and restarts. Page storage: the page's own localStorage/sessionStorage. */
+var AGENT_STORE = 'agentStore';
+var AGENT_MAX_KEYS = 1000, AGENT_MAX_VALUE = 100000;
+
+async function storageOp(op, p) {
+  var area = p.area || 'agent';
+  if (area === 'local' || area === 'session') {
+    var tab = await resolveTab(p.tabId);
+    assertContentAllowed(tab);
+    return await sendToPage(tab.id, p, pick(p, ['key', 'value'], { kind: 'page-storage', op: op, area: area }));
+  }
+  if (area !== 'agent') throw be('INVALID_PARAMS', 'area must be "agent", "local" or "session"');
+  var got = await call(B.storage.local, 'get', AGENT_STORE);
+  var store = (got && got[AGENT_STORE] && typeof got[AGENT_STORE] === 'object') ? got[AGENT_STORE] : {};
+  var key = (p.key === undefined || p.key === null || p.key === '') ? null : String(p.key).slice(0, 200);
+  if (op === 'get') {
+    if (key === null) {
+      var prefix = p.prefix ? String(p.prefix) : '';
+      var keys = Object.keys(store).filter(function (k) { return k.indexOf(prefix) === 0; }).sort();
+      return { area: 'agent', count: keys.length, keys: keys.map(function (k) { return { key: k, updated: store[k].at }; }) };
+    }
+    if (!(key in store)) return { area: 'agent', key: key, found: false };
+    return { area: 'agent', key: key, found: true, value: store[key].v, updated: store[key].at };
+  }
+  if (key === null) throw be('INVALID_PARAMS', 'storage_' + op + ' needs a key');
+  if (op === 'set') {
+    var size = JSON.stringify(p.value === undefined ? null : p.value).length;
+    if (size > AGENT_MAX_VALUE) throw be('PAYLOAD_TOO_LARGE', 'Values are limited to ' + AGENT_MAX_VALUE + ' characters of JSON (this one is ' + size + ').');
+    if (!(key in store) && Object.keys(store).length >= AGENT_MAX_KEYS) throw be('PAYLOAD_TOO_LARGE', 'The agent store is full (' + AGENT_MAX_KEYS + ' keys). Remove some first.');
+    store[key] = { v: p.value === undefined ? null : p.value, at: new Date().toISOString() };
+    var put = {}; put[AGENT_STORE] = store; await call(B.storage.local, 'set', put);
+    return { area: 'agent', key: key, saved: true };
+  }
+  var had = key in store;
+  delete store[key];
+  if (had) var put = {}; put[AGENT_STORE] = store; await call(B.storage.local, 'set', put);
+  return { area: 'agent', key: key, removed: had };
+}
+
+/* The cookie jar a tab sees: its container / private store, across first-party
+ * isolation, including cookies partitioned under its site (CHIPS / Total Cookie
+ * Protection). Older Firefox lacks some keys; drop them and retry. */
+async function jarCookies(tab, url, extra) {
+  var q = Object.assign({ url: url.split('#')[0], firstPartyDomain: null, partitionKey: {} }, extra || {});
+  if (tab && tab.cookieStoreId) q.storeId = tab.cookieStoreId;
+  var cookies;
+  for (var attempt = 0; ; attempt++) {
+    try {
+      cookies = await call(B.cookies, 'getAll', q);
+      break;
+    } catch (e) {
+      if (attempt === 0 && 'partitionKey' in q) { delete q.partitionKey; continue; }
+      if (attempt <= 1 && 'firstPartyDomain' in q) { delete q.firstPartyDomain; continue; }
+      throw e;
+    }
+  }
+  var host = '', scheme = '';
+  try { var u = new URL(url); host = u.hostname; scheme = u.protocol; } catch (e) {}
+  var under = function (d) { return host === d || host.endsWith('.' + d); };
+  return (cookies || []).filter(function (c) {
+    // First-party isolation: keep only the jar of this site, not cookies it set as a third party elsewhere.
+    var fpd = c.firstPartyDomain;
+    if (fpd) {
+      var m = /^\((\w+),([^,)]+)/.exec(fpd); // "(https,example.com[,port])" when isolating by scheme too
+      if (m ? (m[1] + ':' !== scheme || !under(m[2])) : !under(fpd)) return false;
+    }
+    var site = c.partitionKey && c.partitionKey.topLevelSite;
+    if (!site) return true;
+    try {
+      var su = new URL(site);
+      return su.protocol === scheme && under(su.hostname);
+    } catch (e) {
+      return false;
+    }
+  });
+}
+
+/* The URL cookies are read or written for: the one given, else the tab's page. */
+async function cookieTarget(p) {
+  var tab = await resolveTab(p.tabId);
+  var url = p.url !== undefined && p.url !== null && p.url !== '' ? fixUrl(p.url) : String(tab.url || '');
+  if (!/^https?:/i.test(url)) throw be('INVALID_PARAMS', 'Cookies need an http(s) page; this tab shows ' + (url || 'nothing') + '. Pass url.');
+  return { tab: tab, url: url };
+}
+
+function cookieInfo(c) {
+  var o = {
+    name: c.name, value: c.value, domain: c.domain, path: c.path,
+    secure: !!c.secure, httpOnly: !!c.httpOnly, sameSite: c.sameSite || 'no_restriction',
+    session: !!c.session
+  };
+  if (!c.session && c.expirationDate) o.expires = new Date(c.expirationDate * 1000).toISOString();
+  if (c.partitionKey && c.partitionKey.topLevelSite) o.partitionedUnder = c.partitionKey.topLevelSite;
+  return o;
+}
+
+/* A download as the agent needs it: where the file is, whether it's done, and why not. */
+async function downloadInfo(d) {
+  var o = {
+    id: d.id, url: d.url, path: d.filename || '', file: String(d.filename || '').split(/[\\/]/).pop(),
+    state: d.state, bytesReceived: d.bytesReceived, totalBytes: d.totalBytes >= 0 ? d.totalBytes : null,
+    mime: d.mime || '', startTime: d.startTime, exists: !!d.exists
+  };
+  if (d.endTime) o.endTime = d.endTime;
+  if (d.error) o.error = d.error;
+  if (d.danger && d.danger !== 'safe' && d.danger !== 'accepted') o.danger = d.danger;
+  if (d.paused) o.paused = true;
+  return o;
+}
+
 /* ---------------------------------------------------------------- handlers */
 
 var handlers = {
@@ -553,9 +713,10 @@ var handlers = {
   'tabs.query': async function (p) {
     var tabs = await call(B.tabs, 'query', {});
     var urlRe = null, titleRe = null;
+    var text = (p.query === undefined || p.query === null || p.query === '*') ? '' : String(p.query).trim().toLowerCase();
     try {
-      urlRe = safeRegExp(p.urlPattern);
-      titleRe = safeRegExp(p.titlePattern);
+      urlRe = p.urlPattern === '*' ? null : safeRegExp(p.urlPattern);
+      titleRe = p.titlePattern === '*' ? null : safeRegExp(p.titlePattern);
     } catch (e) {
       throw be('INVALID_PARAMS', 'Bad regex in tabs.query: ' + e.message);
     }
@@ -566,6 +727,9 @@ var handlers = {
       if (p.audible !== undefined && !!t.audible !== !!p.audible) return false;
       if (p.pinned !== undefined && !!t.pinned !== !!p.pinned) return false;
       if (p.active !== undefined && !!t.active !== !!p.active) return false;
+      if (p.windowId !== undefined && t.windowId !== Number(p.windowId)) return false;
+      if (p.includeDiscarded === false && t.discarded) return false;
+      if (text && (String(t.url || '') + ' ' + String(t.title || '')).toLowerCase().indexOf(text) < 0) return false;
       return true;
     }).map(toTabInfo);
   },
@@ -579,7 +743,13 @@ var handlers = {
 
   /* ---- tab management ---- */
   'tab.create': async function (p, ctx) {
+    if (p.duplicateOf !== undefined && p.duplicateOf !== null) {
+      var src = await resolveTab(p.duplicateOf);
+      var dup = await call(B.tabs, 'duplicate', src.id, p.active === false ? { active: false } : undefined);
+      return toTabInfo(dup);
+    }
     var details = {};
+    if (p.windowId !== undefined) details.windowId = Number(p.windowId);
     if (p.url !== undefined) details.url = fixUrl(p.url);
     if (p.active !== undefined) details.active = !!p.active;
     var waiter = details.url && p.waitForLoad ? tabLoadWaiter(num(p.timeoutMs, 20000), ctx.signal, details.url) : null;
@@ -633,6 +803,30 @@ var handlers = {
     await focusWindow(props, updated);
     return toTabInfo(updated || tab);
   },
+  'tab.navigate': async function (p, ctx) {
+    if (p.url !== undefined && p.url !== null && p.url !== '') return await handlers['tab.update'](pick(p, ['tabId', 'url', 'waitForLoad', 'timeoutMs']), ctx);
+    var go = p.go;
+    if (go !== 'back' && go !== 'forward' && go !== 'reload') throw be('INVALID_PARAMS', 'tab_navigate needs url, or go: "back", "forward" or "reload"');
+    var tab = await resolveTab(p.tabId);
+    var wait = p.waitForLoad !== false ? tabLoadWaiter(num(p.timeoutMs, 20000), ctx.signal) : null;
+    if (wait) wait.start(tab.id, false);
+    try {
+      if (go === 'back') await call(B.tabs, 'goBack', tab.id);
+      else if (go === 'forward') await call(B.tabs, 'goForward', tab.id);
+      else await call(B.tabs, 'reload', tab.id, { bypassCache: !!p.bypassCache });
+    } catch (e) {
+      if (wait) wait.cancel();
+      if (go !== 'reload') throw be('NAVIGATION_FAILED', 'Cannot go ' + go + ': ' + (e.message || e) + ' (no history that way?)');
+      throw e;
+    }
+    // Back/forward within one page (#fragments, pushState) fires no load; don't wait the full timeout.
+    var ok = wait ? await Promise.race([wait.promise, sleep(go === 'reload' ? 1e9 : 3000).then(function () { return null; })]) : null;
+    if (wait) wait.cancel();
+    var info = toTabInfo(await call(B.tabs, 'get', tab.id));
+    if (wait) info.loadComplete = ok === null ? info.status === 'complete' : ok;
+    if (go !== 'reload' && info.url === tab.url) info.note = 'The URL did not change: there may be no history ' + go + ', or the page changed in place.';
+    return info;
+  },
   'tab.close': async function (p) {
     var ids;
     if (Array.isArray(p.tabIds)) ids = p.tabIds.map(Number);
@@ -660,7 +854,7 @@ var handlers = {
   },
   'tab.pin': async function (p) {
     var tab = await resolveTab(p.tabId);
-    return toTabInfo(await call(B.tabs, 'update', tab.id, { pinned: true }));
+    return toTabInfo(await call(B.tabs, 'update', tab.id, { pinned: p.pinned !== undefined ? !!p.pinned : true }));
   },
   'tab.unpin': async function (p) {
     var tab = await resolveTab(p.tabId);
@@ -728,32 +922,54 @@ var handlers = {
   'page.snapshot': async function (p) {
     var tab = await resolveTab(p.tabId);
     assertContentAllowed(tab);
-    return await sendToPage(tab.id, p, {
+    return await sendToPage(tab.id, p, pick(p, ['within', 'viewportOnly'], {
       kind: 'ax-snapshot',
       compact: p.compact !== undefined ? !!p.compact : true,
       maxChars: num(p.maxChars, 50000)
-    });
+    }));
   },
   'page.text': async function (p) {
     var tab = await resolveTab(p.tabId);
     assertContentAllowed(tab);
-    return await sendToPage(tab.id, p, { kind: 'page-text', maxChars: num(p.maxChars, 50000) });
+    return await sendToPage(tab.id, p, pick(p, ['within', 'offset'], { kind: 'page-text', maxChars: num(p.maxChars, 20000) }));
   },
   'page.html': async function (p) {
     var tab = await resolveTab(p.tabId);
     assertContentAllowed(tab);
-    return await sendToPage(tab.id, p, {
+    return await sendToPage(tab.id, p, pick(p, ['within'], {
       kind: 'page-html',
       selector: p.selector,
       maxChars: num(p.maxChars, 50000)
-    });
+    }));
   },
   'page.shot': async function (p) {
     var tab = await resolveTab(p.tabId);
+    var shotP = { format: p.format, quality: p.quality, keepActive: p.keepActive };
+    var scale = p.scale !== undefined ? Math.max(0.1, Math.min(2, Number(p.scale) || 1)) : null;
+    var extra = {};
+    var element = hasTargetParams(p);
+    if (element || p.fullPage) {
+      assertContentAllowed(tab);
+      var m = await sendToPage(tab.id, p, element
+        ? pick(p, TARGET_KEYS, { kind: 'element-rect' })
+        : { kind: 'page-metrics' });
+      var r = element ? m.rect : { x: 0, y: 0, width: m.width, height: m.height };
+      if (element && (r.width < 1 || r.height < 1)) throw be('NOT_INTERACTABLE', 'That element has no size on screen (' + (m.line || 'hidden') + ').');
+      var maxH = 16000;
+      if (r.height > maxH) { extra.cutOff = 'Only the top ' + maxH + 'px of ' + Math.round(r.height) + 'px were captured.'; r.height = maxH; }
+      shotP.rect = { x: Math.floor(r.x), y: Math.floor(r.y), width: Math.ceil(r.width), height: Math.ceil(r.height) };
+      // A tall page at full size is a huge image: shrink it unless a scale was asked for.
+      if (scale === null) scale = Math.min(1, 4000 / Math.max(r.width, r.height));
+      if (element) extra.element = m.line;
+      extra.region = shotP.rect;
+    }
+    if (scale !== null) shotP.scale = scale;
     // Keep the AI cursor out of the picture.
     var concealed = !!(await cursorOp(tab.id, 'conceal'));
     try {
-      return await shoot(tab, p);
+      var out = await shoot(tab, shotP);
+      if (scale !== null) out.scale = Math.round(scale * 100) / 100;
+      return Object.assign(out, extra);
     } finally {
       if (concealed) cursorOp(tab.id, 'reveal');
     }
@@ -785,73 +1001,69 @@ var handlers = {
 
   /* ---- acting (content script does the DOM work) ---- */
   'act.click': async function (p, ctx) {
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, { kind: 'act-click', ref: p.ref, selector: p.selector, generation: p.generation, button: p.button || 'left' });
+    return await act(p, ctx, 'act-click', ['double', 'modifiers'], { button: p.button || 'left' });
   },
   'act.type': async function (p, ctx) {
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, {
-      kind: 'act-type', ref: p.ref, selector: p.selector, generation: p.generation,
+    return await act(p, ctx, 'act-type', ['append', 'submitRef', 'submitSelector', 'submitName'], {
       text: (p.text === undefined || p.text === null) ? '' : String(p.text),
-      submit: !!p.submit, submitRef: p.submitRef, submitSelector: p.submitSelector
+      submit: !!p.submit
     });
   },
   'act.fillForm': async function (p, ctx) {
     if (!Array.isArray(p.fields)) throw be('INVALID_PARAMS', 'act.fillForm requires fields[]');
     var tab = await resolveTab(p.tabId);
     assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, {
-      kind: 'act-fillForm', fields: p.fields, generation: p.generation,
-      submit: !!p.submit, submitRef: p.submitRef, submitSelector: p.submitSelector
-    });
+    return await actOn(tab.id, p, ctx, pick(p, ['generation', 'changes', 'submitRef', 'submitSelector', 'submitName'], {
+      kind: 'act-fillForm', fields: p.fields, submit: !!p.submit
+    }));
   },
   'act.select': async function (p, ctx) {
     if (!Array.isArray(p.values)) throw be('INVALID_PARAMS', 'act.select requires values[]');
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, {
-      kind: 'act-select', ref: p.ref, selector: p.selector, generation: p.generation,
-      values: p.values.map(String)
-    });
+    return await act(p, ctx, 'act-select', [], { values: p.values.map(String) });
   },
   'act.hover': async function (p, ctx) {
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, { kind: 'act-hover', ref: p.ref, selector: p.selector, generation: p.generation });
+    return await act(p, ctx, 'act-hover', []);
   },
   'act.scroll': async function (p, ctx) {
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, {
-      kind: 'act-scroll', ref: p.ref, selector: p.selector, generation: p.generation,
-      direction: p.direction, pixels: p.pixels, to: p.to
-    });
+    return await act(p, ctx, 'act-scroll', ['direction', 'pixels', 'to']);
   },
   'act.key': async function (p, ctx) {
     if (p.key === undefined || p.key === null || p.key === '') {
       throw be('INVALID_PARAMS', 'act.key requires key');
     }
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, { kind: 'act-key', key: String(p.key), modifiers: p.modifiers });
+    return await act(p, ctx, 'act-key', ['modifiers', 'times'], { key: String(p.key) });
   },
   'act.wait': async function (p, ctx) {
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, {
-      kind: 'act-wait', text: p.text, selector: p.selector, timeoutMs: num(p.timeoutMs, 10000)
-    });
+    return await act(p, ctx, 'act-wait', ['text', 'gone'], { timeoutMs: num(p.timeoutMs, 10000) });
   },
   'act.find': async function (p, ctx) {
     if (p.query === undefined || p.query === null || String(p.query) === '') {
       throw be('INVALID_PARAMS', 'act.find requires query');
     }
-    var tab = await resolveTab(p.tabId);
-    assertContentAllowed(tab);
-    return await actOn(tab.id, p, ctx, { kind: 'act-find', query: String(p.query) });
+    return await act(p, ctx, 'act-find', [], { query: String(p.query) });
   },
+  'act.drag': async function (p, ctx) {
+    var to = ['toRef', 'toSelector', 'toName', 'toRole', 'toX', 'toY'];
+    if (!to.some(function (k) { return p[k] !== undefined && p[k] !== null && p[k] !== ''; })) {
+      throw be('INVALID_PARAMS', 'act.drag needs a drop target: toRef, toSelector, toName or toX+toY');
+    }
+    return await act(p, ctx, 'act-drag', to);
+  },
+  'act.upload': async function (p, ctx) {
+    if (!Array.isArray(p.files) || !p.files.length) throw be('INVALID_PARAMS', 'act.upload requires files[]');
+    var total = 0;
+    p.files.forEach(function (f) {
+      if (!f || !f.name) throw be('INVALID_PARAMS', 'Each file needs a name');
+      total += String(f.base64 || '').length + String(f.text || '').length;
+    });
+    if (total > 700000) throw be('PAYLOAD_TOO_LARGE', 'Files are limited to about 500KB in total.');
+    return await act(p, ctx, 'act-upload', [], { files: p.files });
+  },
+
+  /* ---- storage ---- */
+  'storage.get': async function (p) { return await storageOp('get', p); },
+  'storage.set': async function (p) { return await storageOp('set', p); },
+  'storage.remove': async function (p) { return await storageOp('remove', p); },
 
   /* ---- browser data ---- */
   'bookmarks.search': async function (p) {
@@ -885,45 +1097,88 @@ var handlers = {
       return (all || []).slice(0, limit);
     }
   },
+  'downloads.query': async function (p) {
+    var q = { orderBy: ['-startTime'], limit: Math.max(1, Math.min(200, num(p.limit, 20))) };
+    if (p.id !== undefined) q.id = Number(p.id);
+    if (p.query) q.query = String(p.query).split(/\s+/).filter(Boolean);
+    if (p.state) q.state = String(p.state);
+    var list = await call(B.downloads, 'search', q);
+    var out = [];
+    for (var i = 0; i < (list || []).length; i++) out.push(await downloadInfo(list[i]));
+    return out;
+  },
+  'downloads.start': async function (p, ctx) {
+    if (!p.url) throw be('INVALID_PARAMS', 'download_start needs url');
+    var opts = { url: fixUrl(p.url), conflictAction: 'uniquify', saveAs: false };
+    if (p.filename) {
+      var name = String(p.filename).replace(/^[\\/]+/, '');
+      if (/(^|[\\/])\.\.([\\/]|$)/.test(name)) throw be('INVALID_PARAMS', 'filename can\'t contain ".."; it is relative to the downloads folder');
+      opts.filename = name;
+    }
+    var id;
+    try { id = await call(B.downloads, 'download', opts); } catch (e) {
+      throw be('DOWNLOAD_FAILED', 'Download refused: ' + (e.message || e));
+    }
+    var until = Date.now() + (p.wait === false ? 0 : num(p.timeoutMs, 60000));
+    var d = null;
+    for (;;) {
+      d = ((await call(B.downloads, 'search', { id: id })) || [])[0];
+      if (!d || d.state !== 'in_progress' || Date.now() >= until || ctx.signal.aborted) break;
+      await sleep(250);
+    }
+    var info = d ? await downloadInfo(d) : { id: id };
+    if (info.state === 'in_progress') info.note = 'Still downloading; check later with download_query {id: ' + id + '}.';
+    return info;
+  },
   'cookies.forTab': async function (p) {
     var tab = await resolveTab(p.tabId);
     var url = String(tab.url || '');
     if (!/^https?:/i.test(url)) return [];
-    // The tab's own cookie jar (containers, private windows), across first-party
-    // isolation, including cookies partitioned under this site (CHIPS / Total
-    // Cookie Protection). Older Firefox lacks some keys; drop them and retry.
-    var q = { url: url.split('#')[0], firstPartyDomain: null, partitionKey: {} };
-    if (tab.cookieStoreId) q.storeId = tab.cookieStoreId;
-    var cookies;
-    for (var attempt = 0; ; attempt++) {
-      try {
-        cookies = await call(B.cookies, 'getAll', q);
-        break;
-      } catch (e) {
-        if (attempt === 0 && 'partitionKey' in q) { delete q.partitionKey; continue; }
-        if (attempt <= 1 && 'firstPartyDomain' in q) { delete q.firstPartyDomain; continue; }
-        throw e;
-      }
+    return await jarCookies(tab, url);
+  },
+  'cookies.query': async function (p) {
+    var t = await cookieTarget(p);
+    var list = await jarCookies(t.tab, t.url, p.name ? { name: String(p.name) } : null);
+    return { url: t.url, count: list.length, cookies: list.map(cookieInfo) };
+  },
+  'cookies.set': async function (p) {
+    if (!p.name) throw be('INVALID_PARAMS', 'cookie_set needs name');
+    var t = await cookieTarget(p);
+    var d = { url: t.url.split('#')[0], name: String(p.name), value: p.value === undefined || p.value === null ? '' : String(p.value) };
+    if (t.tab.cookieStoreId) d.storeId = t.tab.cookieStoreId;
+    pick(p, ['domain', 'path', 'secure', 'httpOnly', 'sameSite'], d);
+    if (p.expiresInSeconds !== undefined) d.expirationDate = Math.floor(Date.now() / 1000) + Number(p.expiresInSeconds);
+    else if (p.expires !== undefined) {
+      var at = typeof p.expires === 'number' ? p.expires : Date.parse(p.expires) / 1000;
+      if (!isFinite(at)) throw be('INVALID_PARAMS', 'expires must be an ISO date or unix seconds');
+      d.expirationDate = Math.floor(at);
     }
-    var host = '', scheme = '';
-    try { var u = new URL(url); host = u.hostname; scheme = u.protocol; } catch (e) {}
-    var under = function (d) { return host === d || host.endsWith('.' + d); };
-    return (cookies || []).filter(function (c) {
-      // First-party isolation: keep only the jar of this tab's own site, not cookies it set as a third party elsewhere.
-      var fpd = c.firstPartyDomain;
-      if (fpd) {
-        var m = /^\((\w+),([^,)]+)/.exec(fpd); // "(https,example.com[,port])" when isolating by scheme too
-        if (m ? (m[1] + ':' !== scheme || !under(m[2])) : !under(fpd)) return false;
-      }
-      var site = c.partitionKey && c.partitionKey.topLevelSite;
-      if (!site) return true;
-      try {
-        var su = new URL(site);
-        return su.protocol === scheme && under(su.hostname);
-      } catch (e) {
-        return false;
-      }
-    });
+    var c;
+    try {
+      c = await call(B.cookies, 'set', d);
+    } catch (e) {
+      // First-party isolation needs the jar named explicitly.
+      if (!/firstPartyDomain/i.test(String(e.message || e))) throw be('COOKIE_REFUSED', 'Firefox refused the cookie: ' + (e.message || e));
+      d.firstPartyDomain = new URL(d.url).hostname.split('.').slice(-2).join('.');
+      c = await call(B.cookies, 'set', d);
+    }
+    if (!c) throw be('COOKIE_REFUSED', 'Firefox refused the cookie (check domain, secure and sameSite against the URL).');
+    return { set: true, url: d.url, cookie: cookieInfo(c) };
+  },
+  'cookies.remove': async function (p) {
+    if (!p.name) throw be('INVALID_PARAMS', 'cookie_remove needs name');
+    var t = await cookieTarget(p);
+    var list = await jarCookies(t.tab, t.url, { name: String(p.name) });
+    var removed = 0;
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i];
+      var d = { url: (c.secure ? 'https://' : 'http://') + c.domain.replace(/^\./, '') + c.path, name: c.name };
+      if (c.storeId) d.storeId = c.storeId;
+      if (c.firstPartyDomain) d.firstPartyDomain = c.firstPartyDomain;
+      if (c.partitionKey) d.partitionKey = c.partitionKey;
+      try { if (await call(B.cookies, 'remove', d)) removed++; } catch (e) {}
+    }
+    return { url: t.url, name: String(p.name), removed: removed };
   },
   'sessions.recentlyClosed': async function (p) {
     return await call(B.sessions, 'getRecentlyClosed', { maxResults: num(p.limit, 10) });
@@ -956,7 +1211,14 @@ var LABELS = {
   'bookmarks.remove': ['Removing a bookmark', 'Removed a bookmark'], 'history.search': ['Searching history', 'Searched history'],
   'downloads.list': ['Checking downloads', 'Checked downloads'], 'cookies.forTab': ['Reading cookies', 'Read cookies'],
   'sessions.recentlyClosed': ['Checking closed tabs', 'Checked closed tabs'], 'sessions.restore': ['Reopening a tab', 'Reopened a tab'],
-  'cursor.say': ['Talking', 'Said something']
+  'cursor.say': ['Talking', 'Said something'],
+  'tab.navigate': ['Opening a page', 'Opened a page'], 'act.drag': ['Dragging', 'Dragged'],
+  'act.upload': ['Attaching a file', 'Attached a file'],
+  'cookies.query': ['Reading cookies', 'Read cookies'], 'cookies.set': ['Setting a cookie', 'Set a cookie'],
+  'cookies.remove': ['Deleting a cookie', 'Deleted a cookie'],
+  'downloads.query': ['Checking downloads', 'Checked downloads'], 'downloads.start': ['Downloading a file', 'Downloaded a file'],
+  'storage.get': ['Reading saved data', 'Read saved data'], 'storage.set': ['Saving data', 'Saved data'],
+  'storage.remove': ['Deleting saved data', 'Deleted saved data']
 };
 /* "tabs.list" -> i18n keys "lblTabsListNow" / "lblTabsListPast". */
 function labelsFor(method) {
@@ -967,7 +1229,7 @@ function labelsFor(method) {
 }
 
 /* Methods that act on one tab, so "Now" can say which. */
-var TAB_METHODS = /^(page\.|act\.|nav\.|cookies\.|tab\.(update|close|duplicate|move|pin|unpin|mute)$|cursor\.say$)/;
+var TAB_METHODS = /^(page\.|act\.|nav\.|cookies\.|tab\.(update|navigate|close|duplicate|move|pin|unpin|mute)$|cursor\.say$)/;
 var now = null; // { text, past, site, tabId, at, done }
 
 function siteOf(url) {
@@ -996,7 +1258,7 @@ async function onCommand(cmd, ctx) {
     cur.at = Date.now();
     updateBadge();
   }
-  if (!/^(tabs\.list|windows\.list|active\.tab|page\.info|cursor\.say)$/.test(cmd.method)) note(label[1], 'act', cur.site);
+  if (!/^(tabs\.(list|query)|windows\.list|active\.tab|page\.info|cursor\.say|storage\.get)$/.test(cmd.method)) note(label[1], 'act', cur.site);
   noteAfter(cmd.method, params);
   return result;
 }

@@ -17,7 +17,7 @@ your own machine.
 
 [**Install the add-on from addons.mozilla.org**](https://addons.mozilla.org/en-US/firefox/addon/webmcp-controller/)
 · [Website](https://hamb1y.github.io/foxhand/)
-· [What's new in 0.5.0](CHANGELOG.md)
+· [What's new in 0.5.2](CHANGELOG.md)
 
 <img src="site/shots/cursor.webp" alt="A Wikipedia article on the red panda. The AI cursor rests on the title with an orange bubble that reads: Reading up on the red panda, the animal Firefox is named after.">
 
@@ -37,8 +37,9 @@ the article. The orange bubble is the AI saying what it's doing.*
 - **Pause AI.** The popup button, or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd>,
   stops every command until you resume. The toolbar badge shows `II` while
   paused and an orange dot while the AI is working.
-- **44 tools.** Tabs, windows, navigation, page reading, screenshots, form
-  filling, clicking, bookmarks, history, downloads and cookies (read-only).
+- **45 tools.** Tabs, windows, page reading, screenshots, typing, clicking,
+  dragging, uploads, bookmarks, history, downloads, cookies and a persistent
+  notebook for the agent.
   See [Tools](#tools).
 - **Built for real pages.** Page dialogs (`alert`, `confirm`) never freeze an
   action, links that open a tab report the new tab, same-origin iframes are
@@ -98,7 +99,7 @@ Check the connection from a shell:
 
 ```bash
 curl http://localhost:8901/health
-# {"ok":true,"extensionConnected":true,"version":"0.5.0"}
+# {"ok":true,"extensionConnected":true,"version":"0.5.2"}
 ```
 
 ## Architecture
@@ -206,18 +207,19 @@ Alternatively, enable WSL mirrored networking (`networkingMode=mirrored` under
 
 ## AI cursor
 
-Every tool accepts an optional `thought` argument (up to 300 characters, for
-example `"Opening the pricing page to compare plans"`). The add-on shows it in
-a bubble next to an animated cursor on the page being driven.
+While the agent works, an animated cursor on the page glides to what it is
+clicking or typing into. A bubble beside it says what it is doing.
 
-- **Actions** (`act_*`): the cursor glides to the target, then clicks with a
-  ripple. Without a `thought`, it shows a default label such as "Clicking
+- **Actions** (`page_click`, `page_type`, ...): the cursor moves to the target,
+  then clicks with a ripple. The bubble describes the action, such as "Clicking
   “Sign in”", in the browser's language. Typed passwords are never echoed.
-- **Tab and navigation tools:** the thought appears on the tab they affect.
-- **`cursor_note`:** shows a note without doing anything else.
+- **`thought`:** the agent can explain its reasoning, for example `"Opening
+  the pricing page to compare plans"`. The note shows right away and stays on
+  the next page action (read or act) within 30 seconds, then the cursor goes
+  back to describing actions itself.
 - The cursor is drawn in a closed shadow root with `pointer-events: none`. It
-  never blocks real input or appears in `page_html` or `snapshot_ax`, and it is
-  hidden while `screenshot` captures.
+  never blocks real input or appears in `page_html` or `page_snapshot`, and it
+  is hidden while `page_screenshot` captures.
 - It fades after 8 seconds idle. Turn it off in the popup (**Show AI cursor**)
   or in Settings (**Show the AI cursor**). It is on by default.
 
@@ -226,86 +228,95 @@ Cursor shapes are [Bibata](https://github.com/ful1e5/Bibata_Cursor) by ful1e5
 
 ## Tools
 
-Tool names match `registerTool(` in `mcp-server/src/tools/*.ts`. All tools
-except `extension_status`, `wait_for_tab_event` and `cursor_note` accept the
-optional `thought` described under [AI cursor](#ai-cursor).
+Tool names match `registerTool(` in `mcp-server/src/tools/*.ts`. They follow
+`<thing>_<verb>`: `tab_query`, `page_click`, `cookie_set`.
+
+Page tools find an element by `ref` (from `page_snapshot`), by `name` (its
+visible text or label, with optional `role` and `nth`), by CSS `selector`, or
+by `x`,`y` viewport coordinates for canvas apps. When a name matches several
+elements, the `AMBIGUOUS` error lists them.
 
 <details>
-<summary><strong>Tabs and windows</strong> (19)</summary>
+<summary><strong>Tabs and windows</strong> (12)</summary>
 
 | Tool | What it does |
 |---|---|
-| `tabs_list` | List all open tabs (id, url, title, active/pinned/audible state). |
-| `tabs_query` | Find tabs by URL or title pattern and state flags. |
-| `active_tab` | Get the active tab (id, url, title, window). |
-| `tab_create` | Open a new tab, optionally at a URL. |
-| `tab_navigate` | Navigate a tab to a URL (defaults to the active tab). |
+| `tab_query` | List tabs (`query: "*"` or nothing) or find them by text in the URL or title, URL/title regex and state flags. |
+| `tab_check_active` | The tab the user is looking at (id, url, title, window). |
+| `tab_create` | Open a tab. Adds `https://` when the scheme is missing (`http://` for `localhost` and IP addresses). `duplicateOf` copies an existing tab. |
+| `tab_navigate` | Load a URL, or `go: "back"`, `"forward"` or `"reload"`. |
+| `tab_focus` | Switch to a tab and bring its window forward. |
 | `tab_close` | Close one tab (`tabId`), several (`tabIds`) or the active one. Needs `confirm:true`. |
-| `tab_duplicate` | Duplicate a tab (defaults to the active tab). |
-| `tab_move` | Move a tab to a new index, optionally to another window. |
-| `tab_pin` | Pin a tab (defaults to the active tab). |
-| `tab_unpin` | Unpin a tab (defaults to the active tab). |
-| `tab_mute` | Mute or unmute a tab (defaults to the active tab). |
-| `window_list` | List windows (id, focused, tab count). |
+| `tab_pin` | Pin a tab, or unpin it with `pinned:false`. |
+| `tab_mute` | Mute a tab, or unmute it with `muted:false`. |
+| `window_query` | List windows (id, focused, private, tab count). |
 | `window_create` | Open a new window, optionally at a URL. |
 | `window_focus` | Bring a window to the front. |
 | `window_close` | Close a window and its tabs. Needs `confirm:true`. |
-| `nav_back` | Go back in a tab's history (defaults to the active tab). |
-| `nav_forward` | Go forward in a tab's history (defaults to the active tab). |
-| `nav_reload` | Reload a tab (defaults to the active tab). |
-| `focus_tab` | Activate a tab by id. |
 
 </details>
 
 <details>
-<summary><strong>Reading pages</strong> (5)</summary>
+<summary><strong>Reading pages</strong> (6)</summary>
 
 | Tool | What it does |
 |---|---|
-| `snapshot_ax` | Accessibility snapshot with `[ref=N]` nodes for the `act_*` tools. Includes same-origin iframes; waits for pages still rendering. |
-| `page_text` | Visible text of the page. |
-| `page_html` | Page HTML, optionally limited to a CSS selector subtree. |
-| `screenshot` | Screenshot of the tab's visible area, returned as an image. |
+| `page_snapshot` | Outline of the page with `[ref=N]` for each element. Includes shadow DOM and same-origin iframes, waits for pages still rendering. `within` reads one region, `viewportOnly` just what's on screen. |
+| `page_text` | Visible text, in chunks for long pages (`offset`, `nextOffset`), optionally `within` one region. |
+| `page_html` | HTML of the page or of one part (`selector` or `within`). |
+| `page_screenshot` | The visible area, one element, or the whole page (`fullPage`). `format: "jpeg"` and `scale` make it smaller. |
 | `page_info` | URL, title and load state. |
+| `page_find` | Find text, with a snippet, the ref to click and whether it's off screen. |
 
 </details>
 
 <details>
-<summary><strong>Acting on pages</strong> (9)</summary>
+<summary><strong>Acting on pages</strong> (10)</summary>
 
 | Tool | What it does |
 |---|---|
-| `act_click` | Click an element by snapshot ref or CSS selector. Fails on disabled elements. Reports tabs the click opened (`openedTabs`). |
-| `act_type` | Type into a text field, optionally submitting it through its form or composer button, otherwise with Enter. |
-| `act_fill_form` | Fill several fields in one call. Every field is checked first, so one bad field changes nothing. |
-| `act_select` | Choose option(s) in a `<select>`: exact value first, then label. |
-| `act_hover` | Send hover events for JS menus and tooltips. CSS `:hover` cannot be triggered. |
-| `act_scroll` | Scroll the page or an element, by direction and pixels, or to top or bottom. |
-| `act_key` | Press a key with optional modifiers, such as `Enter` or `a` + Ctrl. |
-| `act_wait` | Wait for text or a selector to appear. `timeoutMs` defaults to 10000, max 60000. |
-| `act_find` | Find text on the page, returning match locations and count. |
+| `page_click` | Click an element or a point. Reports what changed, tabs the click opened (`openedTabs`) and the new URL. |
+| `page_type` | Type into a field (named by its label or placeholder), textarea or rich editor. Also sets checkboxes and selects. Can submit through the form's button, a composer's Send button, or Enter. |
+| `page_fill` | Fill several fields in one call. Every field is checked first, so one bad field changes nothing. |
+| `page_select` | Choose options in a `<select>` or a custom combobox or listbox. A miss lists the options. |
+| `page_hover` | Send hover events for JS menus and tooltips. CSS `:hover` cannot be triggered. |
+| `page_scroll` | Scroll the page, an element into view, or inside a scroller. Finds the inner scroller of chat apps. |
+| `page_key` | Press a key with modifiers. Performs the default action (Tab, Enter, Space, editing keys) when the page doesn't. |
+| `page_wait` | Wait for text or an element to appear, for it to go (`gone:true`, for spinners), or for the page to settle. |
+| `page_drag` | Drag an element or point onto another: sortable lists, sliders, map panning. |
+| `page_upload` | Attach files to a file input or drop zone. The agent supplies the contents; files on disk can't be read. |
 
 Page dialogs never block an action. While the AI acts, `alert()` is
 acknowledged and `confirm()`/`prompt()` are answered **Cancel**; the result
 lists what the page asked (`dialogs`). To answer OK, repeat the action with
-`dialog: "accept"` (and `promptText` for a prompt). `act_click`, `act_type`,
-`act_fill_form` and `act_key` take these options.
+`dialog: "accept"` (and `promptText` for a prompt).
 
 </details>
 
 <details>
-<summary><strong>Browser data</strong> (8)</summary>
+<summary><strong>Browser data</strong> (14)</summary>
 
 | Tool | What it does |
 |---|---|
-| `bookmarks_search` | Search bookmarks by title or URL. |
-| `bookmarks_create` | Create a bookmark. |
-| `bookmarks_remove` | Delete a bookmark by id. Needs `confirm:true`. |
-| `history_search` | Search browsing history (all of it unless `startTime` is given). |
-| `downloads_list` | List recent downloads (filename, state, progress). |
-| `cookies_for_tab` | Read the cookies a tab's page can see, from its container or private store, including partitioned ones. Read-only. |
-| `sessions_recently_closed` | List recently closed tabs and windows that can be restored. |
-| `sessions_restore` | Restore a recently closed tab or window by session id. |
+| `bookmark_query` | Find bookmarks by title or URL. |
+| `bookmark_create` | Create a bookmark or folder. |
+| `bookmark_remove` | Delete a bookmark by id. Needs `confirm:true`. |
+| `history_query` | Search browsing history (all of it unless `startTime` is given). |
+| `download_query` | List downloads with the file's path on disk, state, size, progress and why one failed. |
+| `download_start` | Download a URL into the downloads folder with the browser's cookies, wait for it and return the path. |
+| `cookie_query` | Cookies a page sees, from its container or private store, including partitioned ones. |
+| `cookie_set` | Create or overwrite a cookie. |
+| `cookie_remove` | Delete a cookie by name. Needs `confirm:true`. |
+| `storage_get` | Read a key, or list keys. |
+| `storage_set` | Save a value. |
+| `storage_remove` | Delete a key. |
+| `session_query` | Recently closed tabs and windows. |
+| `session_restore` | Reopen a recently closed tab or window. |
+
+The `storage_*` tools default to the agent's own notebook (`area: "agent"`):
+JSON values kept in the add-on's storage across pages and Firefox restarts, up
+to 1000 keys. `area: "local"` and `"session"` read and write the page's own
+`localStorage` and `sessionStorage`.
 
 </details>
 
@@ -315,8 +326,8 @@ lists what the page asked (`dialogs`). To answer OK, repeat the action with
 | Tool | What it does |
 |---|---|
 | `extension_status` | Whether the add-on is connected, plus profile details. |
-| `wait_for_tab_event` | Wait for an event such as `tab.updated`, `tab.removed`, `tab.activated` or `download.done`. Pass the result's `seq` as `afterSeq` to catch events between calls. |
-| `cursor_note` | Show a note in the AI cursor bubble without acting. |
+| `thought` | Show a note in the AI cursor bubble. It stays on the next page action. |
+| `event_wait` | Wait for an event such as `tab.updated`, `tab.removed`, `tab.activated` or `download.done`. Pass the result's `seq` as `afterSeq` to catch events between calls. |
 
 </details>
 
@@ -330,12 +341,12 @@ lists what the page asked (`dialogs`). To answer OK, repeat the action with
   before the body is read.
 - **Cancellation.** Closing the HTTP request, or sending
   `notifications/cancelled`, stops the command in Firefox too.
-- **Confirm guard.** `tab_close`, `window_close` and `bookmarks_remove` refuse
-  to run without `confirm:true`.
+- **Confirm guard.** `tab_close`, `window_close`, `bookmark_remove` and
+  `cookie_remove` refuse to run without `confirm:true`.
 - **No password access.** No tool reads saved logins or the Firefox password
-  manager. `cookies_for_tab` is read-only.
-- **Screenshots are viewport-only.** `screenshot` captures the visible area of
-  the tab, not the full scrollable page or the browser chrome.
+  manager.
+- **No browser chrome in screenshots.** `page_screenshot` captures page content
+  only, not the toolbar or other browser UI.
 - **Prompt injection is real.** A web page can try to instruct the agent.
   Don't point it at anything you wouldn't let a stranger click through.
 
@@ -355,7 +366,7 @@ lists what the page asked (`dialogs`). To answer OK, repeat the action with
   installer removes the old registration. Delete the old `firefox-mcp` folder
   after closing Firefox.
 - **A PDF tab says it can't be read.** Firefox's PDF viewer doesn't let add-ons
-  in. Use `screenshot`, or open the PDF in another app.
+  in. Use `page_screenshot`, or open the PDF in another app.
 - **"Port 8901 is already in use."** Another app, or this add-on in a second
   Firefox profile, holds the port. In Settings, choose another port, save, then
   re-copy the MCP config.
@@ -363,11 +374,11 @@ lists what the page asked (`dialogs`). To answer OK, repeat the action with
 - **Temporary add-on disappeared after a restart.** Temporary add-ons unload
   when Firefox closes. Reload it from `about:debugging`, or install the signed
   add-on.
-- **`RESTRICTED_PAGE`.** Page-content tools (`page_*`, `snapshot_ax`, `act_*`)
+- **`RESTRICTED_PAGE`.** Page-content tools (`page_*`)
   don't run on `about:`, `chrome:`, `resource:`, `moz-extension:`,
   `view-source:`, `jar:`, `data:` or `blob:` pages, or on
   `addons.mozilla.org`, or in PDFs. Firefox doesn't allow scripting there.
-- **`REF_STALE` or `REF_NOT_FOUND`.** Refs from `snapshot_ax` belong to one
+- **`REF_STALE` or `REF_NOT_FOUND`.** Refs from `page_snapshot` belong to one
   page load. Pass the snapshot's `generation` with the refs. After the page
   changes or navigates, take a new snapshot.
 - **`PAYLOAD_TOO_LARGE`.** Firefox limits native messages to 1 MB. Ask for less
@@ -387,7 +398,7 @@ MISSING=1 node test/e2e.mjs              # the "helper not installed" flow
 node test/host.mjs                       # helper: reconfiguration, Host/Origin checks, size limits, cancellation, protocol mismatch
 npx playwright install firefox && node test/content.mjs   # content scripts in real Firefox
 node test/e2e.mjs dist/host/foxhand-host-linux-x64        # same, against a compiled helper
-node test/live.mjs                       # real Firefox + this add-on + the helper, all 44 tools over MCP
+node test/live.mjs                       # real Firefox + this add-on + the helper, all 45 tools over MCP
 node test/live.mjs --real                # ... plus a few real websites
 node scripts/i18n.mjs --check            # every translation complete and generated
 npx web-ext@8 lint -s extension
@@ -465,7 +476,7 @@ files into a zip.
 ```bash
 git clone https://github.com/hamb1y/foxhand.git
 cd foxhand
-git checkout v0.5.0
+git checkout v0.5.2
 bash scripts/pack-extension.sh      # writes foxhand.zip
 ```
 
