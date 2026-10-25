@@ -84,6 +84,33 @@ const PAGES = {
   '/names': `<title>Names</title><button onclick="document.title='first'">Save</button><button onclick="document.title='second'">Save</button>
         <label>City <input oninput="document.title='city:'+this.value"></label>
         <canvas width="200" height="100" onclick="document.title='canvas:'+event.offsetX+','+event.offsetY" style="position:absolute;left:0;top:200px"></canvas>`,
+  // A cross-origin frame (the second fixture server), like a cookie banner or embedded sign-in.
+  '/xo': `<title>xo</title><p>Outer page</p><iframe src="{{XO}}/xoinner" title="Consent" width="500" height="260" style="position:absolute;left:0;top:60px;border:0"></iframe>
+        <script>addEventListener('message', (e) => { document.title = 'xo:' + e.data; });</script>`,
+  '/xoinner': `<title>inner</title><h2>We value your privacy</h2><p>Consent text inside the frame</p>
+        <button onclick="parent.postMessage('accepted', '*')">Accept all</button>
+        <button onclick="parent.postMessage('rejected', '*')">Reject</button>
+        <input aria-label="Frame email" oninput="parent.postMessage('typed:' + this.value, '*')">
+        <div id="pt" style="position:absolute;left:300px;top:150px;width:100px;height:60px;background:#eee" onclick="parent.postMessage('point:' + event.offsetX + ',' + event.offsetY, '*')">Point</div>`,
+  '/closed': `<title>Closed</title><x-closed></x-closed><script>customElements.define('x-closed', class extends HTMLElement {
+        connectedCallback() { const r = this.attachShadow({ mode: 'closed' }); r.innerHTML = '<button>Closed inside</button>';
+        r.querySelector('button').onclick = () => document.title = 'closed clicked'; } });</script>`,
+  '/clicky': `<title>Clicky</title><style>.b{cursor:pointer;padding:4px;display:inline-block}</style>
+        <ul><li><span>Order 1</span> <div class="b" data-k="e1">Edit</div> <div class="b" data-k="d1">Delete</div></li>
+        <li><span>Order 2</span> <div class="b" data-k="e2">Edit</div> <div class="b" data-k="d2">Delete</div></li></ul>
+        <div class="b" id="ic" aria-hidden="false"><svg width="16" height="16"><title>Close panel</title><rect width="16" height="16"/></svg></div>
+        <script>document.querySelectorAll('.b').forEach((b) => b.addEventListener('click', () => { document.title = 'clicky:' + (b.dataset.k || b.id); }));</script>`,
+  '/typing': `<title>Typing</title><input aria-label="City" autocomplete="off"><ul id="sug"></ul><input aria-label="Phone">
+        <div><input maxlength="1" aria-label="Code 1"><input maxlength="1" aria-label="Code 2"><input maxlength="1" aria-label="Code 3"></div>
+        <script>const [c, ph] = document.querySelectorAll('input');
+        c.addEventListener('keyup', () => { document.getElementById('sug').innerHTML = c.value.length > 1 ? '<li role="option">' + c.value + ' Central</li>' : ''; });
+        ph.addEventListener('keydown', (e) => { if (e.key.length === 1) { e.preventDefault(); if (/[0-9]/.test(e.key)) { const d = (ph.value.replace(/[^0-9]/g, '') + e.key).slice(0, 10);
+          ph.value = d.length > 6 ? '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6) : d; document.title = 'phone:' + ph.value; } } });
+        const codes = [...document.querySelectorAll('[maxlength]')]; codes.forEach((i, k) => i.addEventListener('input', () => { if (i.value && codes[k + 1]) codes[k + 1].focus(); document.title = 'code:' + codes.map((x) => x.value).join(''); }));</script>`,
+  '/modal': `<title>Modal</title><button>Behind</button><dialog id="d"><h2>Confirm order</h2><button onclick="d.close(); document.title='closed'">Close</button></dialog>
+        <script>d.showModal()</script>`,
+  '/md': `<title>MD</title><main><h1>Guide</h1><p>Read the <a href="/docs">docs</a> first.</p><ul><li>One</li><li>Two <b>bold</b></li></ul>
+        <table><tr><th>Plan</th><th>Price</th></tr><tr><td>Pro</td><td>$5</td></tr></table></main>`,
   '/drop': `<title>Drop</title><div draggable="true" id="card" style="width:80px;height:40px">Card</div>
         <div id="zone" style="width:200px;height:100px;margin-top:40px" ondragover="event.preventDefault()" ondrop="event.preventDefault(); document.title='dropped'">Zone</div>
         <input type="file" aria-label="Attachment" onchange="this.files[0].text().then((t) => document.title='file:'+this.files[0].name+':'+t)">`,
@@ -98,7 +125,7 @@ function fixtureServer() {
       res.writeHead(200, { 'content-type': 'application/pdf' }); res.end(pdf); return;
     }
     if (pth === '/slow') { setTimeout(() => { res.writeHead(200, { 'content-type': 'text/html' }); res.end('<title>Slow</title>slow'); }, 3000); return; }
-    const body = PAGES[pth];
+    const body = PAGES[pth]?.replace('{{XO}}', globalThis.XO_ORIGIN || '');
     if (!body) { res.writeHead(404); res.end('nope'); return; }
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     res.end(`<!doctype html><meta charset="utf-8">${body}`);
@@ -167,10 +194,12 @@ function installHelper() {
   if (r.status !== 0) throw new Error(`helper install failed: ${r.stderr || r.error}`);
 }
 
-let ff, bidi, fixtures, client;
+let ff, bidi, fixtures, fixtures2, client;
 async function start() {
   installHelper();
   fixtures = await fixtureServer();
+  fixtures2 = await fixtureServer();
+  globalThis.XO_ORIGIN = `http://127.0.0.1:${fixtures2.address().port}`;
   writeFileSync(path.join(tmp, 'profile.keep'), '');
   spawnSync(process.execPath, ['-e', `require('fs').mkdirSync(${JSON.stringify(profile)}, { recursive: true })`]);
   writeFileSync(path.join(profile, 'user.js'), [
@@ -536,6 +565,71 @@ async function edges() {
   ok('after a client cancels, the next command is not stuck behind it', t.ms < 3000 && !t.isError, `${t.ms}ms ${t.text}`);
 }
 
+/* The things real pages do that a plain DOM walk misses. */
+async function pages() {
+  let t = await tool('tab_create', { url: F('/xo'), waitForLoad: true });
+  const tabId = t.json?.id;
+  await sleep(500);
+  let snap = (await tool('page_snapshot', { tabId })).text;
+  const accept = refOf(snap, 'button "Accept all"');
+  ok('snapshot includes a cross-origin frame\'s content', !!accept && accept >= 10000000 && /Consent[^\n]*frame content follows/.test(snap), snap.slice(0, 600));
+  t = await tool('page_click', { tabId, ref: accept });
+  ok('page_click by ref inside a cross-origin frame', (await title(tabId)) === 'xo:accepted', t.text);
+  t = await tool('page_click', { tabId, name: 'Reject' });
+  ok('page_click by name finds a button inside a cross-origin frame', (await title(tabId)) === 'xo:rejected' && /frame/i.test(t.text), t.text);
+  t = await tool('page_type', { tabId, name: 'Frame email', text: 'a@b.c' });
+  ok('page_type by name inside a cross-origin frame', (await title(tabId)) === 'xo:typed:a@b.c', t.text);
+  t = await tool('page_click', { tabId, x: 320, y: 220 });
+  ok('page_click at a point over a cross-origin frame clicks inside it', /^xo:point:/.test(await title(tabId)), `${t.text} ${await title(tabId)}`);
+  t = await tool('page_text', { tabId });
+  ok('page_text includes a cross-origin frame\'s text', /Outer page/.test(t.text) && /Consent text inside the frame/.test(t.text), t.text.slice(0, 400));
+  t = await tool('page_find', { tabId, query: 'value your privacy' });
+  ok('page_find searches cross-origin frames', /value your privacy/.test(t.text) && /"ref": ?\d{8,}/.test(t.text), t.text.slice(0, 400));
+
+  await tool('tab_navigate', { tabId, url: F('/closed'), waitForLoad: true });
+  snap = (await tool('page_snapshot', { tabId })).text;
+  ok('snapshot sees into closed shadow roots', /button "Closed inside"/.test(snap), snap);
+  t = await tool('page_click', { tabId, name: 'Closed inside' });
+  ok('page_click inside a closed shadow root', (await title(tabId)) === 'closed clicked', t.text);
+
+  await tool('tab_navigate', { tabId, url: F('/clicky'), waitForLoad: true });
+  snap = (await tool('page_snapshot', { tabId })).text;
+  ok('script-only clickable divs show up', /clickable "Edit"/.test(snap) && /clickable "Close panel"/.test(snap), snap);
+  ok('rows group their controls', /listitem "Order 2[^\n]*\n\s+\[ref=\d+\] clickable "Edit"/.test(snap), snap);
+  const del2 = (() => { const i = snap.indexOf('listitem "Order 2'); return refOf(snap.slice(i), 'clickable "Delete"'); })();
+  t = await tool('page_click', { tabId, ref: del2 });
+  ok('clicking a script-only div by ref', (await title(tabId)) === 'clicky:d2', t.text);
+  t = await tool('page_click', { tabId, name: 'Close panel' });
+  ok('clicking an icon-only control by its svg title', (await title(tabId)) === 'clicky:ic', t.text);
+
+  await tool('tab_navigate', { tabId, url: F('/typing'), waitForLoad: true });
+  t = await tool('page_type', { tabId, name: 'City', text: 'Oslo' });
+  ok('typing fires key events (autocomplete appears)', /Oslo Central/.test(t.text), t.text);
+  t = await tool('page_type', { tabId, name: 'Phone', text: '5551234567' });
+  ok('typing into a masked field', (await title(tabId)) === 'phone:(555) 123-4567', `${t.text} ${await title(tabId)}`);
+  t = await tool('page_type', { tabId, name: 'Code 1', text: '123' });
+  ok('typing a code into one-box-per-digit fields', (await title(tabId)) === 'code:123' && /3 fields/.test(t.text), `${t.text} ${await title(tabId)}`);
+  await tool('tab_navigate', { tabId, url: F('/names'), waitForLoad: true });
+  t = await tool('page_click', { tabId, name: 'Save changes', waitMs: 0 });
+  ok('a name that isn\'t there lists the closest ones', t.isError && /REF_NOT_FOUND/.test(t.text) && /Closest on the page:[\s\S]*button "Save"/.test(t.text), t.text);
+
+  await tool('tab_navigate', { tabId, url: F('/modal'), waitForLoad: true });
+  snap = (await tool('page_snapshot', { tabId })).text;
+  ok('snapshot header warns about an open modal', /MODAL OPEN: \[ref=\d+\] dialog "Confirm order"/.test(snap), snap.slice(0, 400));
+  await tool('page_click', { tabId, name: 'Close' });
+
+  await tool('tab_navigate', { tabId, url: F('/md'), waitForLoad: true });
+  t = await tool('page_text', { tabId, format: 'markdown' });
+  ok('page_text markdown keeps headings, links, lists and tables', /# Guide/.test(t.text) && /\[docs\]\(\/docs\)/.test(t.text) && /- Two \*\*bold\*\*/.test(t.text) && /\| Pro \| \$5 \|/.test(t.text), t.text);
+
+  const nav = tool('page_wait', { tabId, urlContains: '/form', timeoutMs: 8000 });
+  await sleep(300);
+  await tool('tab_navigate', { tabId, url: F('/form'), waitForLoad: false });
+  t = await nav;
+  ok('page_wait urlContains waits for a navigation', t.json?.found === true, t.text);
+
+}
+
 async function robustness() {
   // A URL typed the way people type them.
   let t = await tool('tab_create', { url: `127.0.0.1:${fixtures.address().port}/`, waitForLoad: true });
@@ -633,8 +727,25 @@ try {
     const snap = await tool('page_snapshot', { tabId: t.json?.id });
     writeFileSync(path.join(tmp, '..', 'webmcp-dump.txt'), snap.text);
     console.log(`wrote ${path.join(tmp, '..', 'webmcp-dump.txt')} (${snap.text.length} chars)`);
+  } else if (arg('--steps')) {
+    // Debug aid: run tool calls from a JSON file of [tool, args] pairs. In args, "$tab" is the
+    // tab from the first tab_create and "$ref:<regex>" is the first ref in the last snapshot whose line matches.
+    const steps = JSON.parse(readFileSync(arg('--steps'), 'utf8'));
+    let tabId = null, last = '';
+    for (const [name, raw] of steps) {
+      if (name === 'sleep') { await sleep(raw); continue; }
+      const args = JSON.parse(JSON.stringify(raw ?? {}), (k, v) => {
+        if (v === '$tab') return tabId;
+        if (typeof v === 'string' && v.startsWith('$ref:')) return refOf(last, v.slice(5));
+        return v;
+      });
+      const t = await tool(name, args);
+      if (name === 'tab_create' && tabId === null) tabId = t.json?.id;
+      if (name === 'page_snapshot') last = t.text;
+      console.log(`### ${name} ${JSON.stringify(args)}${t.isError ? ' ERROR' : ''}\n${t.text.slice(0, Number(process.env.STEP_CHARS || 2500))}\n`);
+    }
   } else {
-    if (!process.env.ONLY_REAL) { await scenario(); await edges(); await robustness(); }
+    if (!process.env.ONLY_REAL) { await scenario(); await edges(); await pages(); await robustness(); }
     if (flag('--real')) await realSites();
   }
 } catch (e) {
@@ -647,6 +758,7 @@ try {
   try { bidi?.ws.close(); } catch {}
   try { ff?.kill(); } catch {}
   fixtures?.close();
+  fixtures2?.close();
   await sleep(1500);
   if (!flag('--keep')) rmSync(tmp, { recursive: true, force: true });
   else console.log(`kept ${tmp}`);

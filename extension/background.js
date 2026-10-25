@@ -232,7 +232,12 @@ function assertContentAllowed(tab) {
 
 var CONTENT_FILES = ['content/cursor.js', 'content/ax.js'];
 
-async function injectAx(tabId) {
+async function injectAx(tabId, frameId) {
+  if (frameId) {
+    // A cross-origin frame gets the page script only; the AI cursor stays in the top page.
+    await call(B.tabs, 'executeScript', tabId, { file: 'content/ax.js', frameId: frameId });
+    return;
+  }
   if (B.tabs && typeof B.tabs.executeScript === 'function') {
     for (var i = 0; i < CONTENT_FILES.length; i++) {
       await call(B.tabs, 'executeScript', tabId, { file: CONTENT_FILES[i] });
@@ -272,26 +277,30 @@ async function wake(tabId) {
   }
 }
 
-async function sendToTab(tabId, p, msg) {
+async function sendToTab(tabId, p, msg, frameId) {
+  frameId = frameId || 0;
   await wake(tabId);
-  if (CFG.showCursor && msg.kind !== 'cursor') {
+  if (CFG.showCursor && msg.kind !== 'cursor' && !frameId) {
     msg.cursor = { note: typeof p.thought === 'string' ? p.thought.slice(0, 300) : '' };
   }
+  // Always one frame: frames we injected into would answer a tab-wide message too.
+  var opts = { frameId: frameId };
   var firstErr = null;
   try {
-    return unwrapContentResponse(await call(B.tabs, 'sendMessage', tabId, msg));
+    return unwrapContentResponse(await call(B.tabs, 'sendMessage', tabId, msg, opts));
   } catch (e) {
     firstErr = e;
   }
   var m = String((firstErr && firstErr.message) || firstErr);
   if (/receiving end does not exist|could not establish connection|could not send|no response/i.test(m)) {
     try {
-      await injectAx(tabId);
+      await injectAx(tabId, frameId);
     } catch (inj) {
+      if (frameId) throw be('REF_STALE', 'That frame is gone or can\'t be scripted. Take a new page_snapshot.');
       throw be('NO_CONTENT_SCRIPT', 'No content script in tab ' + tabId + ' (restricted page?)');
     }
     try {
-      return unwrapContentResponse(await call(B.tabs, 'sendMessage', tabId, msg));
+      return unwrapContentResponse(await call(B.tabs, 'sendMessage', tabId, msg, opts));
     } catch (e2) {
       // An answer from the page (e.g. REF_STALE) or a page that navigated isn't a missing script.
       if ((e2 && e2.code) || PAGE_GONE_RE.test(String((e2 && e2.message) || e2))) throw e2;
@@ -309,18 +318,225 @@ var READ_KINDS = /^(ax-snapshot|page-text|page-html|act-find|page-storage|page-m
 
 /* sendToTab, but an action that navigated the page before replying isn't reported as a failure
  * (the AI would repeat a click that worked), and a read retries once on the page that replaced it. */
-async function sendToPage(tabId, p, msg) {
+async function sendToPage(tabId, p, msg, frameId) {
   try {
-    return await sendToTab(tabId, p, msg);
+    return await sendToTab(tabId, p, msg, frameId);
   } catch (e) {
     if (!PAGE_GONE_RE.test(String((e && e.message) || e))) throw e;
     if (READ_KINDS.test(msg.kind)) {
       await sleep(500);
-      return await sendToTab(tabId, p, msg);
+      return await sendToTab(tabId, p, msg, frameId);
     }
     if (msg.kind === 'act-wait') throw be('NAVIGATED', 'The page navigated away while waiting; take a new snapshot');
     return { done: true, pageChanged: true, note: 'The page navigated or reloaded as a result; take a new snapshot before using refs' };
   }
+}
+
+/* ---- cross-origin frames ----
+ * A cross-origin <iframe> (cookie banners, sign-in buttons, payment fields,
+ * embeds) runs its own copy of ax.js. Its refs are shown as slot * FRAME_REF +
+ * the frame's own ref, so one number names the frame and the element in it. */
+var FRAME_REF = 10000000;
+var frameSlots = new Map(); // tabId -> { ids: Map(frameId -> slot), byslot: [frameId] }
+
+function frameSlot(tabId, frameId) {
+  var t = frameSlots.get(tabId);
+  if (!t) { t = { ids: new Map(), byslot: [0] }; frameSlots.set(tabId, t); }
+  var s = t.ids.get(frameId);
+  if (!s) { s = t.byslot.length; t.byslot.push(frameId); t.ids.set(frameId, s); }
+  return s;
+}
+
+/* Rewrite a frame's refs ("ref": N and [ref=N]) to their page-wide numbers. */
+function frameRefs(v, slot) {
+  if (v === null || v === undefined) return v;
+  var conv = function (n) { return String(slot * FRAME_REF + Number(n)); };
+  var j = JSON.stringify(v)
+    .replace(/\[ref=(\d+)\]/g, function (m, n) { return '[ref=' + conv(n) + ']'; })
+    .replace(/"ref":(\d+)/g, function (m, n) { return '"ref":' + conv(n); })
+    .replace(/\(ref=(\d+)\)/g, function (m, n) { return '(ref=' + conv(n) + ')'; });
+  return JSON.parse(j);
+}
+
+function frameErr(e, slot) {
+  if (!e || !e.code) return e;
+  var m = String(e.message || '').replace(/\[ref=(\d+)\]|\bref[ =](\d+)/g, function (all, a, b) {
+    var n = slot * FRAME_REF + Number(a || b);
+    return a ? '[ref=' + n + ']' : 'ref ' + n;
+  });
+  return be(e.code, m);
+}
+
+/* Which frame a message's refs point into: {frameId, slot} with the refs made
+   local, or null for the page itself. Refs from two frames can't mix. */
+function routeRefs(tabId, msg) {
+  var slots = [];
+  var take = function (obj, key) {
+    if (!obj || obj[key] === undefined || obj[key] === null || obj[key] === '') return;
+    var n = Number(obj[key]);
+    if (!(n >= FRAME_REF)) { slots.push(0); return; }
+    slots.push(Math.floor(n / FRAME_REF));
+    obj[key] = n % FRAME_REF;
+  };
+  take(msg, 'ref'); take(msg, 'submitRef'); take(msg, 'toRef');
+  if (msg.within && typeof msg.within === 'object') take(msg.within, 'ref');
+  if (Array.isArray(msg.fields)) msg.fields.forEach(function (f) { take(f, 'ref'); });
+  var uniq = slots.filter(function (s, i) { return slots.indexOf(s) === i; });
+  if (uniq.length > 1) throw be('INVALID_PARAMS', 'These refs are in different frames of the page; one action works inside one frame.');
+  if (!uniq.length || uniq[0] === 0) return null;
+  var t = frameSlots.get(tabId);
+  var frameId = t && t.byslot[uniq[0]];
+  if (!frameId) throw be('REF_NOT_FOUND', 'That ref belongs to a frame from an earlier snapshot. Take a new page_snapshot.');
+  delete msg.generation; // generations are per document
+  return { frameId: frameId, slot: uniq[0] };
+}
+
+function withTimeout(promise, ms, what) {
+  return Promise.race([promise, new Promise(function (_, rej) { setTimeout(function () { rej(be('TIMEOUT', what + ' did not answer in time')); }, ms); })]);
+}
+
+/* Send to a frame. Its script is made sure of first (a cheap call that injects it
+   if needed), so a failure after that means the action itself took the frame
+   away, as a consent dialog does when it removes itself after "Accept": that is
+   reported as done, not as "not found" (the agent would click again). */
+var FRAME_ACTS = /^act-(click|type|fillForm|select|key|drag|upload|hover|scroll)$/;
+async function frameSend(tabId, p, msg, frameId) {
+  await sendToTab(tabId, p, { kind: 'page-metrics' }, frameId);
+  try {
+    return await sendToTab(tabId, p, msg, frameId);
+  } catch (e) {
+    var gone = !e || !e.code || e.code === 'NO_CONTENT_SCRIPT' || e.code === 'REF_STALE' || PAGE_GONE_RE.test(String(e && e.message));
+    if (gone && FRAME_ACTS.test(msg.kind)) {
+      return { done: true, frameClosed: true, note: 'The frame went away as the action finished (a dialog closing itself after the click, most likely). Check the page before repeating it.' };
+    }
+    throw e;
+  }
+}
+
+/* sendToPage, reaching into cross-origin frames: refs from a frame go to it; a
+   name or selector not found on the page is looked for in its frames; a point
+   over a frame is clicked inside it. */
+async function pageCall(tabId, p, msg) {
+  var route = routeRefs(tabId, msg);
+  if (route) {
+    try {
+      var rr = frameRefs(await frameSend(tabId, p, msg, route.frameId), route.slot);
+      if (rr && typeof rr === 'object' && !Array.isArray(rr) && msg.kind !== 'ax-snapshot' && msg.kind !== 'page-text') rr.frame = 'Inside a cross-origin frame.';
+      return rr;
+    } catch (e) { throw frameErr(e, route.slot); }
+  }
+  var byName = (msg.name !== undefined && msg.name !== null && msg.name !== '') || (msg.selector !== undefined && msg.selector !== null && msg.selector !== '');
+  var probe = byName && /^act-|^element-rect$/.test(msg.kind);
+  try {
+    return await sendToPage(tabId, p, probe ? Object.assign({}, msg, { frameProbe: true }) : msg);
+  } catch (e) {
+    if (e && e.code === 'IN_FRAME') {
+      var at = JSON.parse(e.message);
+      var slot = frameSlot(tabId, at.frameId);
+      var m2 = Object.assign({}, msg, { x: at.x, y: at.y });
+      delete m2.generation;
+      try {
+        var r = frameRefs(await frameSend(tabId, p, m2, at.frameId), slot);
+        if (r && typeof r === 'object') r.frame = 'Inside a cross-origin frame at that point.';
+        return r;
+      } catch (fe) { throw frameErr(fe, slot); }
+    }
+    if (!e || e.code !== 'TRY_FRAMES') throw e;
+    var ids = JSON.parse(e.message);
+    for (var i = 0; i < ids.length; i++) {
+      var s = frameSlot(tabId, ids[i]);
+      var m3 = Object.assign({}, msg, { waitMs: 0 });
+      delete m3.generation;
+      try {
+        var res = frameRefs(await withTimeout(frameSend(tabId, p, m3, ids[i]), 15000, 'A frame'), s);
+        if (res && typeof res === 'object') res.frame = 'Found inside a cross-origin frame (e.g. a cookie banner or embedded widget).';
+        return res;
+      } catch (fe2) {
+        if (fe2 && fe2.code && fe2.code !== 'REF_NOT_FOUND' && fe2.code !== 'TIMEOUT' && fe2.code !== 'NO_CONTENT_SCRIPT' && fe2.code !== 'REF_STALE') throw frameErr(fe2, s);
+      }
+    }
+    // In no frame either: wait on the page itself as usual.
+    return await sendToPage(tabId, p, msg);
+  }
+}
+
+/* Splice each cross-origin frame's outline in under its [frame:N] line. */
+async function withFrameOutlines(tabId, p, snap, base) {
+  if (!snap || typeof snap.text !== 'string' || !/\[frame:\d+\]/.test(snap.text)) return snap;
+  var budget = Math.max(0, (base.maxChars || 50000) - snap.text.length);
+  var out = [], read = 0;
+  var lines = snap.text.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var m = /\s?\[frame:(\d+)\]/.exec(line);
+    if (!m) { out.push(line); continue; }
+    var fid = Number(m[1]);
+    // The first frame always gets room: it is often the consent dialog listed first.
+    if (!read && budget < 8000) budget = 8000;
+    if (budget < 200 || read >= 6) { out.push(line.replace(m[0], ' [cross-origin frame: not read here; page_snapshot within:{ref} of this frame reads it]')); continue; }
+    try {
+      var sub = await withTimeout(sendToPage(tabId, p, { kind: 'ax-snapshot', compact: base.compact, maxChars: budget, viewportOnly: base.viewportOnly }, fid), 6000, 'The frame');
+      var slot = frameSlot(tabId, fid);
+      sub = frameRefs(sub, slot);
+      read++;
+      var pad = (/^ */.exec(line) || [''])[0] + '  ';
+      var body = String(sub.text || '').replace(/\s?\[frame:\d+\]/g, ' [nested frame: not read]');
+      out.push(line.replace(m[0], body ? ' [frame content follows]' : ' [frame: nothing interactive inside]'));
+      if (body) body.split('\n').forEach(function (l) { out.push(pad + l); });
+      budget -= body.length + 2 * (body.split('\n').length);
+      if (Array.isArray(sub.nodes)) snap.nodes = (snap.nodes || []).concat(sub.nodes);
+      if (sub.truncated) snap.truncated = true;
+    } catch (e) {
+      out.push(line.replace(m[0], ' [cross-origin frame: could not be read]'));
+    }
+  }
+  snap.text = out.join('\n');
+  return snap;
+}
+
+/* page_text with the text of cross-origin frames after the page's own, chunked as one. */
+async function withFrameText(tabId, p, res, off, mc) {
+  if (!res || !Array.isArray(res.frames) || !res.frames.length) { if (res) delete res.frames; return res; }
+  var frames = res.frames;
+  delete res.frames;
+  var suffix = '';
+  for (var i = 0; i < frames.length; i++) {
+    try {
+      var t = await withTimeout(sendToPage(tabId, p, { kind: 'page-text', maxChars: 20000 }, frames[i].frameId), 6000, 'The frame');
+      var slot = frameSlot(tabId, frames[i].frameId);
+      if (t && t.text && t.text.trim()) {
+        suffix += '\n\n--- frame ' + JSON.stringify(frames[i].name || frames[i].src || 'frame') + ' (ref=' + frames[i].ref + ', ' + (slot ? 'cross-origin' : '') + ') ---\n' + t.text.trim();
+      }
+    } catch (e) {}
+  }
+  if (!suffix) return res;
+  var T = Number(res.totalChars) || 0;
+  var end = off + mc - T;
+  if (end > 0) res.text += suffix.slice(Math.max(0, off - T), end);
+  res.totalChars = T + suffix.length;
+  res.truncated = off + mc < res.totalChars;
+  if (res.truncated) res.nextOffset = off + res.text.length; else delete res.nextOffset;
+  return res;
+}
+
+/* page_find in cross-origin frames too. */
+async function withFrameFinds(tabId, p, res, query) {
+  if (!res || !Array.isArray(res.frames)) return res;
+  var frames = res.frames;
+  delete res.frames;
+  for (var i = 0; i < frames.length; i++) {
+    try {
+      var r = await withTimeout(sendToPage(tabId, p, { kind: 'act-find', query: query }, frames[i].frameId), 6000, 'The frame');
+      r = frameRefs(r, frameSlot(tabId, frames[i].frameId));
+      if (r && r.count) {
+        (r.matches || []).forEach(function (m) { m.frame = frames[i].name || frames[i].src || 'cross-origin frame'; });
+        res.matches = (res.matches || []).concat(r.matches || []).slice(0, 30);
+        res.count = (res.count || 0) + r.count;
+        res.truncated = res.count > res.matches.length;
+      }
+    } catch (e) {}
+  }
+  return res;
 }
 
 /* sendToPage for an action, cancellable: a cancel from the helper (or Pause AI) reaches the page by opId. */
@@ -334,11 +550,13 @@ async function actOn(tabId, p, ctx, msg) {
   var onCreated = function (t) { if (t && t.openerTabId === tabId) opened.push(t.id); };
   try { B.tabs.onCreated.addListener(onCreated); } catch (e) {}
   var stop = function () {
+    // Every frame: the action may be running inside one.
     try { call(B.tabs, 'sendMessage', tabId, { kind: 'cancel', opId: ctx.id }).catch(function () {}); } catch (e) {}
   };
   ctx.signal.addEventListener('abort', stop);
   try {
-    var result = await sendToPage(tabId, p, msg);
+    var result = await pageCall(tabId, p, msg);
+    if (msg.kind === 'act-find') result = await withFrameFinds(tabId, p, result, msg.query);
     if (result && typeof result === 'object' && (result.navigating || result.pageChanged)) result = await afterNavigation(tabId, result, ctx.signal);
     if (OPENS_TABS.test(msg.kind)) {
       await sleep(250); // the new tab is created just after the click returns
@@ -922,21 +1140,27 @@ var handlers = {
   'page.snapshot': async function (p) {
     var tab = await resolveTab(p.tabId);
     assertContentAllowed(tab);
-    return await sendToPage(tab.id, p, pick(p, ['within', 'viewportOnly'], {
+    var base = pick(p, ['within', 'viewportOnly'], {
       kind: 'ax-snapshot',
       compact: p.compact !== undefined ? !!p.compact : true,
       maxChars: num(p.maxChars, 50000)
-    }));
+    });
+    if (base.within) base.within = Object.assign({}, base.within);
+    var snap = await pageCall(tab.id, p, Object.assign({}, base));
+    return await withFrameOutlines(tab.id, p, snap, base);
   },
   'page.text': async function (p) {
     var tab = await resolveTab(p.tabId);
     assertContentAllowed(tab);
-    return await sendToPage(tab.id, p, pick(p, ['within', 'offset'], { kind: 'page-text', maxChars: num(p.maxChars, 20000) }));
+    var tm = pick(p, ['within', 'offset', 'format'], { kind: 'page-text', maxChars: num(p.maxChars, 20000), withFrames: true });
+    if (tm.within) tm.within = Object.assign({}, tm.within);
+    var res = await pageCall(tab.id, p, tm);
+    return await withFrameText(tab.id, p, res, Math.max(0, Math.floor(Number(p.offset) || 0)), tm.maxChars);
   },
   'page.html': async function (p) {
     var tab = await resolveTab(p.tabId);
     assertContentAllowed(tab);
-    return await sendToPage(tab.id, p, pick(p, ['within'], {
+    return await pageCall(tab.id, p, pick(p, ['within'], {
       kind: 'page-html',
       selector: p.selector,
       maxChars: num(p.maxChars, 50000)
@@ -950,9 +1174,10 @@ var handlers = {
     var element = hasTargetParams(p);
     if (element || p.fullPage) {
       assertContentAllowed(tab);
-      var m = await sendToPage(tab.id, p, element
+      var m = await pageCall(tab.id, p, element
         ? pick(p, TARGET_KEYS, { kind: 'element-rect' })
         : { kind: 'page-metrics' });
+      if (element && m.frame) throw be('NOT_SUPPORTED', 'That element is inside a cross-origin frame, which can\'t be captured on its own. Capture the frame itself (its ref from page_snapshot) or the visible area.');
       var r = element ? m.rect : { x: 0, y: 0, width: m.width, height: m.height };
       if (element && (r.width < 1 || r.height < 1)) throw be('NOT_INTERACTABLE', 'That element has no size on screen (' + (m.line || 'hidden') + ').');
       var maxH = 16000;
@@ -1034,13 +1259,28 @@ var handlers = {
     return await act(p, ctx, 'act-key', ['modifiers', 'times'], { key: String(p.key) });
   },
   'act.wait': async function (p, ctx) {
+    if (typeof p.urlContains === 'string' && p.urlContains) {
+      // Navigation replaces the page's script, so this wait runs here.
+      var wt = await resolveTab(p.tabId);
+      var until = Date.now() + Math.min(num(p.timeoutMs, 10000), 60000), start = Date.now(), cur = wt;
+      while (Date.now() < until) {
+        if (ctx.signal.aborted) throw be('CANCELLED', 'The command was cancelled.');
+        try { cur = await call(B.tabs, 'get', wt.id); } catch (e) { throw be('TAB_NOT_FOUND', 'The tab was closed while waiting.'); }
+        if (String(cur.url || '').indexOf(p.urlContains) >= 0 && cur.status === 'complete') {
+          return { found: true, url: cur.url, title: cur.title || '', elapsedMs: Date.now() - start };
+        }
+        await sleep(200);
+      }
+      return { found: false, timedOut: true, url: cur.url || '', loading: cur.status !== 'complete', elapsedMs: Date.now() - start,
+        note: 'The address didn\'t contain ' + JSON.stringify(p.urlContains) + (cur.status !== 'complete' ? ' (still loading)' : '') + ' before the wait ran out.' };
+    }
     return await act(p, ctx, 'act-wait', ['text', 'gone'], { timeoutMs: num(p.timeoutMs, 10000) });
   },
   'act.find': async function (p, ctx) {
     if (p.query === undefined || p.query === null || String(p.query) === '') {
       throw be('INVALID_PARAMS', 'act.find requires query');
     }
-    return await act(p, ctx, 'act-find', [], { query: String(p.query) });
+    return await act(p, ctx, 'act-find', [], { query: String(p.query), withFrames: true });
   },
   'act.drag': async function (p, ctx) {
     var to = ['toRef', 'toSelector', 'toName', 'toRole', 'toX', 'toY'];

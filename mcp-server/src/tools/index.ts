@@ -18,10 +18,13 @@ import { setPendingThought, withSignal } from "../bridge/thought.js";
 export const SERVER_INSTRUCTIONS = [
   "Controls the user's real Firefox, with their logins. The user watches an AI cursor move to whatever you act on.",
   "Workflow: tab_query to find or pick a tab (or tab_create), page_snapshot to see what's there, then act with page_click / page_type / page_fill / page_select / page_key. " +
-    "Read with page_text (chunked: follow nextOffset) or page_find; page_screenshot when layout matters.",
+    "Read with page_text (chunked: follow nextOffset; format \"markdown\" keeps links and structure) or page_find; page_screenshot when layout matters.",
   "Targets: prefer {ref: N} from the latest page_snapshot. Without a ref, use name (the visible label, e.g. name: \"Sign in\") with role to narrow it " +
     "(role: \"button\"), and nth when several match; a CSS selector; or x,y viewport coordinates for canvas apps. " +
-    "Errors say what went wrong: REF_STALE means take a new snapshot; AMBIGUOUS lists the candidates.",
+    "Errors say what went wrong: REF_STALE means take a new snapshot; AMBIGUOUS lists the candidates; REF_NOT_FOUND lists the closest names on the page.",
+  "The snapshot already covers what usually needs workarounds: buttons built from plain divs (role \"clickable\"), icon-only buttons, shadow DOM, " +
+    "and iframes from other sites (cookie banners, sign-in, payment fields): their refs work like any other, and name/selector targets look inside them too. " +
+    "Its header warns when a modal or a screen-covering overlay is open; deal with that first.",
   "Every action returns `changes` (what appeared, disappeared or changed), `notes` and, if it navigated, the new url. Read them instead of re-snapshotting; " +
     "snapshot again only when you need refs for new content. Use page_wait for content that loads later (gone:true waits for spinners to go).",
   "Use the `thought` tool now and then to tell the user in one short sentence what you're about to do and why; it shows beside the cursor. " +

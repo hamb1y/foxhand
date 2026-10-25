@@ -70,6 +70,12 @@ function flatParent(n) {
   return p;
 }
 
+/* An element's shadow root, closed ones included: Firefox lets content scripts
+   see closed roots, where many web components keep their buttons. */
+function shadowOf(el) {
+  try { return el.openOrClosedShadowRoot || el.shadowRoot || null; } catch (e) { return el.shadowRoot || null; }
+}
+
 /* Hidden from assistive tech by an ancestor (aria-hidden, inert)? */
 function axHidden(el) {
   for (var n = el; n; n = flatParent(n)) {
@@ -109,7 +115,67 @@ function rendered(el, depth) {
     if (cs.position === 'fixed') return true;
     if (el === el.ownerDocument.activeElement) return true;
   } catch (e) {}
+  // A zero-size box whose content overflows it (icon buttons with an absolutely positioned glyph).
+  if (cs.overflow === 'visible' && depth < 3) {
+    for (var k = el.firstElementChild, i = 0; k && i < 5; k = k.nextElementSibling, i++) {
+      if (rendered(k, depth + 1)) return true;
+    }
+  }
   return false;
+}
+
+/* ------------------------------------------------------- shown on hover */
+
+/* Controls a page hides until the pointer is over their row (the ✕ on a to-do
+   item, a row's "..." menu): style rules like "li:hover .destroy {display:block}".
+   An add-on can't produce :hover, but such a control can still be clicked
+   directly, so they are listed (marked [on hover]) and can be targeted. Read
+   from the page's own style sheets (cross-origin sheets can't be read). */
+var hoverSel = null, hoverSheets = -1, hoverAt = 0;
+function hoverSelectors() {
+  var n = document.styleSheets.length;
+  if (hoverSel && n === hoverSheets && Date.now() - hoverAt < 5000) return hoverSel;
+  hoverSheets = n; hoverAt = Date.now();
+  var out = [];
+  var visit = function (rules, depth) {
+    if (!rules || depth > 3) return;
+    for (var i = 0; i < rules.length && out.length < 200; i++) {
+      var r = rules[i];
+      if (r.cssRules && !r.selectorText) { visit(r.cssRules, depth + 1); continue; } // @media, @supports, @layer
+      var st = r.selectorText;
+      if (!st || st.indexOf(':hover') < 0 || !r.style) continue;
+      var d = r.style.display, v = r.style.visibility;
+      if (!(d && d !== 'none') && v !== 'visible') continue;
+      st.split(',').forEach(function (part) {
+        part = part.trim();
+        // Only rules that reveal something *inside* the hovered element: "li:hover .x", "tr:hover > td button".
+        var at = part.lastIndexOf(':hover');
+        var rest = at < 0 ? '' : part.slice(at + 6);
+        if (!/^(\s|[>+~])/.test(rest) || !rest.trim().replace(/^[>+~]/, '').trim()) return;
+        var plain = part.replace(/:hover/g, '').replace(/::?(before|after)\b/g, '');
+        try { document.querySelector(plain); out.push(plain); } catch (e) {}
+      });
+    }
+  };
+  for (var k = 0; k < n; k++) {
+    var rules = null;
+    try { rules = document.styleSheets[k].cssRules; } catch (e) { continue; } // cross-origin sheet
+    visit(rules, 0);
+  }
+  hoverSel = out.length ? out.join(', ') : '';
+  return hoverSel;
+}
+
+/* Hidden only until hover: matches a hover-reveal rule (or sits inside such an element),
+   and the row it belongs to is on screen. */
+function shownOnHover(el) {
+  var sel = hoverSelectors();
+  if (!sel || el.ownerDocument !== document) return false;
+  var hit = null;
+  try { hit = el.matches(sel) ? el : (el.closest ? el.closest(sel) : null); } catch (e) { return false; }
+  if (!hit) return false;
+  var p = flatParent(hit);
+  return !!p && visible(p) && !axHidden(el);
 }
 
 var SKIP_TAGS = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEMPLATE: 1, HEAD: 1, META: 1, LINK: 1 };
@@ -126,6 +192,45 @@ function inputRole(type) {
     case 'search': return 'searchbox';
     case 'password': case 'email': case 'tel': case 'url': case 'text': default: return 'textbox';
   }
+}
+
+/* Elements a page made clickable with script alone (a <div> with a click
+   listener): no role, no tabindex, so the accessibility tree has nothing. They
+   show as role "clickable" when they carry a handler attribute, or when they
+   are where a pointer cursor starts and hold no real control inside. */
+var CLICK_ATTRS = ['onclick', 'onmousedown', 'onmouseup', 'onpointerdown', 'onpointerup', 'ng-click', 'data-ng-click', '@click', 'x-on:click', 'v-on:click', 'data-action', 'data-click'];
+var CONTROL_SEL = 'a[href], button, input, select, textarea, summary, [role="button"], [role="link"], [role="checkbox"], [role="tab"], [role="menuitem"], [role="option"], [contenteditable="true"], [contenteditable=""]';
+var NO_CLICK_TAGS = { HTML: 1, BODY: 1, MAIN: 1, FORM: 1, TABLE: 1, TBODY: 1, THEAD: 1, UL: 1, OL: 1, LABEL: 1, OPTION: 1, OPTGROUP: 1, IFRAME: 1, FRAME: 1, VIDEO: 1, AUDIO: 1, CANVAS: 1, svg: 1, path: 1, g: 1, use: 1 };
+var clickCache = new WeakMap(), clickCacheAt = 0;
+
+function cursorOf(el) {
+  try { return (el.ownerDocument.defaultView || window).getComputedStyle(el).cursor; } catch (e) { return ''; }
+}
+
+function looksClickable(el) {
+  if (!el || el.nodeType !== 1 || NO_CLICK_TAGS[el.tagName] || SKIP_TAGS[el.tagName]) return false;
+  var now = Date.now();
+  if (now - clickCacheAt > 1000) { clickCache = new WeakMap(); clickCacheAt = now; }
+  var c = clickCache.get(el);
+  if (c !== undefined) return c;
+  c = false;
+  for (var i = 0; i < CLICK_ATTRS.length; i++) {
+    if (el.hasAttribute(CLICK_ATTRS[i])) { c = true; break; }
+  }
+  if (!c && /(^|[\s;])click:/.test(el.getAttribute('jsaction') || '')) c = true; // Google's jsaction
+  if (c) {
+    try { if (el.querySelector(CONTROL_SEL)) c = false; } catch (e) {}
+  } else if (cursorOf(el) === 'pointer') {
+    var p = flatParent(el);
+    c = !(p && p.nodeType === 1 && cursorOf(p) === 'pointer');
+    if (c) { try { if (el.querySelector(CONTROL_SEL)) c = false; } catch (e) {} }
+    if (c) {
+      // A pointer over nothing worth naming (an empty spacer) isn't useful.
+      try { c = !!(norm(el.textContent) || el.querySelector('svg, img, i, [aria-label], [title]') || el.getAttribute('aria-label') || el.getAttribute('title')); } catch (e) {}
+    }
+  }
+  clickCache.set(el, c);
+  return c;
 }
 
 function tagRole(el, compact) {
@@ -151,18 +256,136 @@ function tagRole(el, compact) {
   var m = HEADING_RE.exec(tag);
   if (m) return 'heading';
   if (el.isContentEditable) return 'textbox';
+  if (looksClickable(el)) return 'clickable';
   return compact ? '' : 'text';
 }
 
+/* Roles that only structure the page: shown as containers (see containerOf), not as lines of their own. */
+var QUIET_ROLES = { none: 1, presentation: 1, generic: 1, list: 1, listitem: 1, row: 1, rowgroup: 1, cell: 1, table: 1, grid: 1,
+  treegrid: 1, article: 1, paragraph: 1, text: 1, group: 1, separator: 1, figure: 1, document: 1, application: 1, img: 1,
+  navigation: 1, main: 1, banner: 1, contentinfo: 1, complementary: 1, region: 1, search: 1, form: 1, dialog: 1, alertdialog: 1,
+  feed: 1, log: 1, status: 1, note: 1, toolbar: 1, tablist: 1, menu: 1, menubar: 1, radiogroup: 1, listbox: 1, tree: 1 };
+var INNER_ROLES = { button: 1, link: 1 };
+
+/* Inside a link or button (an icon in it, a span of its text)? Then it adds nothing of its own. */
+function insideControl(el) {
+  for (var n = flatParent(el), i = 0; n && n.nodeType === 1 && i < 8; n = flatParent(n), i++) {
+    var t = n.tagName;
+    if ((t === 'A' && n.hasAttribute('href')) || t === 'BUTTON' || t === 'SUMMARY') return true;
+    var r = n.getAttribute('role');
+    if (r && INNER_ROLES[r]) return true;
+  }
+  return false;
+}
+
+/* Worth a line of its own in the outline: something to act on, a heading, an
+   image with a name, or a frame. Lists, rows and landmarks show as containers. */
 function isInteresting(el) {
   var tag = el.tagName;
   if (tag === 'A' || tag === 'BUTTON' || tag === 'INPUT' || tag === 'SELECT' ||
-      tag === 'TEXTAREA' || tag === 'FORM' || tag === 'TABLE' || tag === 'IMG' ||
-      tag === 'SUMMARY' || tag === 'LABEL' || tag === 'LI' || tag === 'DETAILS' || tag === 'IFRAME' || tag === 'FRAME') return true;
+      tag === 'TEXTAREA' || tag === 'SUMMARY' || tag === 'IFRAME' || tag === 'FRAME') return true;
   if (HEADING_RE.test(tag)) return true;
-  if (el.hasAttribute && (el.hasAttribute('role') || el.hasAttribute('tabindex') ||
-      el.hasAttribute('onclick') || el.isContentEditable)) return true;
-  return false;
+  if (!el.hasAttribute) return false;
+  if (tag === 'IMG') return !!(el.getAttribute('alt') || '').trim() && !insideControl(el);
+  if (tag === 'LABEL') {
+    // A label is the thing to click when its own control is hidden (styled checkboxes, file buttons).
+    var c = el.control;
+    return !!c && !visible(c);
+  }
+  var role = el.getAttribute('role');
+  if (role) {
+    role = role.trim().split(/\s+/)[0];
+    if (!QUIET_ROLES[role]) return role === 'heading' || !insideControl(el) || role === 'checkbox' || role === 'switch';
+    if (role === 'listbox' || role === 'menu' || role === 'tablist' || role === 'radiogroup' || role === 'tree' || role === 'grid' || role === 'treegrid' || role === 'toolbar' || role === 'menubar' || role === 'dialog' || role === 'alertdialog' || role === 'img') {
+      if (role === 'img') return !!(el.getAttribute('aria-label') || '').trim() && !insideControl(el);
+      return false; // shown as containers
+    }
+  }
+  if (el.isContentEditable) {
+    // Only the editing host, not every paragraph inside it.
+    var p = flatParent(el);
+    return !(p && p.isContentEditable);
+  }
+  if (el.hasAttribute('tabindex') && el.getAttribute('tabindex') !== '-1' && !insideControl(el)) return true;
+  if (el.hasAttribute('onclick') && !insideControl(el)) return true;
+  return !insideControl(el) && looksClickable(el);
+}
+
+/* ------------------------------------------------------------- containers */
+
+/* Containers give the outline its shape, so the agent can tell which "Delete"
+   belongs to which row: landmarks, dialogs, forms, menus and lists of options,
+   and list items / table rows / cards that hold two or more controls. Returns
+   the role to show, or ''. */
+var LANDMARK_TAGS = { NAV: 'navigation', MAIN: 'main', ASIDE: 'complementary', FORM: 'form', DIALOG: 'dialog', FIELDSET: 'group', TABLE: 'table' };
+var BOX_ROLES = { dialog: 1, alertdialog: 1, navigation: 1, main: 1, banner: 1, contentinfo: 1, complementary: 1, search: 1, form: 1,
+  menu: 1, menubar: 1, listbox: 1, tablist: 1, radiogroup: 1, tree: 1, grid: 1, treegrid: 1, toolbar: 1, table: 1, region: 1, group: 1 };
+var ITEM_ROLES = { listitem: 1, row: 1, article: 1 };
+var containerCache = null;
+
+function containerOf(el) {
+  if (containerCache) { var c0 = containerCache.get(el); if (c0 !== undefined) return c0; }
+  var kind = '';
+  var tag = el.tagName;
+  var role = el.getAttribute && el.getAttribute('role');
+  role = role ? role.trim().split(/\s+/)[0] : '';
+  if (role && BOX_ROLES[role]) kind = role;
+  else if (!role && LANDMARK_TAGS[tag]) kind = LANDMARK_TAGS[tag];
+  else if (!role && (tag === 'HEADER' || tag === 'FOOTER')) {
+    // Page-level header/footer only, not one inside an article.
+    kind = el.closest && el.closest('article, aside, main, nav, section') ? '' : (tag === 'HEADER' ? 'banner' : 'contentinfo');
+  } else if (!role && tag === 'SECTION' && (el.hasAttribute('aria-label') || el.hasAttribute('aria-labelledby'))) kind = 'region';
+  if ((kind === 'region' || kind === 'group') && !(el.hasAttribute('aria-label') || el.hasAttribute('aria-labelledby') || tag === 'FIELDSET')) kind = '';
+  // A table used for layout (no headers, no caption) is just page structure.
+  if (kind === 'table' && !role && !(el.tHead || el.caption || el.querySelector('th'))) kind = '';
+  // Items are kept only if they end up holding two or more lines (see writeOutline).
+  if (!kind && ((role && ITEM_ROLES[role]) || (!role && (tag === 'LI' || tag === 'TR' || tag === 'ARTICLE')))) {
+    kind = role || (tag === 'LI' ? 'listitem' : tag === 'TR' ? 'row' : 'article');
+  }
+  if (containerCache) containerCache.set(el, kind);
+  return kind;
+}
+
+/* A short name for a container: its label, legend, caption or heading, else (for items) its text. */
+function containerName(el, kind) {
+  var lb = el.getAttribute('aria-labelledby');
+  if (lb) {
+    var scope = el.getRootNode ? el.getRootNode() : document;
+    var parts = lb.trim().split(/\s+/).map(function (id) { var l = (scope.getElementById ? scope : document).getElementById(id); return l ? textOf(l) : ''; }).filter(Boolean);
+    if (parts.length) return parts.join(' ').slice(0, 80);
+  }
+  var al = el.getAttribute('aria-label');
+  if (al && al.trim()) return al.trim().slice(0, 80);
+  var first = null;
+  try {
+    if (el.tagName === 'FIELDSET') first = el.querySelector('legend');
+    else if (el.tagName === 'TABLE') first = el.querySelector('caption');
+    if (!first && (kind === 'dialog' || kind === 'alertdialog' || kind === 'form' || kind === 'region' || kind === 'article' || kind === 'complementary')) {
+      first = el.querySelector('h1, h2, h3, h4, h5, h6, [role="heading"]');
+    }
+  } catch (e) {}
+  if (first) { var ft = textOf(first); if (ft) return ft.slice(0, 80); }
+  if (kind === 'dialog' || kind === 'alertdialog') {
+    try { var fr = el.querySelector('iframe[title]'); if (fr && fr.getAttribute('title').trim()) return fr.getAttribute('title').trim().slice(0, 80); } catch (e) {}
+  }
+  if (ITEM_ROLES[kind]) {
+    // Its first line of text: a list item's title, not everything under it.
+    var t = '';
+    try { t = String(el.innerText || '').split('\n').map(function (x) { return x.replace(/\s+/g, ' ').trim(); }).filter(Boolean)[0] || ''; } catch (e) {}
+    if (!t) t = textOf(el);
+    return t.length > 80 ? t.slice(0, 77) + '...' : t;
+  }
+  return '';
+}
+
+function containerLine(el, kind) {
+  var ref = refFor(el);
+  var name = containerName(el, kind);
+  refInfo.set(ref, { role: kind, name: name });
+  var line = '[ref=' + ref + '] ' + kind + (name ? ' ' + JSON.stringify(name) : '');
+  if (el.tagName === 'DIALOG' ? el.open && (function () { try { return el.matches(':modal'); } catch (e) { return false; } })() : el.getAttribute('aria-modal') === 'true') line += ' [modal]';
+  if (el.tagName === 'FORM' && el.getAttribute('action')) line += ' -> ' + shortHref(el.action || el.getAttribute('action'));
+  return { line: line, name: name };
 }
 
 /* Direct-text container for non-compact mode (leaf-ish text blocks). */
@@ -181,6 +404,26 @@ function textOf(el) {
     var t = (el.innerText !== undefined) ? el.innerText : el.textContent;
     return String(t || '').trim().replace(/\s+/g, ' ');
   } catch (e) { return ''; }
+}
+
+/* The extension's frameId for a cross-origin <iframe>, so the background can
+   reach the content inside it; -1 when unknown. */
+function frameIdOf(el) {
+  try { if (B.runtime && typeof B.runtime.getFrameId === 'function') { var id = B.runtime.getFrameId(el); return typeof id === 'number' ? id : -1; } } catch (e) {}
+  return -1;
+}
+
+/* Visible cross-origin frames on the page (in same-origin frames too), at most 10. */
+function crossFrames() {
+  var out = [];
+  deepSelectAll('iframe, frame').forEach(function (f) {
+    if (out.length >= 10 || frameDoc(f) || !visible(f)) return;
+    var r = f.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) return;
+    var id = frameIdOf(f);
+    if (id > 0) out.push({ frameId: id, ref: refFor(f), name: computeName(f, f.tagName), src: shortHref(f.src || '') });
+  });
+  return out;
 }
 
 /* A same-origin frame's document, or null (cross-origin, not loaded yet). */
@@ -220,13 +463,79 @@ function computeName(el, tag) {
     var lt = textOf(el.labels[0]);
     if (lt) return lt.slice(0, 100);
   }
+  if ((tag === 'A' || tag === 'BUTTON') && el.querySelector) {
+    // A card link holding a heading: the heading is its name, not the whole card's text.
+    var hd = el.querySelector('h1, h2, h3, h4, h5, h6, [role="heading"]');
+    var ht = hd ? textOf(hd) : '';
+    if (ht) return ht.slice(0, 100);
+  }
   var ph = el.getAttribute && el.getAttribute('placeholder');
   var tx = textOf(el);
   if (!tx && ph && ph.trim()) return ph.trim().slice(0, 100);
   if (tx) return tx.slice(0, 100);
   var title = el.getAttribute && el.getAttribute('title');
   if (title && title.trim()) return title.trim().slice(0, 100);
+  var icon = iconName(el);
+  if (icon) return icon;
+  // A bare button input whose visible text is a sibling (<span><input type=submit><span>Continue</span></span>).
+  if (tag === 'INPUT' && /^(submit|button|image)$/.test(inputType(el)) && el.parentElement) {
+    var near = textOf(el.parentElement);
+    if (near && near.length <= 40) return near;
+  }
+  // An unlabeled checkbox or radio with its text right next to it (<input type=checkbox><label>buy milk</label>).
+  if (tag === 'INPUT' && /^(checkbox|radio)$/.test(inputType(el))) {
+    var sib = el.nextElementSibling || el.previousElementSibling;
+    var st = sib && !isEditableField(sib) ? textOf(sib) : '';
+    if (st && st.length <= 80) return st;
+  }
+  // Last resort for an unlabeled control: what its test id or class calls it ("destroy", "close-button").
+  if (actionable(el)) {
+    var hint = el.getAttribute('data-testid') || el.getAttribute('data-test') || el.getAttribute('data-qa') || '';
+    if (!hint) {
+      var cl = String(el.getAttribute('class') || '').split(/\s+/).filter(function (c) {
+        return /^[a-z][a-z-_]{2,30}$/i.test(c) && !/^(btn|button|icon|ico|active|disabled|selected|hidden|show|open|small|large|primary|secondary|flex|grid|row|col|wrapper|container|item|inner|outer|link|text|js|is|has)([-_]|$)/i.test(c);
+      });
+      hint = cl[0] || '';
+    }
+    if (hint) return hint.replace(/[-_]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().trim().slice(0, 40);
+  }
   if (el.id) return '#' + el.id.slice(0, 60);
+  return '';
+}
+
+/* A name for an icon-only control: a label on the icon inside it, a tooltip
+   attribute, or the icon's own name (<use href="#icon-trash">, class "fa-trash"). */
+var TOOLTIP_ATTRS = ['data-tooltip', 'data-tip', 'data-title', 'data-original-title', 'data-tooltip-content', 'mattooltip', 'aria-description', 'data-label', 'name'];
+function iconName(el) {
+  var i, v;
+  for (i = 0; i < TOOLTIP_ATTRS.length; i++) {
+    v = el.getAttribute && el.getAttribute(TOOLTIP_ATTRS[i]);
+    if (v && v.trim() && (TOOLTIP_ATTRS[i] !== 'name' || el.tagName === 'BUTTON')) return v.trim().slice(0, 100);
+  }
+  if (!el.querySelector) return '';
+  try {
+    var inner = el.querySelector('[aria-label], [title], img[alt], svg title');
+    if (inner) {
+      v = inner.tagName.toLowerCase() === 'title' ? inner.textContent : (inner.getAttribute('aria-label') || inner.getAttribute('title') || inner.getAttribute('alt'));
+      if (v && v.trim()) return v.trim().slice(0, 100);
+    }
+    var use = el.querySelector('use');
+    v = use && (use.getAttribute('href') || use.getAttribute('xlink:href'));
+    if (v && v.indexOf('#') >= 0) {
+      v = v.slice(v.indexOf('#') + 1).replace(/^(icon|ico|i|svg|glyph)[-_]/i, '').replace(/[-_]+/g, ' ').trim();
+      if (v) return 'icon: ' + v.slice(0, 60);
+    }
+    var glyphs = [el].concat(Array.prototype.slice.call(el.querySelectorAll('i, svg, span'), 0, 6));
+    for (i = 0; i < glyphs.length; i++) {
+      var cls = String(glyphs[i].getAttribute('class') || '');
+      var m = /(?:^|\s)(?:fa|bi|icon|mdi|ti|ri|lucide|octicon|glyphicon)-(?!(?:solid|regular|light|brands|lg|sm|xs|fw|2x|3x)\b)([a-z][a-z0-9-]{1,40})/i.exec(cls);
+      if (m) return 'icon: ' + m[1].replace(/-/g, ' ');
+    }
+    if (glyphs.length > 1) {
+      var ms = el.querySelector('.material-icons, .material-symbols-outlined, .material-symbols-rounded, .material-icons-outlined');
+      if (ms && ms.textContent.trim()) return 'icon: ' + ms.textContent.trim().replace(/_/g, ' ').slice(0, 40);
+    }
+  } catch (e) {}
   return '';
 }
 
@@ -246,6 +555,18 @@ function shortHref(href) {
 /* The snapshot node and line for an element, or null when it has no role worth showing. */
 function nodeFor(el, compact) {
   var tag = el.tagName;
+  if (tag === 'LABEL' && el.control && !visible(el.control)) {
+    // A styled checkbox/radio/file button: show the hidden control's role and state, acted on through its label.
+    var inner = nodeFor(el.control, compact);
+    if (inner) {
+      var lref = refFor(el), lname = textOf(el).slice(0, 100) || inner.node.name;
+      inner.node.ref = lref;
+      inner.node.name = lname;
+      refInfo.set(lref, { role: 'label', name: lname });
+      inner.line = inner.line.replace(/^\[ref=\d+\] (\S+)( "(?:[^"\\]|\\.)*")?/, function (m, r) { return '[ref=' + lref + '] ' + r + ' ' + JSON.stringify(lname); });
+      return inner;
+    }
+  }
   var role = tagRole(el, compact);
   if (!role) return null;
   var name = computeName(el, tag);
@@ -316,10 +637,123 @@ function nodeFor(el, compact) {
   if (node.level) line += ' [h' + node.level + ']';
   if (node.href) line += ' -> ' + node.href;
   if (flags.length) line += ' ' + flags.join(' ');
-  if (node.crossOrigin) line += ' [cross-origin: its content isn\'t in this snapshot; open its URL in a tab to read it]';
+  if (node.crossOrigin) {
+    var fid = frameIdOf(el);
+    // The background replaces [frame:N] with the frame's own outline.
+    line += fid > 0 ? ' [frame:' + fid + ']' : ' [cross-origin: its content isn\'t in this snapshot; open its URL in a tab to read it]';
+  }
   else if (role === 'iframe') line += ' [its content follows]';
   return { node: node, line: line };
 }
+
+/* Turn collected entries into indented lines, as a tree with the noise taken out:
+   - a list item, row or card holding a single line, or just one nested item, folds away;
+   - an unnamed container wrapping one other container folds away;
+   - a child that repeats its parent's name (the heading inside a link, the icon in
+     a heading, the button inside a link) folds into the parent;
+   - a heading that only holds a link becomes that link, marked [hN];
+   - controls whose role and name repeat outside any item say which heading they're under. */
+function writeOutline(entries, lines) {
+  var root = { kids: [], depth: -1 }, stack = [root];
+  entries.forEach(function (e) {
+    e.kids = [];
+    while (stack.length > 1 && stack[stack.length - 1].depth >= e.depth) stack.pop();
+    stack[stack.length - 1].kids.push(e);
+    stack.push(e);
+  });
+  var isItem = function (e) { return !!(e && e.kind && ITEM_ROLES[e.kind]); };
+  var count = function (e) { var n = 0; e.kids.forEach(function (k) { n += 1 + count(k); }); return n; };
+  var level = function (e) { return e.node && e.node.level ? ' [h' + e.node.level + ']' : ''; };
+  var simplify = function (list) {
+    var out = [];
+    list.forEach(function (e) {
+      e.kids = simplify(e.kids);
+      if (e.kind) {
+        if (!e.kids.length) return;
+        // One line: nothing to tell apart. Dozens: a layout wrapper around a whole list, not an item.
+        var c = isItem(e) ? count(e) : 0;
+        if (isItem(e) && (c < 2 || c > 24 || (e.kids.length === 1 && isItem(e.kids[0])))) { out.push.apply(out, e.kids); return; }
+        if (!e.name && e.kids.length === 1 && e.kids[0].kind) { out.push(e.kids[0]); return; }
+      }
+      if (e.node && e.node.name) {
+        var pn = norm(e.node.name);
+        e.kids = e.kids.filter(function (k) {
+          if (!k.node || k.kids.length || !k.node.name || pn.indexOf(norm(k.node.name)) !== 0) return true;
+          if (k.node.role === 'heading') e.line += level(k);
+          return false;
+        });
+      }
+      if (e.node && e.node.role === 'heading' && e.kids.length === 1 && e.kids[0].node && !e.kids[0].kids.length &&
+          (e.kids[0].node.role === 'link' || e.kids[0].node.role === 'button')) {
+        e.kids[0].line += level(e);
+        out.push(e.kids[0]);
+        return;
+      }
+      out.push(e);
+    });
+    return out;
+  };
+  var tree = simplify(root.kids);
+  var seen = {};
+  var tally = function (list) {
+    list.forEach(function (e) {
+      if (e.node && e.node.name && e.node.role !== 'heading' && e.node.role !== 'link') { var k = e.node.role + '|' + norm(e.node.name); seen[k] = (seen[k] || 0) + 1; }
+      tally(e.kids);
+    });
+  };
+  tally(tree);
+  var print = function (list, depth, heading, inItem) {
+    list.forEach(function (e) {
+      var line = e.line;
+      if (e.node && e.node.role === 'heading') heading = e.node.name;
+      else if (e.node && heading && !inItem && e.node.name && seen[e.node.role + '|' + norm(e.node.name)] > 1) {
+        line += ' [under ' + JSON.stringify(heading.length > 60 ? heading.slice(0, 57) + '...' : heading) + ']';
+      }
+      lines.push(indent(depth) + line);
+      print(e.kids, depth + 1, heading, inItem || isItem(e));
+    });
+  };
+  print(tree, 0, '', false);
+}
+
+/* What stands between the agent and the page: an open modal dialog, or a fixed
+   layer over the middle of the screen (cookie banners, sign-up walls). */
+function blockingLayer() {
+  var out = {};
+  try {
+    var modals = deepSelectAll('dialog[open], [aria-modal="true"]').filter(function (d) {
+      if (!visible(d)) return false;
+      if (d.tagName === 'DIALOG') { try { return d.matches(':modal'); } catch (e) { return false; } }
+      return true;
+    });
+    if (modals.length) {
+      var m = modals[modals.length - 1];
+      out.modal = containerLine(m, containerOf(m) || 'dialog').line;
+      out.modalEl = m;
+    }
+    var cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+    var hit = deepPoint(cx, cy);
+    for (var n = hit, i = 0; n && n.nodeType === 1 && i < 25 && n !== document.body && n !== document.documentElement; n = flatParent(n), i++) {
+      var cs = getComputedStyle(n);
+      if (cs.position !== 'fixed' && cs.position !== 'sticky') continue;
+      var r = n.getBoundingClientRect();
+      if (r.width * r.height < 0.25 * window.innerWidth * window.innerHeight) break;
+      if (!(modals.length && flatContains(modals[modals.length - 1], n))) {
+        var k = containerOf(n);
+        if (k) out.overlay = containerLine(n, k).line;
+        else {
+          var on = containerName(n, 'dialog') || String(n.innerText || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean)[0] || '';
+          out.overlay = '[ref=' + refFor(n) + '] overlay' + (on ? ' ' + JSON.stringify(on.slice(0, 80)) : '');
+        }
+        out.overlayEl = n;
+      }
+      break;
+    }
+  } catch (e) {}
+  return out;
+}
+
+function indent(d) { return d > 0 ? '  '.repeat(Math.min(d, 12)) : ''; }
 
 /* Does el's box overlap its window's viewport? */
 function inViewport(el) {
@@ -337,7 +771,7 @@ function scrollInfo() {
 
 /* The outline: one line per interesting element. `root` limits it to one part of
    the page; `viewportOnly` keeps only what is on screen now. */
-function buildSnapshot(compact, maxChars, root, viewportOnly) {
+function buildSnapshot(compact, maxChars, root, viewportOnly, skip) {
   generation += 1;
   pruneRefs();
   var genId = 'g' + generation + '-' + docId + '-' + Date.now().toString(36);
@@ -347,6 +781,8 @@ function buildSnapshot(compact, maxChars, root, viewportOnly) {
   var lines = [];
   var len = 0;
   var truncated = false;
+  containerCache = new Map();
+  var depthOf = new Map(); // element -> indent depth of its line, for every container or node shown
 
   root = root || document.body || document.documentElement;
   if (!root) {
@@ -356,27 +792,67 @@ function buildSnapshot(compact, maxChars, root, viewportOnly) {
   // Walk light DOM plus open shadow roots (web components hide most of
   // their UI there, e.g. YouTube, GitHub, Reddit) and same-origin frames.
   // Stops once the text budget is spent, so huge pages don't cost a full walk.
+  /* Show the containers around el that aren't shown yet (outermost first), then
+     return the depth el's own line goes at. False when the budget ran out. */
+  // Entries are collected first, so item containers that end up holding a single
+  // line can be folded away before the outline is written.
+  var entries = [];
+  var push = function (line, d, el, kind) {
+    var add = line.length + 2 * d + 1;
+    if (len + add > maxChars) { truncated = true; return false; }
+    len += add;
+    entries.push({ line: line, depth: d, el: el, kind: kind || '', kids: 0 });
+    return true;
+  };
+  var openContainers = function (el) {
+    var chain = [];
+    for (var n = flatParent(el); n && n !== root; n = flatParent(n)) {
+      if (depthOf.has(n)) { chain.base = depthOf.get(n) + 1; break; }
+      if (n.nodeType === 1 && containerOf(n)) chain.unshift(n);
+    }
+    var d = chain.base || 0;
+    for (var i = 0; i < chain.length; i++) {
+      if (!visible(chain[i])) continue;
+      var cl = containerLine(chain[i], containerOf(chain[i]));
+      if (!push(cl.line, d, chain[i], containerOf(chain[i]))) return -1;
+      entries[entries.length - 1].name = cl.name;
+      depthOf.set(chain[i], d);
+      d++;
+    }
+    return d;
+  };
+
   var stack = [root];
   outer:
   while (stack.length) {
   var walker = document.createTreeWalker(stack.pop(), NodeFilter.SHOW_ELEMENT, null);
   var el = walker.currentNode;
   while (el) {
+    if (skip && el === skip) {
+      // Already shown (the modal listed first): jump past its subtree.
+      var nx = walker.nextSibling();
+      while (!nx && walker.parentNode()) nx = walker.nextSibling();
+      el = nx;
+      continue;
+    }
     var tag = el.tagName;
-    if (el.shadowRoot) stack.push(el.shadowRoot);
+    if (shadowOf(el)) stack.push(shadowOf(el));
     var fdoc = (tag === 'IFRAME' || tag === 'FRAME') ? frameDoc(el) : null;
     if (fdoc && fdoc.body && visible(el) && (!viewportOnly || inViewport(el))) stack.push(fdoc.body);
     if (tag && !SKIP_TAGS[tag]) {
       var interesting = isInteresting(el);
-      var include = interesting || (!compact && hasDirectText(el));
-      if (include && visible(el) && (!viewportOnly || inViewport(el))) {
+      var include = interesting || (!compact && hasDirectText(el) && !insideControl(el));
+      var onHover = false;
+      if (include && !visible(el) && interesting && actionable(el) && shownOnHover(el)) onHover = true;
+      if (include && (onHover || visible(el)) && (!viewportOnly || onHover || inViewport(el))) {
         var nl = nodeFor(el, compact);
+        if (nl && onHover) nl.line += ' [on hover]';
         if (nl) {
-          var add = nl.line.length + (lines.length ? 1 : 0);
-          if (len + add > maxChars) { truncated = true; break outer; }
-          len += add;
+          var d = openContainers(el);
+          if (d < 0 || !push(nl.line, d, el, '')) break outer;
+          entries[entries.length - 1].node = nl.node;
+          depthOf.set(el, d);
           nodes.push(nl.node);
-          lines.push(nl.line);
         }
       }
     }
@@ -384,7 +860,13 @@ function buildSnapshot(compact, maxChars, root, viewportOnly) {
   }
   }
 
+  containerCache = null;
+  writeOutline(entries, lines);
+  var blocker = root === (document.body || document.documentElement) && !skip ? blockingLayer() : {};
   return {
+    modal: blocker.modal,
+    overlay: blocker.overlay,
+    blockerEl: blocker.modalEl || blocker.overlayEl,
     generation: genId,
     url: location.href,
     title: document.title || '',
@@ -425,7 +907,7 @@ function deepSelectAll(sel) {
     for (var i = 0; i < all.length; i++) {
       var e = all[i];
       if (e.matches(sel)) out.push(e);
-      if (e.shadowRoot) walk(e.shadowRoot);
+      if (shadowOf(e)) walk(shadowOf(e));
       if (e.tagName === 'IFRAME' || e.tagName === 'FRAME') { var d = frameDoc(e); if (d) walk(d); }
     }
   })(document);
@@ -453,12 +935,13 @@ function deepPoint(x, y) {
   for (var depth = 0; depth < 10; depth++) {
     var hit = doc.elementFromPoint(x, y);
     if (!hit) break;
-    while (hit.shadowRoot && hit.shadowRoot.elementFromPoint) {
-      var inner = hit.shadowRoot.elementFromPoint(x, y);
+    while (shadowOf(hit) && shadowOf(hit).elementFromPoint) {
+      var inner = shadowOf(hit).elementFromPoint(x, y);
       if (!inner || inner === hit) break;
       hit = inner;
     }
     el = hit;
+    deepPoint.local = { x: x, y: y };
     if (hit.tagName !== 'IFRAME' && hit.tagName !== 'FRAME') break;
     var fd = frameDoc(hit);
     if (!fd) break;
@@ -469,7 +952,7 @@ function deepPoint(x, y) {
   return el;
 }
 
-var ACTION_ROLES = /^(button|link|checkbox|radio|switch|tab|menuitem|menuitemcheckbox|menuitemradio|option|combobox|textbox|searchbox|slider|spinbutton|treeitem|gridcell|listbox)$/;
+var ACTION_ROLES = /^(button|clickable|link|checkbox|radio|switch|tab|menuitem|menuitemcheckbox|menuitemradio|option|combobox|textbox|searchbox|slider|spinbutton|treeitem|gridcell|listbox)$/;
 var CLICKABLE_SEL = 'a[href], button, input, select, textarea, summary, label, [role="button"], [role="link"], [role="tab"], ' +
   '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], [role="checkbox"], [role="radio"], ' +
   '[role="switch"], [role="treeitem"], [onclick], [tabindex]:not([tabindex="-1"])';
@@ -483,7 +966,7 @@ function actionable(el) {
 /* The nearest clickable element at or above el (text often sits in a span inside the button). */
 function clickableAncestor(el) {
   for (var n = el, i = 0; n && n.nodeType === 1 && i < 6; n = flatParent(n), i++) {
-    try { if (n.matches(CLICKABLE_SEL)) return n; } catch (e) {}
+    try { if (n.matches(CLICKABLE_SEL) || looksClickable(n)) return n; } catch (e) {}
   }
   return null;
 }
@@ -492,7 +975,7 @@ function clickableAncestor(el) {
 function mayHaveName(el, needle) {
   if (el.hasAttribute('aria-labelledby') || (el.labels && el.labels.length)) return true;
   if (norm(el.textContent).indexOf(needle) >= 0) return true;
-  var attrs = ['aria-label', 'placeholder', 'title', 'alt', 'value', 'name'];
+  var attrs = ['aria-label', 'placeholder', 'title', 'alt', 'value', 'name', 'data-tooltip', 'data-tip', 'data-title', 'data-testid', 'class'];
   for (var i = 0; i < attrs.length; i++) if (norm(el.getAttribute(attrs[i])).indexOf(needle) >= 0) return true;
   return false;
 }
@@ -500,6 +983,7 @@ function mayHaveName(el, needle) {
 function roleMatches(el, want) {
   var r = tagRole(el, false);
   if (r === want) return true;
+  if (containerOf(el) === want) return true; // landmarks, rows, items: role "main", "navigation", "row"...
   if (want === 'textbox') return r === 'searchbox' || (r === 'combobox' && el.tagName === 'INPUT');
   return false;
 }
@@ -523,12 +1007,12 @@ function byName(msg, kind) {
     if (!root) continue;
     var walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, null);
     for (var el = walker.currentNode; el; el = walker.nextNode()) {
-      if (el.shadowRoot) stack.push(el.shadowRoot);
+      if (shadowOf(el)) stack.push(shadowOf(el));
       if (el.tagName === 'IFRAME' || el.tagName === 'FRAME') { var fd = frameDoc(el); if (fd && fd.body) stack.push(fd.body); }
       if (el.nodeType !== 1 || SKIP_TAGS[el.tagName]) continue;
       if (wantRole ? !roleMatches(el, wantRole) : !isInteresting(el)) continue;
       if (needle && !mayHaveName(el, needle)) continue;
-      if (!visible(el)) continue;
+      if (!visible(el) && !(actionable(el) && shownOnHover(el))) continue;
       var nm = needle ? norm(computeName(el, el.tagName)) : '';
       if (!needle || nm === needle) exact.push(el);
       else if (nm.indexOf(needle) >= 0) partial.push(el);
@@ -549,7 +1033,7 @@ function byText(needle) {
     var walker = document.createTreeWalker(r, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, null);
     for (var n = walker.nextNode(); n; n = walker.nextNode()) {
       if (n.nodeType === 1) {
-        if (n.shadowRoot) walk(n.shadowRoot);
+        if (shadowOf(n)) walk(shadowOf(n));
         if (n.tagName === 'IFRAME' || n.tagName === 'FRAME') { var fd = frameDoc(n); if (fd && fd.body) walk(fd.body); }
         continue;
       }
@@ -567,6 +1051,7 @@ function byText(needle) {
 /* A short line naming el for an error or a change list: its snapshot line when it has a role. */
 function lineFor(el) {
   try { var nl = nodeFor(el, true); if (nl) return nl.line; } catch (e) {}
+  try { var k = containerOf(el); if (k) return containerLine(el, k).line; } catch (e) {}
   return '[ref=' + refFor(el) + '] ' + describe(el) + quoted(textOf(el));
 }
 
@@ -608,7 +1093,16 @@ function findTarget(msg, kind) {
     if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) {
       throw be('INVALID_PARAMS', 'Point (' + x + ', ' + y + ') is outside the viewport (' + window.innerWidth + 'x' + window.innerHeight + ').');
     }
-    return deepPoint(x, y);
+    var at = deepPoint(x, y);
+    if (at && (at.tagName === 'IFRAME' || at.tagName === 'FRAME') && !frameDoc(at)) {
+      // A cross-origin frame: hand the point, in the frame's own coordinates, to the background.
+      var fid = frameIdOf(at);
+      if (fid > 0) {
+        var fr = at.getBoundingClientRect(), loc = deepPoint.local || { x: x, y: y };
+        throw be('IN_FRAME', JSON.stringify({ frameId: fid, x: Math.round(loc.x - fr.left - at.clientLeft), y: Math.round(loc.y - fr.top - at.clientTop) }));
+      }
+    }
+    return at;
   }
   if (given(msg.name) || given(msg.role)) {
     var found = byName(msg, kind);
@@ -636,9 +1130,14 @@ async function locate(msg, kind) {
   if (!hasTarget(msg)) throw be('INVALID_PARAMS', 'Say which element: ref (from page_snapshot), name (its label or text, optionally with role), or selector.');
   var waitMs = given(msg.waitMs) ? Math.max(0, Math.min(Number(msg.waitMs) || 0, 30000)) : 3000;
   var start = Date.now();
-  for (;;) {
+  for (var tries = 0; ; tries++) {
     var el = findTarget(msg, kind);
     if (el) return el;
+    // Not on this page right now: the background may look in cross-origin frames first.
+    if (!tries && msg.frameProbe && !given(msg.ref) && (given(msg.name) || given(msg.selector))) {
+      var fr = crossFrames();
+      if (fr.length) throw be('TRY_FRAMES', JSON.stringify(fr.map(function (f) { return f.frameId; })));
+    }
     if (Date.now() - start >= waitMs) break;
     checkCancel(msg);
     await sleep(150);
@@ -647,8 +1146,43 @@ async function locate(msg, kind) {
     throw be('REF_STALE', 'ref ' + msg.ref + ' was removed from the page' + (refInfo.get(Number(msg.ref)) ? ' and nothing with the same role and name replaced it' : '') +
       '. Take a new page_snapshot.');
   }
+  var like = given(msg.name) ? similarTo(String(msg.name), given(msg.role) ? String(msg.role) : '') : [];
   throw be('REF_NOT_FOUND', 'Nothing matches ' + describeTarget(msg) + (waitMs ? ' (waited ' + Math.round(waitMs / 100) / 10 + 's)' : '') +
-    '. Check page_snapshot or page_find for the exact wording.');
+    (like.length ? '. Closest on the page:\n' + like.join('\n') + '\nUse one of these refs.' : '. Check page_snapshot or page_find for the exact wording.'));
+}
+
+/* Elements whose name is close to `name` ("Sign in" -> "Log in", "Sign-in"), best first. */
+function similarTo(name, role) {
+  var want = norm(name);
+  var words = want.split(/[^a-z0-9\u00c0-\uffff]+/).filter(Boolean);
+  if (!words.length) return [];
+  var syn = { 'sign in': 'log in', 'log in': 'sign in', login: 'sign in', signin: 'log in', 'sign up': 'register', register: 'sign up',
+    ok: 'confirm', 'accept': 'agree', agree: 'accept', close: 'dismiss', dismiss: 'close', search: 'find', 'add to cart': 'add to basket', 'add to basket': 'add to cart' };
+  var alt = syn[want] || '';
+  var scored = [];
+  var count = 0;
+  var stack = [document.body || document.documentElement];
+  while (stack.length && count < 4000) {
+    var rootN = stack.pop();
+    if (!rootN) continue;
+    var walker = document.createTreeWalker(rootN, NodeFilter.SHOW_ELEMENT, null);
+    for (var el = walker.currentNode; el && count < 4000; el = walker.nextNode()) {
+      if (shadowOf(el)) stack.push(shadowOf(el));
+      if (SKIP_TAGS[el.tagName] || !isInteresting(el)) continue;
+      count++;
+      if (role && !roleMatches(el, role.toLowerCase())) continue;
+      var nm = norm(computeName(el, el.tagName));
+      if (!nm || !visible(el)) continue;
+      var theirs = nm.split(/[^a-z0-9\u00c0-\uffff]+/).filter(Boolean);
+      var shared = words.filter(function (w) { return theirs.some(function (t) { return t === w || (w.length > 3 && (t.indexOf(w) === 0 || w.indexOf(t) === 0)); }); }).length;
+      var score = shared / Math.max(words.length, Math.min(theirs.length, words.length + 2));
+      if (nm.replace(/[^a-z0-9]/g, '') === want.replace(/[^a-z0-9]/g, '')) score = 1;
+      if (alt && nm.indexOf(alt) >= 0) score = Math.max(score, 0.9);
+      if (score >= 0.5) scored.push({ el: el, score: score - nm.length / 10000 });
+    }
+  }
+  scored.sort(function (a, b) { return b.score - a.score; });
+  return scored.slice(0, 5).map(function (x) { return lineFor(x.el); });
 }
 
 /* Synchronous best effort for the cursor: the target if it's already there. */
@@ -720,8 +1254,8 @@ function refOf(el) {
    (a cookie banner, an overlay, a spinner). */
 function coveredBy(el) {
   if (el.ownerDocument !== document) return null;
-  var r = el.getBoundingClientRect();
-  var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  var pt = clickPoint(el);
+  var cx = pt.clientX, cy = pt.clientY;
   if (cx < 0 || cy < 0 || cx >= window.innerWidth || cy >= window.innerHeight) return null;
   var hit = deepPoint(cx, cy);
   if (!hit || hit === el || flatContains(el, hit) || flatContains(hit, el)) return null;
@@ -747,6 +1281,29 @@ function pressOn(el, pos, btnCode) {
   el.dispatchEvent(mouseEvent('mouseup', pos));
 }
 
+/* Where a user would click el: the middle of its first box (a link that wraps
+   over two lines has two), kept inside the viewport. */
+function clickPoint(el) {
+  var r = el.getBoundingClientRect();
+  try {
+    var rects = el.getClientRects();
+    if (rects.length > 1 && rects[0].width > 0) r = rects[0];
+  } catch (e) {}
+  var left = Math.max(r.left, 0), right = Math.min(r.right, window.innerWidth);
+  var top = Math.max(r.top, 0), bottom = Math.min(r.bottom, window.innerHeight);
+  if (right <= left || bottom <= top) return { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+  return { clientX: (left + right) / 2, clientY: (top + bottom) / 2 };
+}
+
+/* The element a real pointer would land on at pos, when it's inside el (the
+   icon or span inside a button, which is often where the page listens). */
+function landingOn(el, pos) {
+  if (el.ownerDocument !== document) return el;
+  var hit = null;
+  try { hit = deepPoint(pos.clientX, pos.clientY); } catch (e) {}
+  return hit && hit !== el && flatContains(el, hit) ? hit : el;
+}
+
 async function doClick(msg, target) {
   var el = target || await locate(msg, 'click');
   var atPoint = !target && !given(msg.ref) && !given(msg.selector) && !given(msg.name) && !given(msg.role);
@@ -759,21 +1316,25 @@ async function doClick(msg, target) {
     pos = { clientX: Number(msg.x), clientY: Number(msg.y) };
   } else {
     try { el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }); } catch (e) {}
-    var rect = el.getBoundingClientRect();
-    pos = { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
+    pos = clickPoint(el);
   }
   pos = Object.assign({ button: btnCode, detail: 1 }, mods, pos);
   var cover = atPoint ? null : coveredBy(el);
+  var outer = el;
+  // Press where the pointer lands; the events bubble up through el either way.
+  if (!atPoint) el = landingOn(el, pos);
   pressOn(el, pos, btnCode);
+  // A re-render on mousedown can swap the inner span: finish the click on el itself.
+  if (el !== outer && !el.isConnected) el = outer;
   // The page's pointer handlers ran: it may have removed or disabled the element.
-  if (!el.isConnected || isDisabled(el)) {
-    return { clicked: false, ref: refOf(el), note: 'The page ' + (el.isConnected ? 'disabled' : 'removed') + ' the element while it was being pressed, so the click didn\'t complete.' };
+  if (!outer.isConnected || isDisabled(outer)) {
+    return { clicked: false, ref: refOf(outer), note: 'The page ' + (outer.isConnected ? 'disabled' : 'removed') + ' the element while it was being pressed, so the click didn\'t complete.' };
   }
   if (btnCode === 2) {
     el.dispatchEvent(mouseEvent('contextmenu', pos));
   } else if (btnCode === 1) {
     el.dispatchEvent(mouseEvent('auxclick', pos));
-  } else if (typeof el.click === 'function' && !atPoint && !mods.ctrlKey && !mods.shiftKey && !mods.metaKey && !mods.altKey) {
+  } else if (el === outer && typeof el.click === 'function' && !atPoint && !mods.ctrlKey && !mods.shiftKey && !mods.metaKey && !mods.altKey) {
     // Exactly one click: el.click() fires the click event AND runs default
     // actions (follow link, toggle checkbox, submit). Dispatching a synthetic
     // 'click' as well would double-toggle checkboxes and double-submit forms.
@@ -788,7 +1349,9 @@ async function doClick(msg, target) {
     el.dispatchEvent(mouseEvent('click', Object.assign({}, pos, { detail: 2 })));
     el.dispatchEvent(mouseEvent('dblclick', Object.assign({}, pos, { detail: 2 })));
   }
+  el = outer;
   var out = { clicked: true, ref: refOf(el) };
+  if (!visible(el) && shownOnHover(el)) out.note = 'This control only shows on hover, which an add-on can\'t produce; it was clicked directly.';
   if (atPoint) out.hit = lineFor(el);
   if (ariaDisabled(el)) out.warning = 'The element is marked aria-disabled, so the page may have ignored the click.';
   else if (cover) {
@@ -939,9 +1502,125 @@ function selectIndices(el, idx) {
   fireChange(el);
 }
 
+/* ----------------------------------------------------------- real typing */
+
+/* Key fields for one typed character, as a US keyboard would report them. */
+function charKey(ch) {
+  var init = { key: ch, bubbles: true, cancelable: true, composed: true };
+  var c = ch.length === 1 ? ch.charCodeAt(0) : 0;
+  if (/^[a-z]$/i.test(ch)) { init.code = 'Key' + ch.toUpperCase(); init.keyCode = ch.toUpperCase().charCodeAt(0); init.shiftKey = ch !== ch.toLowerCase(); }
+  else if (/^[0-9]$/.test(ch)) { init.code = 'Digit' + ch; init.keyCode = c; }
+  else if (ch === ' ') { init.code = 'Space'; init.keyCode = 32; }
+  else if (ch === '\n') { init.key = 'Enter'; init.code = 'Enter'; init.keyCode = 13; }
+  init.which = init.keyCode || c;
+  init.charCode = ch === '\n' ? 13 : c;
+  return init;
+}
+
+/* Insert text at the caret the way the browser does for a keystroke: through
+   the editing commands, so beforeinput/input fire as real events and editors
+   (React, ProseMirror, Lexical, Slate...) see an ordinary edit. */
+function insertAtCaret(el, s) {
+  var ok = false;
+  try {
+    if (s === '\n') ok = document.execCommand(el.isContentEditable ? 'insertParagraph' : 'insertLineBreak', false, null);
+    else ok = document.execCommand('insertText', false, s);
+  } catch (e) { ok = false; }
+  if (ok) return true;
+  if (el.isContentEditable) return false;
+  return insertText(el, s);
+}
+
+function selectAllIn(el) {
+  if (el.isContentEditable) {
+    try {
+      var sel = window.getSelection(), range = document.createRange();
+      range.selectNodeContents(el);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (e) {}
+  } else {
+    try { el.select(); } catch (e) {}
+  }
+}
+
+function caretToEnd(el) {
+  if (el.isContentEditable) {
+    try {
+      var sel = window.getSelection(), range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (e) {}
+  } else {
+    try { var n = String(el.value).length; el.setSelectionRange(n, n); } catch (e) {}
+  }
+}
+
+/* Type text into a field like a person: focus it, select what's there (unless
+   appending), then key by key: keydown, keypress, the insertion, keyup. A page
+   that cancels a key (input masks, editors with their own handling) inserts the
+   character itself, as it would for a user. Long text is inserted in one edit
+   between the keys of its first and last characters. */
+var TYPE_PER_KEY_MAX = 400;
+function typeText(el, text, append) {
+  if (deepActive() !== el) { try { el.focus({ preventScroll: true }); } catch (e) { try { el.focus(); } catch (e2) {} } }
+  if (append) caretToEnd(el); else selectAllIn(el);
+  if (!text) {
+    var had = fieldText(el) !== '';
+    if (!append && had) {
+      // Backspace over the selection: keydown, the deletion, keyup.
+      var bk = { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8, bubbles: true, cancelable: true, composed: true };
+      var kd = new KeyboardEvent('keydown', bk);
+      el.dispatchEvent(kd);
+      if (!kd.defaultPrevented) {
+        var del = false;
+        try { del = document.execCommand('delete', false, null); } catch (e) {}
+        if (!del || fieldText(el) !== '') {
+          if (el.isContentEditable) el.textContent = ''; else nativeSetValue(el, '');
+          fireInput(el, 'deleteContentBackward');
+        }
+      }
+      el.dispatchEvent(new KeyboardEvent('keyup', bk));
+    }
+    return null;
+  }
+  var chars = Array.from ? Array.from(text) : text.split('');
+  var perKey = chars.length <= TYPE_PER_KEY_MAX;
+  var moved = [];
+  var pending = '';
+  var flush = function () { if (pending) { insertAtCaret(el, pending); pending = ''; } };
+  for (var i = 0; i < chars.length; i++) {
+    var ch = chars[i];
+    var edge = i === 0 || i === chars.length - 1;
+    if (!perKey && !edge && ch !== '\n') { pending += ch; continue; }
+    flush();
+    if (ch === '\n' && !el.isContentEditable && el.tagName === 'INPUT') continue; // a line break can't go in a one-line field
+    var init = charKey(ch);
+    var down = new KeyboardEvent('keydown', init);
+    el.dispatchEvent(down);
+    var cancelled = down.defaultPrevented;
+    if (!cancelled && ch !== '\n') {
+      var press = new KeyboardEvent('keypress', init);
+      el.dispatchEvent(press);
+      cancelled = press.defaultPrevented;
+    }
+    // The page may move focus while handling a key (code inputs that jump to the next box).
+    var target = deepActive();
+    var into = target && target !== el && isEditableField(target) && canEdit(target) ? target : el;
+    if (into !== el && moved.indexOf(into) < 0) moved.push(into);
+    if (!cancelled) insertAtCaret(into, ch);
+    if (into !== el) el = into; // keep typing where the page put the caret
+    (target || el).dispatchEvent(new KeyboardEvent('keyup', init));
+  }
+  flush();
+  return moved.length ? moved : null;
+}
+
 /* Apply a value to an element already checked by editableTarget/checkValue.
    Returns a short note when the outcome isn't simply "value set". */
-function setValue(el, text) {
+function setValue(el, text, append) {
   checkValue(el, text);
   var type = inputType(el);
   if (type === 'checkbox' || type === 'radio') {
@@ -958,30 +1637,29 @@ function setValue(el, text) {
     return;
   }
   if (el.isContentEditable) {
-    try { el.focus(); } catch (e) {}
-    try {
-      var sel = window.getSelection();
-      if (sel) {
-        var range = document.createRange();
-        range.selectNodeContents(el);
-        sel.removeAllRanges();
-        sel.addRange(range);
-      }
-    } catch (e) {}
-    var inserted = false;
-    try {
-      inserted = text === '' ? document.execCommand('delete', false) : document.execCommand('insertText', false, text);
-    } catch (e) { inserted = false; }
-    if (!inserted) {
-      el.textContent = text;
+    var before = el.innerText;
+    el._fxMoved = typeText(el, text, append);
+    // An editor that ignored every edit: put the text in directly.
+    if (text && el.innerText === before) {
+      if (append) el.appendChild(document.createTextNode(text)); else el.textContent = text;
       fireInput(el, 'insertText', text);
     }
     return;
   }
-  try { el.focus(); } catch (e) {}
-  // Native value setter so React/Vue controlled inputs notice the change.
-  nativeSetValue(el, text);
-  fireInput(el, 'insertText', text);
+  var expected = append ? String(el.value) + text : text;
+  if (isTextField(el) && el.tagName !== 'SELECT' && !/^(date|time|datetime-local|month|week|color|range)$/.test(type)) {
+    el._fxMoved = typeText(el, text, append);
+    // Nothing got in (a field that refuses edits from scripts): set it directly, which React/Vue still notice.
+    if (String(el.value) === '' && expected !== '') {
+      nativeSetValue(el, expected);
+      fireInput(el, 'insertText', text);
+    }
+  } else {
+    try { el.focus(); } catch (e) {}
+    // Native value setter so React/Vue controlled inputs notice the change.
+    nativeSetValue(el, expected);
+    fireInput(el, 'insertText', text);
+  }
   fireChange(el);
 }
 
@@ -1207,11 +1885,18 @@ async function doType(msg) {
   var text = (msg.text === undefined || msg.text === null) ? '' : String(msg.text);
   var explicit = await submitTarget(msg);
   checkCancel(msg);
-  if (msg.append && isTextField(el) && !el.isContentEditable) text = String(el.value) + text;
-  else if (msg.append && el.isContentEditable) text = (el.innerText || '').replace(/\n$/, '') + text;
-  setValue(el, text);
+  var want = msg.append && isTextField(el) && !el.isContentEditable ? String(el.value) + text : text;
+  setValue(el, text, !!msg.append);
   var out = { typed: true, ref: refOf(el) };
-  if (isTextField(el) && inputType(el) !== 'password' && fieldText(el) !== text.trim()) {
+  var moved = el._fxMoved;
+  try { delete el._fxMoved; } catch (e) {}
+  if (moved && moved.length) {
+    // One box per character (verification codes): the page moved focus along as each was typed.
+    out.spreadOver = [lineFor(el)].concat(moved.map(lineFor));
+    out.note = 'The page moved the caret to the next field while typing, so the text went into ' + (moved.length + 1) + ' fields.';
+    return msg.submit || explicit ? Object.assign(out, await submitField(moved[moved.length - 1], msg, explicit)) : out;
+  }
+  if (isTextField(el) && !el.isContentEditable && inputType(el) !== 'password' && fieldText(el) !== want.trim()) {
     out.value = fieldText(el).slice(0, 200);
     out.note = 'The page changed the value after typing.';
   }
@@ -1339,16 +2024,27 @@ async function doSelect(msg) {
   };
 }
 
+var lastHover = null;
 async function doHover(msg) {
   var el = await locate(msg, 'hover');
+  var outerHover = el;
   var atPoint = !given(msg.ref) && !given(msg.selector) && !given(msg.name) && !given(msg.role);
   var pos;
   if (atPoint) pos = { clientX: Number(msg.x), clientY: Number(msg.y) };
   else {
     try { el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' }); } catch (e) {}
-    var rect = el.getBoundingClientRect();
-    pos = { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
+    pos = clickPoint(el);
+    outerHover = el;
+    el = landingOn(el, pos);
   }
+  // Leave whatever the last hover entered (menus close on mouseleave, and reopen on enter).
+  if (lastHover && lastHover.isConnected && lastHover !== el && !flatContains(lastHover, el)) {
+    try { lastHover.dispatchEvent(mouseEvent('mouseout', pos)); } catch (e) {}
+    for (var ln = lastHover; ln && ln.nodeType === 1 && !flatContains(ln, el); ln = flatParent(ln)) {
+      try { ln.dispatchEvent(mouseEvent('mouseleave', Object.assign({ bubbles: false, cancelable: false }, pos))); } catch (e) {}
+    }
+  }
+  lastHover = el;
   // Enter every element from the outside in, as a real pointer would.
   var chain = [];
   for (var n = el; n && n.nodeType === 1; n = flatParent(n)) chain.unshift(n);
@@ -1365,8 +2061,7 @@ async function doHover(msg) {
   el.dispatchEvent(mouseEvent('mousemove', pos));
   return {
     hovered: true,
-    ref: refOf(el),
-    note: 'Sent pointer/mouse hover events, which open JavaScript-driven menus and tooltips. Pure CSS :hover styles can\'t be triggered from an extension; if nothing appeared, page_click it instead.'
+    ref: refOf(outerHover)
   };
 }
 
@@ -1630,7 +2325,7 @@ function normalizeMods(mods) {
 function deepActive() {
   var a = document.activeElement;
   for (;;) {
-    if (a && a.shadowRoot && a.shadowRoot.activeElement) { a = a.shadowRoot.activeElement; continue; }
+    if (a && shadowOf(a) && shadowOf(a).activeElement) { a = shadowOf(a).activeElement; continue; }
     var inner = a && (a.tagName === 'IFRAME' || a.tagName === 'FRAME') ? frameDoc(a) : null;
     if (inner && inner.activeElement && inner.activeElement !== inner.body) { a = inner.activeElement; continue; }
     return a;
@@ -1651,7 +2346,7 @@ function deepQueryAll(root, sel, out) {
   for (var i = 0; i < all.length; i++) {
     var e = all[i];
     if (e.matches(sel)) out.push(e);
-    if (e.shadowRoot) deepQueryAll(e.shadowRoot, sel, out);
+    if (shadowOf(e)) deepQueryAll(shadowOf(e), sel, out);
   }
   return out;
 }
@@ -1973,7 +2668,7 @@ function deepTextHas(needle) {
     if (hit) return;
     var all = root.querySelectorAll('*');
     for (var i = 0; i < all.length && !hit; i++) {
-      var sr = all[i].shadowRoot;
+      var sr = shadowOf(all[i]);
       if (sr) {
         if (norm(sr.textContent).indexOf(needle) >= 0) { hit = true; return; }
         walk(sr);
@@ -1996,7 +2691,8 @@ function doFind(msg) {
     var walker = document.createTreeWalker(r, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, null);
     for (var n = walker.nextNode(); n; n = walker.nextNode()) {
       if (n.nodeType === 1) {
-        if (n.shadowRoot) walk(n.shadowRoot);
+        if (shadowOf(n)) walk(shadowOf(n));
+        if (n.tagName === 'IFRAME' || n.tagName === 'FRAME') { var fd = frameDoc(n); if (fd && fd.body) walk(fd.body); }
         continue;
       }
       var parent = n.parentElement;
@@ -2020,6 +2716,23 @@ function doFind(msg) {
       }
     }
   })(root);
+  if (!count) {
+    // "Add to <b>cart</b>": the phrase spans elements. Match the innermost elements whose text holds it.
+    var nq = norm(q);
+    deepSelectAll('*').forEach(function (el) {
+      if (SKIP_TAGS[el.tagName] || matches.length >= 20) return;
+      if (norm(el.textContent).indexOf(nq) < 0) return;
+      for (var c = el.firstElementChild; c; c = c.nextElementSibling) if (norm(c.textContent).indexOf(nq) >= 0) return;
+      if (!visible(el)) return;
+      count++;
+      var t = norm(el.textContent), i = t.indexOf(nq);
+      var at = clickableAncestor(el) || el;
+      var m = { snippet: String(el.textContent).replace(/\s+/g, ' ').trim().slice(Math.max(0, i - 30), i + nq.length + 30), ref: refFor(at) };
+      if (at !== el || isInteresting(at)) m.element = describe(at);
+      if (!inViewport(el)) m.offscreen = true;
+      matches.push(m);
+    });
+  }
   return { matches: matches, count: count, truncated: count > matches.length };
 }
 
@@ -2268,10 +2981,31 @@ function watchState() {
     try { isLive = el.matches(LIVE_SEL); } catch (e) {}
     if (isLive) live.set(el, norm(el.innerText || el.textContent).slice(0, 300));
     shown.add(el);
-    var x = el.getAttribute('aria-expanded');
-    if (x !== null) expanded.set(el, x);
+    // Every state a click can flip: open/closed, checked, pressed, selected, a select's choice.
+    var st = '';
+    ['aria-expanded', 'aria-checked', 'aria-pressed', 'aria-selected'].forEach(function (a) { var v = el.getAttribute(a); if (v !== null) st += a + '=' + v + ';'; });
+    if (el.tagName === 'INPUT' && (el.type === 'checkbox' || el.type === 'radio')) st += 'checked=' + el.checked + ';';
+    if (el.tagName === 'SELECT') st += 'value=' + el.value + ';';
+    if (el.tagName === 'DIALOG' || el.tagName === 'DETAILS') st += 'open=' + el.open + ';';
+    if (st) expanded.set(el, st);
   });
-  return { shown: shown, expanded: expanded, live: live, url: location.href, title: document.title || '' };
+  var text = '';
+  try { text = String((document.body || document.documentElement).innerText || '').slice(0, 400000); } catch (e) {}
+  return { shown: shown, expanded: expanded, live: live, url: location.href, title: document.title || '', text: text };
+}
+
+/* Lines of visible text that appeared or went away (an error under a field, "Added
+   to cart", a removed row), most useful first: short, not already reported. */
+function textDiff(before, after) {
+  var lines = function (t) { return t.split('\n').map(function (x) { return x.replace(/\s+/g, ' ').trim(); }).filter(function (x) { return x && x.length < 400; }); };
+  var a = lines(before), b = lines(after);
+  var count = function (arr) { var m = new Map(); arr.forEach(function (x) { m.set(x, (m.get(x) || 0) + 1); }); return m; };
+  var ca = count(a), cb = count(b);
+  var added = [], gone = [];
+  cb.forEach(function (n, x) { if (n > (ca.get(x) || 0)) added.push(x); });
+  ca.forEach(function (n, x) { if (n > (cb.get(x) || 0)) gone.push(x); });
+  var cut = function (x) { return x.length > 140 ? x.slice(0, 137) + '...' : x; };
+  return { added: added.map(cut), removed: gone.map(cut) };
 }
 
 function diffState(before) {
@@ -2302,6 +3036,13 @@ function diffState(before) {
     if (t && before.live.get(el) !== t && messages.indexOf(t) < 0) messages.push(t);
   });
   if (messages.length) out.messages = messages.slice(0, 5);
+  if (before.text !== after.text) {
+    var td = textDiff(before.text, after.text);
+    var known = (out.added || []).concat(out.messages || []).join('\n');
+    var fresh = td.added.filter(function (x) { return known.indexOf(x) < 0; });
+    if (fresh.length) { out.textAdded = fresh.slice(0, 8); if (fresh.length > 8) out.textAddedMore = fresh.length - 8; }
+    if (td.removed.length) { out.textRemoved = td.removed.slice(0, 5); if (td.removed.length > 5) out.textRemovedMore = td.removed.length - 5; }
+  }
   return Object.keys(out).length ? out : null;
 }
 
@@ -2342,7 +3083,10 @@ async function finishWatch(w, result) {
       } else {
         var ch = diffState(w.before);
         if (ch) result.changes = ch;
-        else if (!w.count && /click|hover|drag/.test(w.kind)) result.changes = 'none: the page did not change';
+        else if (!w.count && /hover/.test(w.kind)) {
+          result.changes = 'none visible';
+          result.note = 'Hover events went out, but nothing opened. Menus that open on pure CSS :hover can\'t be triggered by an add-on; page_click the item instead.';
+        } else if (!w.count && /click|drag/.test(w.kind)) result.changes = 'none visible: nothing on the page changed (it may still have acted in the background, e.g. saved or copied; check before repeating)';
       }
     }
   } catch (e) {} // reporting must never fail the action
@@ -2371,6 +3115,143 @@ function pageText(root) {
   try { t = root.innerText || ''; } catch (e) {}
   if (!t && root.shadowRoot) try { t = root.shadowRoot.textContent || ''; } catch (e) {}
   return String(t).replace(/\n{3,}/g, '\n\n');
+}
+
+/* The visible page as Markdown: headings, lists, links with their URLs, tables,
+   code, emphasis and form fields, in reading order. Follows shadow roots, slots
+   and same-origin frames; skips what isn't shown. */
+function pageMarkdown(root) {
+  var out = [];
+  var BLOCKS = /^(block|flex|grid|list-item|table|flow-root|table-caption|table-row-group|table-header-group|table-footer-group)$/;
+  var nl = function (n) {
+    var tail = out.length ? out[out.length - 1] : '\n\n';
+    if (/^ *(-|\d+\.) $/.test(tail)) return; // right after a list bullet: stay on its line
+    var have = /\n*$/.exec(tail)[0].length;
+    if (!out.length) return;
+    if (have < n) out.push(n - have === 2 ? '\n\n' : '\n');
+  };
+  var styleOf = function (el) { try { return (el.ownerDocument.defaultView || window).getComputedStyle(el); } catch (e) { return null; } };
+  var inlineText = function (el) { return String(el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim(); };
+  var listDepth = 0;
+  var kids = function (el, ctx) {
+    var sr = shadowOf(el);
+    var list = sr ? sr.childNodes : el.tagName === 'SLOT' && el.assignedNodes ? el.assignedNodes({ flatten: true }) : el.childNodes;
+    if (el.tagName === 'SLOT' && (!list || !list.length)) list = el.childNodes;
+    for (var i = 0; i < list.length; i++) walk(list[i], ctx);
+  };
+  var walk = function (node, ctx) {
+    if (node.nodeType === 3) {
+      var t = node.nodeValue;
+      if (!t) return;
+      if (ctx.pre) { out.push(t); return; }
+      t = t.replace(/\s+/g, ' ');
+      var last = out.length ? out[out.length - 1] : '';
+      if (/(^|\s)$/.test(last) || !last) t = t.replace(/^ /, '');
+      if (t) out.push(t);
+      return;
+    }
+    if (node.nodeType !== 1 && node.nodeType !== 11) return;
+    if (node.nodeType === 11) { for (var c = 0; c < node.childNodes.length; c++) walk(node.childNodes[c], ctx); return; }
+    var el = node, tag = el.tagName;
+    if (SKIP_TAGS[tag] || tag === 'FXMCP-CURSOR' || el.hasAttribute('hidden')) return;
+    var cs = styleOf(el);
+    if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse')) {
+      // visibility:hidden can have visible children; display:none can't.
+      if (cs.display === 'none') return;
+      if (!el.querySelector('*')) return;
+    }
+    if (tag === 'IFRAME' || tag === 'FRAME') { var fd = frameDoc(el); if (fd && fd.body) { nl(2); walk(fd.body, ctx); nl(2); } return; }
+    var h = HEADING_RE.exec(tag);
+    if (h || el.getAttribute('role') === 'heading') {
+      var ht = inlineText(el);
+      if (ht) { nl(2); out.push(new Array(Number(h ? h[1] : el.getAttribute('aria-level') || 2) + 1).join('#') + ' ' + ht); nl(2); }
+      return;
+    }
+    if (tag === 'BR') { out.push('\n'); return; }
+    if (tag === 'HR') { nl(2); out.push('---'); nl(2); return; }
+    if (tag === 'IMG') { var alt = (el.getAttribute('alt') || '').trim(); if (alt) out.push('[image: ' + alt + ']'); return; }
+    if (tag === 'svg' || tag === 'SVG' || tag === 'CANVAS' || tag === 'VIDEO' || tag === 'AUDIO') return;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+      var it = inputType(el);
+      if (it === 'hidden') return;
+      if ((it === 'checkbox' || it === 'radio') && !shownFast(el)) return;
+      var ir = el.getBoundingClientRect();
+      if (ir.width < 2 && ir.height < 2) return; // a visually hidden control (the label carries the text)
+      if (it === 'submit' || it === 'button' || it === 'reset') { out.push('[' + (el.value || 'button') + ']'); return; }
+      var role = tag === 'SELECT' ? 'select' : inputRole(it || 'text');
+      var nm = computeName(el, tag), val = '';
+      if (it === 'checkbox' || it === 'radio') val = el.checked ? 'checked' : 'unchecked';
+      else if (tag === 'SELECT') val = el.selectedIndex >= 0 && el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
+      else if (it !== 'password') val = String(el.value || '').slice(0, 80);
+      out.push('[' + role + (nm ? ' "' + nm + '"' : '') + (val ? ': ' + val : '') + ']');
+      return;
+    }
+    if (tag === 'PRE') {
+      nl(2); out.push('```\n' + String(el.innerText || el.textContent || '').replace(/\n+$/, '') + '\n```'); nl(2);
+      return;
+    }
+    if (tag === 'TABLE') {
+      // A data table becomes a Markdown table; a layout table is read like any other block.
+      if (el.tHead || el.caption || el.querySelector('th') || /^(table|grid)$/.test(el.getAttribute('role') || '')) { tableMd(el); return; }
+      nl(1); kids(el, ctx); nl(1); return;
+    }
+    if (tag === 'TR') { nl(1); kids(el, ctx); nl(1); return; }
+    if (tag === 'TD' || tag === 'TH') { var lastP = out.length ? out[out.length - 1] : ''; if (lastP && !/\s$/.test(lastP)) out.push(' '); kids(el, ctx); return; }
+    var block = (cs && BLOCKS.test(cs.display)) || tag === 'P' || tag === 'DIV' || tag === 'SECTION' || tag === 'ARTICLE';
+    if (tag === 'LI') {
+      nl(1);
+      var parent = el.parentElement;
+      var ordered = parent && parent.tagName === 'OL';
+      var idx = 1;
+      if (ordered) { for (var sib = el.previousElementSibling; sib; sib = sib.previousElementSibling) if (sib.tagName === 'LI') idx++; }
+      out.push(new Array(Math.max(0, listDepth - 1) * 2 + 1).join(' ') + (ordered ? idx + '. ' : '- '));
+      kids(el, ctx);
+      nl(1);
+      return;
+    }
+    if (tag === 'UL' || tag === 'OL') {
+      // A list item that starts with a list has no text of its own: drop its empty bullet.
+      if (out.length && /^ *(-|\d+\.) $/.test(out[out.length - 1])) out.pop();
+      nl(listDepth ? 1 : 2); listDepth++; kids(el, ctx); listDepth--; nl(listDepth ? 1 : 2); return;
+    }
+    if (tag === 'A' && el.hasAttribute('href')) {
+      var lt = inlineText(el);
+      var href = shortHref(el.href);
+      // A jump within this page (footnotes, a contents list) is just text here.
+      try { var hu = new URL(el.href); if (hu.origin + hu.pathname + hu.search === location.origin + location.pathname + location.search) href = ''; } catch (e) {}
+      if (!lt) { var ia = el.querySelector('img[alt]'); lt = ia ? ia.getAttribute('alt').trim() : (el.getAttribute('aria-label') || '').trim(); }
+      if (!lt) return;
+      if (block) nl(1);
+      out.push(href && !/^#/.test(href) ? '[' + lt.replace(/[\[\]]/g, '') + '](' + href + ')' : lt);
+      if (block) nl(1);
+      return;
+    }
+    if (tag === 'CODE' && !ctx.pre) { var ct = inlineText(el); if (ct) out.push('`' + ct + '`'); return; }
+    if ((tag === 'STRONG' || tag === 'B') && !block) { var bt = inlineText(el); if (bt) out.push('**' + bt + '**'); return; }
+    if (tag === 'EM' && !block) { var et = inlineText(el); if (et) out.push('_' + et + '_'); return; }
+    if (tag === 'BLOCKQUOTE') { nl(2); out.push('> ' + inlineText(el)); nl(2); return; }
+    if (block) nl(tag === 'P' ? 2 : 1);
+    kids(el, ctx);
+    if (block) nl(tag === 'P' ? 2 : 1);
+  };
+  var tableMd = function (t) {
+    var rows = [];
+    try { rows = Array.prototype.slice.call(t.rows, 0, 200); } catch (e) {}
+    if (!rows.length) return;
+    nl(2);
+    var cells = rows.map(function (r) { return Array.prototype.map.call(r.cells, function (c) { return inlineText(c).replace(/\|/g, '\\|').slice(0, 200); }); });
+    var w = Math.max.apply(null, cells.map(function (c) { return c.length; }));
+    if (w === 1) { out.push(cells.map(function (c) { return c[0]; }).filter(Boolean).join('\n')); nl(2); return; }
+    cells.forEach(function (c, i) {
+      while (c.length < w) c.push('');
+      out.push('| ' + c.join(' | ') + ' |\n');
+      if (i === 0) out.push('|' + new Array(w + 1).join(' --- |') + '\n');
+    });
+    if (t.rows.length > 200) out.push('| … ' + (t.rows.length - 200) + ' more rows |\n');
+    nl(2);
+  };
+  try { walk(root, { pre: false }); } catch (e) {}
+  return out.join('').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 /* Document coordinates of an element (crossing same-origin frames), for screenshots. */
@@ -2477,6 +3358,20 @@ async function dispatch(msg) {
       var maxChars = (msg.maxChars !== undefined && Number.isFinite(Number(msg.maxChars))) ? Number(msg.maxChars) : 50000;
       var sroot = await scopeRoot(msg);
       var snap = buildSnapshot(msg.compact !== false, maxChars, sroot, !!msg.viewportOnly);
+      var blockEl = snap.blockerEl;
+      delete snap.blockerEl;
+      if (blockEl && !sroot && blockEl.isConnected) {
+        // A modal or an overlay over the page: list it first, so a long page can't push it out of the budget.
+        var first = buildSnapshot(msg.compact !== false, Math.floor(maxChars / 2), blockEl, false);
+        var rest = buildSnapshot(msg.compact !== false, Math.max(0, maxChars - first.text.length - 80), null, !!msg.viewportOnly, blockEl);
+        var label = snap.modal ? 'the dialog' : 'the overlay';
+        snap.text = (snap.modal || snap.overlay) + ' (shown first)\n' +
+          first.text.split('\n').map(function (l) { return l ? '  ' + l : l; }).join('\n') +
+          '\n\n(the page behind ' + label + ':)\n' + rest.text;
+        snap.nodes = first.nodes.concat(rest.nodes);
+        snap.truncated = first.truncated || rest.truncated;
+        snap.generation = rest.generation;
+      }
       if (sroot) snap.within = lineFor(sroot);
       if (snap.truncated) {
         snap.hint = 'Cut off at ' + maxChars + ' characters. To see the rest: pass viewportOnly:true after page_scroll, ' +
@@ -2489,11 +3384,12 @@ async function dispatch(msg) {
       var mc = (msg.maxChars !== undefined && Number.isFinite(Number(msg.maxChars))) ? Number(msg.maxChars) : 20000;
       var off = Math.max(0, Math.floor(Number(msg.offset) || 0));
       var troot = await scopeRoot(msg);
-      var t = pageText(troot || document.body || document.documentElement);
+      var t = msg.format === 'markdown' ? pageMarkdown(troot || document.body || document.documentElement) : pageText(troot || document.body || document.documentElement);
       var part = t.slice(off, off + mc);
       var out = { text: part, totalChars: t.length, offset: off, truncated: off + mc < t.length, url: location.href, title: document.title || '' };
       if (out.truncated) out.nextOffset = off + part.length;
       if (troot) out.within = lineFor(troot);
+      if (msg.withFrames && !troot) { var tf = crossFrames(); if (tf.length) out.frames = tf; }
       return out;
     }
     case 'page-html': {
@@ -2521,7 +3417,12 @@ async function dispatch(msg) {
     case 'act-scroll': return await doScroll(msg);
     case 'act-key': return await doKey(msg);
     case 'act-wait': return await doWait(msg);
-    case 'act-find': await settle(1500); return doFind(msg);
+    case 'act-find': {
+      await settle(1500);
+      var found = doFind(msg);
+      if (msg.withFrames) { var ff = crossFrames(); if (ff.length) found.frames = ff; }
+      return found;
+    }
     case 'act-drag': return await doDrag(msg);
     case 'act-upload': return await doUpload(msg);
     default:

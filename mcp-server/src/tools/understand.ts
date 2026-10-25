@@ -16,7 +16,8 @@ function errText(e: unknown) {
 
 const REF_HINT =
   "Act on these with page_click/page_type/... and {ref: N}. A ref keeps pointing at the same element until the page navigates. " +
-  "You can also target by name (the quoted text) and role without a ref.";
+  "You can also target by name (the quoted text) and role without a ref. Indented lines are inside the line above " +
+  "(a row, list item, dialog, form or frame). \"clickable\" marks elements the page made clickable with script only.";
 
 export function registerUnderstandTools(
   server: McpServer,
@@ -27,10 +28,11 @@ export function registerUnderstandTools(
     "page_snapshot",
     {
       description:
-        "Outline of the page's interactive and structural elements, one per line: role \"name\" [ref=N] plus state " +
-        "([checked], [disabled], values). Take it before acting on a page you haven't seen; refs are the most reliable targets. " +
-        "Includes shadow DOM and same-origin iframes and waits for pages that render late. " +
-        "Long page? Use within to read one region, or viewportOnly after page_scroll.",
+        "Outline of what you can act on, one element per line: role \"name\" [ref=N] plus state " +
+        "([checked], [disabled], [expanded], values), nested under the landmark, dialog, form, row or list item it belongs to. " +
+        "Includes buttons the page made from plain divs, icon-only buttons (named by their tooltip or icon), shadow DOM (open and closed) " +
+        "and iframes, cross-origin ones too. Waits for pages that render late. Take it before acting on a page you haven't seen; " +
+        "refs are the most reliable targets. Long page? Use within to read one region, or viewportOnly after page_scroll.",
       inputSchema: {
         tabId: tabIdField,
         within: withinField,
@@ -63,6 +65,8 @@ export function registerUnderstandTools(
       if (scroll && scroll.pageHeight) {
         head.push(`scroll: ${scroll.y ?? 0} of ${Math.max(0, scroll.pageHeight - (scroll.viewportHeight ?? 0))}px`);
       }
+      if (r["modal"]) head.push(`MODAL OPEN: ${String(r["modal"])}. The rest of the page is blocked until it's answered or closed.`);
+      else if (r["overlay"]) head.push(`OVERLAY: ${String(r["overlay"])} covers the middle of the screen (a banner or pop-up?). Clicks behind it may not reach their target; close it first.`);
       if (r["hint"]) head.push(`TRUNCATED: ${String(r["hint"])}`);
       const body = r["text"] || "(nothing interactive here; try compact:false or page_text)";
       return text(`${head.join("\n")}\n\n${body}\n\n${REF_HINT}`);
@@ -73,13 +77,16 @@ export function registerUnderstandTools(
     "page_text",
     {
       description:
-        "The page's visible text, as a reader sees it. Long pages come in chunks: when it says more follows, " +
-        "call again with offset set to nextOffset. Use within to read one region (e.g. {role: \"main\"}).",
+        "The page's visible text, as a reader sees it, including the text of iframes. format \"markdown\" keeps headings, lists, " +
+        "tables, emphasis and link URLs ([text](url)), and shows form fields; use it when structure or links matter. " +
+        "Long pages come in chunks: when it says more follows, call again with offset set to nextOffset. " +
+        "Use within to read one region (e.g. {role: \"main\"}).",
       inputSchema: {
         tabId: tabIdField,
         within: withinField,
         maxChars: z.number().int().positive().max(200000).optional().describe("Chunk size (default 20000)"),
         offset: z.number().int().min(0).optional().describe("Start at this character (from a previous nextOffset)"),
+        format: z.enum(["text", "markdown"]).optional().describe("\"text\" (default) or \"markdown\" (headings, lists, tables, links with URLs)"),
       },
     },
     async (args) => {
@@ -89,6 +96,7 @@ export function registerUnderstandTools(
           within: args.within,
           maxChars: args.maxChars ?? 20000,
           offset: args.offset,
+          format: args.format,
         });
         const r = (result ?? {}) as Record<string, unknown>;
         if (typeof r["text"] !== "string") return text(fmt(result));
@@ -213,8 +221,9 @@ export function registerUnderstandTools(
     "page_find",
     {
       description:
-        "Find visible text on the page, case-insensitively. Each match has a snippet, the ref of the element to click " +
-        "for it, and offscreen:true when you'd need to scroll. Faster than reading the whole page to locate one thing.",
+        "Find visible text on the page (and in its iframes), case-insensitively, even when it spans several elements. " +
+        "Each match has a snippet, the ref of the element to click for it, and offscreen:true when you'd need to scroll. " +
+        "Faster than reading the whole page to locate one thing.",
       inputSchema: {
         tabId: tabIdField,
         query: z.string().min(1).describe("Text to look for"),

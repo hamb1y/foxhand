@@ -262,7 +262,8 @@ export function registerActTools(
     "page_wait",
     {
       description:
-        "Wait until text or an element appears, or with gone:true until it disappears (spinners, \"Loading…\"). " +
+        "Wait until text or an element appears, or with gone:true until it disappears (spinners, \"Loading…\"); " +
+        "or until the tab's URL contains urlContains and has loaded (after a login or checkout redirect). " +
         "With nothing to wait for, waits until the page stops changing. Use it after an action that loads content.",
       inputSchema: {
         tabId: tabIdField,
@@ -272,6 +273,7 @@ export function registerActTools(
         role: targetFields.role,
         selector: targetFields.selector,
         gone: z.boolean().optional().describe("Wait for it to disappear instead"),
+        urlContains: z.string().optional().describe("Wait until the tab's address contains this text and the page has loaded"),
         timeoutMs: z.number().int().min(500).max(60000).optional().describe("Give up after this long (default 10000)"),
       },
     },
@@ -289,6 +291,7 @@ export function registerActTools(
             role: args.role,
             selector: args.selector,
             gone: args.gone,
+            urlContains: args.urlContains,
             timeoutMs,
             changes: false,
           },
