@@ -220,7 +220,7 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre></div>
         </li>
       </ol>
       <figure>
-        <img class="shot" src="shots/setup.webp" width="1584" height="1817" alt="Foxhand's setup page. Step 1, Install the helper app, is checked: Helper v0.5.0 is running. Step 2, Connect your AI, is checked: Connected. Your AI just did: Listed tabs." loading="lazy" style="background:var(--bg)">
+        <img class="shot" src="shots/setup.webp" width="1584" height="1817" alt="Foxhand's setup page. Step 1, Install the helper app, is checked: Helper v0.5.4 is running. Step 2, Connect your AI, is checked: Connected. Your AI just did: Looked through tabs." loading="lazy" style="background:var(--bg)">
         <figcaption>The setup page, with both steps done. The token is hidden here.</figcaption>
       </figure>
     </div>
@@ -261,7 +261,9 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre></div>
     <ul class="fixes" aria-label="Built for real pages">
       <li>Page dialogs (<code>alert</code>, <code>confirm</code>) never freeze an action.</li>
       <li>Links that open a new tab report which tab.</li>
-      <li>Same-origin iframes and shadow DOM are readable.</li>
+      <li>Iframes from other sites (cookie banners, sign-in buttons) and shadow DOM, open or closed, can be read and used.</li>
+      <li>Buttons made from plain divs, icon-only buttons and buttons that only show on hover are found.</li>
+      <li>Typing sends real key presses, so autocomplete, input masks and rich editors work.</li>
       <li>Snapshots wait for pages that render after loading.</li>
     </ul>
   </section>
@@ -271,7 +273,7 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre></div>
     <h2 id="control-h">It's your browser, so you can always see and stop it.</h2>
     <div class="control">
       <figure>
-        <img class="shot" src="shots/popup.webp" width="720" height="1089" alt="The Foxhand toolbar popup: Ready, Helper v0.5.0, last action Listed tabs, a Pause AI button, Copy MCP config, and Show AI cursor switched on." loading="lazy">
+        <img class="shot" src="shots/popup.webp" width="720" height="1089" alt="The Foxhand toolbar popup: Ready, Helper v0.5.4, last action Looked through tabs, a Pause AI button, Copy MCP config, and Show AI cursor switched on." loading="lazy">
         <figcaption>The toolbar popup.</figcaption>
       </figure>
       <dl class="facts">

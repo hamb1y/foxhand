@@ -32,7 +32,7 @@ Foxhand connects the Firefox you already use (your tabs, logins and bookmarks) t
 
 What the agent can do:
 • List, open, switch and close tabs and windows
-• Read pages (accessibility snapshot, text, HTML, screenshots), including same-origin frames
+• Read pages (accessibility snapshot, text, HTML, screenshots), including iframes from other sites such as cookie banners
 • Click, type, fill forms, choose from dropdowns, drag, upload files, scroll, press keys and wait for content
 • Search bookmarks and history, download files, read and set cookies, keep notes between tasks, restore closed tabs
 
@@ -67,7 +67,7 @@ Foxhand conecta el Firefox que ya usas (tus pestañas, sesiones iniciadas y marc
 
 Lo que puede hacer el agente:
 • Listar, abrir, cambiar y cerrar pestañas y ventanas
-• Leer páginas (instantánea de accesibilidad, texto, HTML, capturas de pantalla), incluidos los marcos del mismo origen
+• Leer páginas (instantánea de accesibilidad, texto, HTML, capturas de pantalla), incluidos iframes de otros sitios, como los banners de cookies
 • Hacer clic, escribir, llenar formularios, elegir en listas desplegables, arrastrar, subir archivos, desplazarse, presionar teclas y esperar contenido
 • Buscar en marcadores e historial, descargar archivos, leer y definir cookies, conservar notas entre tareas, restaurar pestañas cerradas
 
@@ -99,7 +99,7 @@ Foxhand relie le Firefox que vous utilisez déjà (vos onglets, sessions ouverte
 
 Ce que l’agent peut faire :
 • Lister, ouvrir, changer et fermer des onglets et des fenêtres
-• Lire des pages (instantané d’accessibilité, texte, HTML, captures d’écran), y compris les cadres de même origine
+• Lire des pages (instantané d’accessibilité, texte, HTML, captures d’écran), y compris les iframes d’autres sites, comme les bandeaux de cookies
 • Cliquer, saisir du texte, remplir des formulaires, choisir dans les listes déroulantes, glisser-déposer, envoyer des fichiers, faire défiler, appuyer sur des touches et attendre du contenu
 • Chercher dans les marque-pages et l’historique, télécharger des fichiers, lire et définir des cookies, conserver des notes entre les tâches, rouvrir des onglets fermés
 
@@ -131,7 +131,7 @@ Foxhand verbindet das Firefox, das Sie ohnehin nutzen (Ihre Tabs, Anmeldungen un
 
 Was der Agent kann:
 • Tabs und Fenster auflisten, öffnen, wechseln und schließen
-• Seiten lesen (Barrierefreiheits-Schnappschuss, Text, HTML, Bildschirmfotos), auch Frames gleichen Ursprungs
+• Seiten lesen (Barrierefreiheits-Schnappschuss, Text, HTML, Bildschirmfotos), auch iFrames anderer Websites, etwa Cookie-Banner
 • Klicken, tippen, Formulare ausfüllen, aus Auswahllisten wählen, ziehen, Dateien hochladen, scrollen, Tasten drücken und auf Inhalte warten
 • Lesezeichen und Chronik durchsuchen, Dateien herunterladen, Cookies lesen und setzen, Notizen zwischen Aufgaben behalten, geschlossene Tabs wiederherstellen
 
@@ -163,7 +163,7 @@ Foxhand 通过 Model Context Protocol（MCP），把你正在使用的 Firefox�
 
 智能体可以：
 • 列出、打开、切换和关闭标签页与窗口
-• 阅读页面（无障碍快照、文本、HTML、截图），包括同源框架
+• 阅读页面（无障碍快照、文本、HTML、截图），包括其他网站的 iframe，如 Cookie 横幅
 • 点击、输入、填写表单、从下拉菜单中选择、拖动、上传文件、滚动、按键以及等待内容出现
 • 搜索书签和历史记录、下载文件、读取和设置 Cookie、在任务之间保留笔记、恢复已关闭的标签页
 

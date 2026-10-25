@@ -41,9 +41,12 @@ the article. The orange bubble is the AI saying what it's doing.*
   dragging, uploads, bookmarks, history, downloads, cookies and a persistent
   notebook for the agent.
   See [Tools](#tools).
-- **Built for real pages.** Page dialogs (`alert`, `confirm`) never freeze an
-  action, links that open a tab report the new tab, same-origin iframes are
-  readable, and snapshots wait for pages that render after loading.
+- **Built for real pages.** The snapshot finds what usually needs workarounds:
+  buttons made from plain divs, icon-only and hover-only controls, closed
+  shadow DOM, and iframes from other sites such as cookie banners and sign-in
+  buttons. Typing sends real key presses, so autocomplete, input masks and rich
+  editors work. Page dialogs never freeze an action, and links that open a tab
+  report the new tab.
 - **Guided setup in your language.** A setup page opens on install. The add-on
   speaks English, Spanish, French, German and Simplified Chinese.
 

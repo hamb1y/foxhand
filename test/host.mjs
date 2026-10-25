@@ -227,7 +227,10 @@ if (!gone) child.kill();
 if (process.platform !== "win32" && process.argv.length <= 2) {
   const q = (x) => `'${x.replace(/'/g, "'\\''")}'`;
   const orphanLog = path.join(dataHome, "orphan");
-  const sh = spawn("sh", ["-c", `sleep 60 | ${hostCmd.map(q).join(" ")} /fake/m.json test@example & sleep 0.5`], {
+  // The parent waits until the helper is up (a slow start would otherwise begin as an orphan), then dies.
+  const startedLog = q(path.join(orphanLog, "foxhand", "foxhand-host.log"));
+  const sh = spawn("sh", ["-c", `sleep 60 | ${hostCmd.map(q).join(" ")} /fake/m.json test@example & ` +
+    `i=0; while [ $i -lt 150 ] && ! grep -q started ${startedLog} 2>/dev/null; do sleep 0.1; i=$((i+1)); done; sleep 0.2`], {
     stdio: "ignore", env: { ...env, XDG_DATA_HOME: orphanLog },
   });
   await new Promise((res) => sh.once("exit", res));
