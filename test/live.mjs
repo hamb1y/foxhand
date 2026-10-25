@@ -480,7 +480,7 @@ async function edges() {
   let snap = (await tool('page_snapshot', { tabId })).text;
   t = await timed(() => tool('page_click', { tabId, ref: refOf(snap, '"Warn me"') }));
   ok('click that opens an alert returns promptly', t.ms < 8000, `${t.ms}ms ${t.text}`);
-  ok('click that opens an alert says so', /alert|dialog/i.test(t.text), t.text);
+  ok('click that opens an alert says so', /alert|dialog/i.test(t.text) && !/none visible/.test(t.text), t.text);
   t = await timed(() => tool('page_snapshot', { tabId }));
   ok('page with an open alert: next call is prompt and explains', t.ms < 8000 && /alert|dialog/i.test(t.text), `${t.ms}ms ${t.text.slice(0, 300)}`);
 

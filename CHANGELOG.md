@@ -42,8 +42,9 @@ their old names need updating.**
   with which row. Lines that add nothing are folded away.
 - **An open modal, or an overlay covering the screen, is listed first** and
   flagged in the header, so a long page can't push it out of the snapshot.
-- **Repeated buttons say which section they're under** ("More actions" under
-  each video's title).
+- **Repeated buttons say which card they're in**: each "Add to cart" on a shop
+  page is labeled with its product, each "More actions" with its video, even
+  when the cards are plain `<div>`s.
 
 ### Typing like a person
 
@@ -55,6 +56,9 @@ their old names need updating.**
   so instead of forcing text in and corrupting it.
 - **Clicks land on the element under the pointer**, such as the icon inside a
   button, which is often where the page listens.
+- **Submitting a form presses its real submit button.** A "Cancel" or "Back"
+  button placed first in the form is skipped (before, a checkout form could be
+  cancelled instead of continued).
 
 ### Renamed and merged
 

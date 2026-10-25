@@ -260,6 +260,18 @@ check("clicking a hover-only control works and says so", (await ev("window.k")) 
 r = await run({ kind: "act-click", name: "Subscribe" });
 check("clicking a styled checkbox reports the state change", (await ev("cb.checked")) === true && /checked/.test(JSON.stringify(r.changes || "")), JSON.stringify(r));
 
+// Repeated buttons on plain-div product cards say which card they're in.
+await load(`<main><div><div class=item><img alt="Backpack photo"><div><a href="#1"><div>Backpack</div></a><div>$29.99</div><button>Add to cart</button></div></div>
+  <div class=item><img alt="Bike photo"><div><a href="#2"><div>Bike Light</div></a><div>$9.99</div><button>Add to cart</button></div></div></div></main>`);
+s0 = await snap();
+check("repeated buttons are labeled with their card's title", /button "Add to cart" \[in "Backpack"\]/.test(s0.text) && /button "Add to cart" \[in "Bike Light"\]/.test(s0.text), s0.text);
+
+// Submitting picks the real submit button, not a Cancel placed first.
+await load(`<form onsubmit="event.preventDefault(); window.sent = event.submitter && event.submitter.value"><input aria-label="First Name">
+  <button id=cancel onclick="window.cancelled = true; return false">Cancel</button><input type=submit value=Continue></form>`);
+r = await run({ kind: "act-type", name: "First Name", text: "Ada", submit: true });
+check("submit skips a Cancel button that comes first", (await ev("window.sent")) === "Continue" && !(await ev("window.cancelled")), JSON.stringify(r));
+
 // Clicks land on the element under the pointer.
 await load(`<button id=b><span id=sp>Only the span listens</span></button>`);
 await ev("sp.addEventListener('click', () => window.spanHit = true)");

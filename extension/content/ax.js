@@ -751,6 +751,7 @@ function writeOutline(entries, lines) {
       if (e.node && e.node.role === 'heading' && e.kids.length === 1 && e.kids[0].node && !e.kids[0].kids.length &&
           (e.kids[0].node.role === 'link' || e.kids[0].node.role === 'button')) {
         e.kids[0].line += level(e);
+        e.kids[0].headingName = e.node.name; // still starts a section for what follows
         out.push(e.kids[0]);
         return;
       }
@@ -767,10 +768,44 @@ function writeOutline(entries, lines) {
     });
   };
   tally(tree);
+  // Repeated controls ("Add to cart" on every product card): find each one's own card, the largest
+  // ancestor holding no other control of that role and name, and label it with the card's title.
+  var groups = {};
+  var collect = function (list) {
+    list.forEach(function (e) {
+      if (e.node && e.node.name && e.el && seen[e.node.role + '|' + norm(e.node.name)] > 1) {
+        var k = e.node.role + '|' + norm(e.node.name);
+        (groups[k] = groups[k] || []).push(e);
+      }
+      collect(e.kids);
+    });
+  };
+  collect(tree);
+  Object.keys(groups).forEach(function (k) {
+    var g = groups[k];
+    if (g.length > 60) return;
+    g.forEach(function (e) {
+      var card = null;
+      for (var p = flatParent(e.el), i = 0; p && p.nodeType === 1 && i < 8; p = flatParent(p), i++) {
+        if (g.some(function (o) { return o !== e && flatContains(p, o.el); })) break;
+        card = p;
+      }
+      if (!card) return;
+      var own = norm(e.node.name);
+      var title = '';
+      try {
+        title = String(card.innerText || '').split('\n').map(function (x) { return x.replace(/\s+/g, ' ').trim(); })
+          .filter(function (x) { return x && norm(x) !== own && x.length > 1; })[0] || '';
+      } catch (err) {}
+      if (title) e.card = title.length > 60 ? title.slice(0, 57) + '...' : title;
+    });
+  });
   var print = function (list, depth, heading, inItem) {
     list.forEach(function (e) {
       var line = e.line;
       if (e.node && e.node.role === 'heading') heading = e.node.name;
+      else if (e.headingName) heading = e.headingName;
+      else if (e.card && !inItem) line += ' [in ' + JSON.stringify(e.card) + ']';
       else if (e.node && heading && !inItem && e.node.name && seen[e.node.role + '|' + norm(e.node.name)] > 1) {
         line += ' [under ' + JSON.stringify(heading.length > 60 ? heading.slice(0, 57) + '...' : heading) + ']';
       }
@@ -1803,15 +1838,27 @@ function isEditableField(n) {
     (n.tagName === 'INPUT' && !NON_TEXT_INPUTS[inputType(n)]);
 }
 
-/* A form's default (first) submit button, like implicit submission uses. */
+/* The button that submits the form the way the user means it. Implicit submission
+   would take the first submit button, but forms often put "Cancel" or "Back" first
+   (an untyped <button> is a submit button too): skip those, prefer buttons marked
+   type="submit", then ones labeled like a primary action. */
+var NOT_SUBMIT = /^(cancel|back|go back|previous|prev|close|reset|clear|delete|remove|discard|abbrechen|zurück|annuler|retour|cancelar|volver|取消|返回)\b/i;
+var PRIMARY = /^(continue|next|submit|save|send|sign ?in|log ?in|sign ?up|register|create|search|go|ok|confirm|done|apply|pay|place order|checkout|weiter|speichern|anmelden|continuer|enregistrer|connexion|continuar|guardar|enviar|继续|提交|保存|登录)\b/i;
 function formSubmitButton(form) {
-  var els = form.elements;
+  var els = form.elements, cands = [];
   for (var i = 0; i < els.length; i++) {
     var b = els[i];
     if ((b.tagName === 'BUTTON' && (b.type || 'submit') === 'submit') ||
-        (b.tagName === 'INPUT' && (b.type === 'submit' || b.type === 'image'))) return b;
+        (b.tagName === 'INPUT' && (b.type === 'submit' || b.type === 'image'))) cands.push(b);
   }
-  return null;
+  if (cands.length < 2) return cands[0] || null;
+  var label = function (b) { return buttonLabel(b) || String(b.value || b.name || b.id || ''); };
+  var ok = cands.filter(function (b) { return !NOT_SUBMIT.test(label(b)) && !NOT_SUBMIT.test(String(b.id || b.name || '')); });
+  if (!ok.length) return cands[0];
+  var typed = ok.filter(function (b) { return String(b.getAttribute('type') || '').toLowerCase() === 'submit' || b.tagName === 'INPUT'; });
+  var pool = typed.length ? typed : ok;
+  var prim = pool.filter(function (b) { return PRIMARY.test(label(b)); });
+  return (prim.length ? prim : pool)[0];
 }
 
 var SEND_LABEL = /^(send|submit|post|reply|search|go|ask)\b|send (message|prompt)|submit/i;
@@ -3040,6 +3087,8 @@ function withDialogLog(result) {
   var shown = dialogLog.splice(0, dialogLog.length);
   var out = (result && typeof result === 'object' && !Array.isArray(result)) ? result : { result: result };
   out.dialogs = shown;
+  // The page did react: with a dialog. "Nothing changed" would contradict that.
+  if (typeof out.changes === 'string' && /^none/.test(out.changes)) delete out.changes;
   var asked = shown.filter(function (d) { return d.type !== 'alert' && d.answered === 'cancelled'; });
   out.dialogNote = 'The page showed ' + shown.map(function (d) { return d.type + '(' + JSON.stringify(d.message) + ')'; }).join(', ') +
     '. ' + (asked.length ? 'It was answered "Cancel"; to answer "OK" instead, repeat the action with dialog:"accept".' : 'It was acknowledged.');
