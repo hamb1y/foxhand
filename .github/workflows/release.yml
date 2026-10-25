@@ -1,21 +1,57 @@
 name: Release
-# Push a tag vX.Y.Z (matching package.json) to build every helper binary and
-# publish them, the installers and the add-on zip as a GitHub release, then
-# submit the add-on to addons.mozilla.org.
+# Releases by themselves: when main gets a version (package.json) that has no
+# vX.Y.Z tag yet, build every helper binary, publish them, the installers and the
+# add-on zip as a GitHub release (which creates the tag), then submit the add-on
+# to addons.mozilla.org. Pushing a tag vX.Y.Z by hand still works too.
 on:
   push:
+    branches: [main]
     tags: ['v*']
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
+  # Is there anything to release? Only a version without a GitHub release yet, so
+  # a tag pushed after main already released it doesn't submit it to AMO twice.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      go: ${{ steps.v.outputs.go }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v$(node -p 'require("./package.json").version')"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "$TAG" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match package.json ($TAG)."
+            exit 1
+          fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "$TAG is already released; nothing to do."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$TAG is new: releasing it."
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+
   # Install and drive the helper on every platform before anything is published.
   platforms:
+    needs: check
+    if: needs.check.outputs.go == 'true'
     uses: ./.github/workflows/platforms.yml
 
   release:
-    needs: platforms
+    needs: [check, platforms]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +61,9 @@ jobs:
           cache: npm
       - uses: oven-sh/setup-bun@v2
       - run: npm ci
-      - run: node scripts/set-version.mjs --check "${GITHUB_REF_NAME#v}"
+      - run: node scripts/set-version.mjs --check "${TAG#v}"
+        env:
+          TAG: ${{ needs.check.outputs.tag }}
       - run: node scripts/i18n.mjs --check
       # The same checks as CI: never publish what CI would reject.
       - run: npm run build
@@ -42,6 +80,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          TARGET: ${{ github.sha }}
+
+  # A release made by this workflow doesn't start other workflows, so the
+  # source archive for AMO review is built from here.
+  source:
+    needs: [check, release]
+    uses: ./.github/workflows/source.yml
+    with:
+      tag: ${{ needs.check.outputs.tag }}
 
   # Then the same add-on zip goes to addons.mozilla.org as a new listed version,
   # with this version's CHANGELOG.md section as the release notes. AMO publishes
