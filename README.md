@@ -55,7 +55,7 @@ the article. The orange bubble is the AI saying what it's doing.*
 
    See [Installing the helper](#installing-the-helper).
 3. **Connect your AI.** The setup page (or the toolbar popup's **Copy MCP
-   config**) gives you the exact command or config. It turns green when your
+   config**) gives you the exact command or config. It ticks that step off when your
    AI sends its first command.
 
 Claude Code, for example:
@@ -427,8 +427,14 @@ Pushing a `v*` tag runs `.github/workflows/release.yml`. It installs and
 drives the helper on every platform first, checks that the versions match the
 tag, runs the test suite, builds the helper binaries with Bun, and publishes
 them with the installers, `SHA256SUMS` and the add-on zip as a GitHub release
-(plus copies under the old `webmcp-host-*` names for older add-ons). `npm run release` does the same locally and needs Bun and
-an authenticated `gh`. The installers always fetch `releases/latest`, so the
+(plus copies under the old `webmcp-host-*` names for older add-ons). Then it
+submits the same add-on zip to addons.mozilla.org as a new listed version,
+with the changelog section as its release notes, and AMO publishes it once
+review passes. That step needs the repo secrets `AMO_JWT_ISSUER` and
+`AMO_JWT_SECRET` ([AMO API keys](https://addons.mozilla.org/developers/addon/api/key/)).
+`npm run release` does the GitHub part locally and needs Bun and an
+authenticated `gh`; `AMO_CHANNEL=listed bash scripts/amo-sign.sh` does the AMO
+part. The installers always fetch `releases/latest`, so the
 published installers pick up each new release automatically.
 
 Single-file helper binaries are built with `bun build --compile`. They aren't
@@ -439,7 +445,8 @@ A Windows `.exe` downloaded in a browser may get a SmartScreen warning.
 Add-on packaging: `bash scripts/pack-extension.sh` writes
 `foxhand.zip`, with `manifest.json` at the root. Upload it at
 [addons.mozilla.org/developers](https://addons.mozilla.org/developers/).
-`scripts/amo-sign.sh` signs with the AMO API from the command line.
+`scripts/amo-sign.sh` submits it with the AMO API from the command line
+(unlisted by default, for a signed `.xpi`).
 
 ## Building from source
 

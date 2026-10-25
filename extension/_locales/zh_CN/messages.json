@@ -212,8 +212,8 @@
   "downloadApp": {
     "message": "下载程序"
   },
-  "turnsGreen": {
-    "message": "安装完成后，此页面会自动变为绿色。"
+  "updatesItself": {
+    "message": "安装完成后，此页面会自动更新。"
   },
   "copied": {
     "message": "已复制 ✓"

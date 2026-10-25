@@ -51,7 +51,7 @@
   "manualUnix": "O descarga la app y luego ejecuta: $1",
   "copyCommand": "Copiar comando",
   "downloadApp": "Descargar app",
-  "turnsGreen": "Esta página se pone verde sola en cuanto esté instalada.",
+  "updatesItself": "Esta página se actualiza sola en cuanto esté instalada.",
   "copied": "Copiado ✓",
   "copyFailed": "No se pudo copiar: selecciona el texto y presiona Ctrl+C",
 

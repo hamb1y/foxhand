@@ -95,7 +95,7 @@ function renderSetup(container, platform, intro, installed) {
   row.appendChild(btn);
   row.appendChild(dl);
   var parts = [el('div', '', s.open), pre, row, el('div', 'sub', s.manual)];
-  if (!installed) parts.push(el('div', 'sub', t('turnsGreen')));
+  if (!installed) parts.push(el('div', 'sub', t('updatesItself')));
   parts.forEach(function (x) { container.appendChild(x); });
   return s;
 }

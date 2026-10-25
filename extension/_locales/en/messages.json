@@ -212,8 +212,8 @@
   "downloadApp": {
     "message": "Download app"
   },
-  "turnsGreen": {
-    "message": "This page turns green by itself once it’s installed."
+  "updatesItself": {
+    "message": "This page updates by itself once it’s installed."
   },
   "copied": {
     "message": "Copied ✓"

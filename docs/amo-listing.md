@@ -205,7 +205,7 @@ To test:
 1. Install the add-on; a setup page opens. Install the helper:
    Linux/macOS: curl -fsSL https://hamb1y.github.io/foxhand/sh | sh
    Windows (PowerShell): irm https://hamb1y.github.io/foxhand/ps | iex
-2. The setup page's first step turns green. Copy the config in step 2 (contains URL + token).
+2. The setup page ticks off its first step. Copy the config in step 2 (contains URL + token).
 3. From a terminal (replace TOKEN):
    curl -s http://localhost:8901/mcp -H "Authorization: Bearer TOKEN" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"tabs_list","arguments":{"thought":"Listing tabs"}}}'
    The open tabs are returned, and the AI cursor shows "Listing tabs" on the active page.

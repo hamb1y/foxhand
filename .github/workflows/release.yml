@@ -1,6 +1,7 @@
 name: Release
 # Push a tag vX.Y.Z (matching package.json) to build every helper binary and
-# publish them, the installers and the add-on zip as a GitHub release.
+# publish them, the installers and the add-on zip as a GitHub release, then
+# submit the add-on to addons.mozilla.org.
 on:
   push:
     tags: ['v*']
@@ -41,3 +42,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+
+  # Then the same add-on zip goes to addons.mozilla.org as a new listed version,
+  # with this version's CHANGELOG.md section as the release notes. AMO publishes
+  # it once its review passes. Needs the AMO_JWT_ISSUER and AMO_JWT_SECRET secrets
+  # (https://addons.mozilla.org/developers/addon/api/key/).
+  amo:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bash scripts/amo-sign.sh
+        env:
+          AMO_CHANNEL: listed
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}

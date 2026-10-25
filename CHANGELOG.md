@@ -52,7 +52,7 @@ and this add-on is a different thing.
 
 - **Setup page.** It opens on install (and on the update from WebMCP
   Controller) and walks through three steps: install the helper, connect your
-  AI, try it. Each step turns green by itself.
+  AI, try it. Each step ticks itself off when it works.
 - **Shorter install commands**, served from
   [hamb1y.github.io/foxhand](https://hamb1y.github.io/foxhand/). The old
   `releases/latest/download/install.*` links keep working.

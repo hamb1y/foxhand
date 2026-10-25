@@ -51,7 +51,7 @@
   "manualUnix": "或者下载程序，然后运行：$1",
   "copyCommand": "复制命令",
   "downloadApp": "下载程序",
-  "turnsGreen": "安装完成后，此页面会自动变为绿色。",
+  "updatesItself": "安装完成后，此页面会自动更新。",
   "copied": "已复制 ✓",
   "copyFailed": "复制失败：请选中文本后按 Ctrl+C",
 
