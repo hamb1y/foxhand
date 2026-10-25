@@ -20,10 +20,10 @@
     font-weight: 300 800;
     font-display: swap;
   }
-  /* The add-on's own palette: black and white, lime for "you", Firefox orange for the AI. */
+  /* The add-on's own palette: black and white, with Firefox orange as the one accent. */
   :root {
     --bg: #0a0a0a; --surface: #141414; --line: #262626; --muted: #8a8a8a; --soft: #c8c8c8; --fg: #f5f5f5;
-    --lime: #D7F75B; --orange: #FF7139; --ink: #0a0a0a;
+    --orange: #FF7139; --ink: #0a0a0a;
     --sans: 'Google Sans Flex', system-ui, sans-serif;
     --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, monospace;
     color-scheme: dark;
@@ -33,7 +33,7 @@
   body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
   a { color: var(--fg); text-underline-offset: 3px; text-decoration-color: #555; }
   a:hover { text-decoration-color: var(--fg); }
-  :focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; border-radius: 4px; }
+  :focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; border-radius: 4px; }
   code, kbd { font: .86em var(--mono); }
   code { background: var(--surface); padding: 2px 6px; border-radius: 5px; }
   kbd { padding: 2px 7px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; }
@@ -56,8 +56,8 @@
     font: 600 16px var(--sans); text-decoration: none; border: 1px solid var(--line); color: var(--fg); background: transparent; cursor: pointer;
   }
   .btn:hover { border-color: var(--muted); }
-  .btn.lime { background: var(--lime); border-color: var(--lime); color: var(--ink); }
-  .btn.lime:hover { filter: brightness(.93); }
+  .btn.orange { background: var(--orange); border-color: var(--orange); color: var(--ink); }
+  .btn.orange:hover { filter: brightness(.93); }
   .meta { margin-top: 20px; color: var(--muted); font-size: 14px; }
   .meta a { color: var(--soft); }
 
@@ -99,7 +99,7 @@
     background: var(--bg); color: var(--soft); font: 500 13px var(--sans); cursor: pointer;
   }
   .cmd .copy:hover { color: var(--fg); border-color: var(--muted); }
-  .cmd .copy.done { color: var(--ink); background: var(--lime); border-color: var(--lime); }
+  .cmd .copy.done { color: var(--ink); background: var(--orange); border-color: var(--orange); }
   .note { font-size: 14px; color: var(--muted); margin-top: 10px !important; }
   [hidden] { display: none !important; }
 
@@ -155,7 +155,7 @@
     <h1>Let your AI agent use your real Firefox.</h1>
     <p class="lead">Foxhand is a Firefox add-on that connects Claude Code, Codex, Gemini CLI or any other MCP client to the browser you already use, with your tabs and your logins. A cursor shows what it's doing, and it all runs on your own computer.</p>
     <div class="actions">
-      <a class="btn lime" href="https://addons.mozilla.org/firefox/addon/webmcp-controller/">Add to Firefox</a>
+      <a class="btn orange" href="https://addons.mozilla.org/firefox/addon/webmcp-controller/">Add to Firefox</a>
       <a class="btn" href="#setup">How setup works</a>
     </div>
     <p class="meta">Free and open source (MPL-2.0) · Version 0.5.0 · <a href="#name">Formerly WebMCP Controller</a></p>

@@ -85,7 +85,7 @@ function renderSetup(container, platform, intro, installed) {
   if (intro) container.appendChild(el('div', 'intro', intro));
   var pre = el('pre', 'cmd', s.cmd);
   var row = el('div', 'row');
-  var btn = el('button', 'lime', t('copyCommand'));
+  var btn = el('button', 'orange', t('copyCommand'));
   btn.type = 'button';
   btn.addEventListener('click', function () { copy(s.cmd, btn).catch(function () {}); });
   var dl = el('a', 'button', t('downloadApp'));

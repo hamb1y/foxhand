@@ -61,8 +61,11 @@ and this add-on is a different thing.
 - **Five languages.** English, Spanish, French, German and Simplified
   Chinese, following Firefox's language. Messages meant for the AI stay in
   English.
-- **Firefox orange cursor.** The AI cursor's bubble and click ripple are
-  Firefox orange.
+- **Firefox orange.** The add-on's accent color is now Firefox orange instead
+  of lime: buttons, the toolbar icon and badge, and the AI cursor's bubble and
+  click ripple.
+- **"Formerly WebMCP Controller"** shows under the name in the toolbar popup,
+  so the renamed add-on is easy to recognize.
 
 ### macOS
 

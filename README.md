@@ -16,6 +16,13 @@ native messaging host) when the add-on loads, and the helper serves MCP on
 your own machine.
 
 [**Install the add-on from addons.mozilla.org**](https://addons.mozilla.org/en-US/firefox/addon/webmcp-controller/)
+· [Website](https://hamb1y.github.io/foxhand/)
+· [What's new in 0.5.0](CHANGELOG.md)
+
+<img src="site/shots/cursor.webp" alt="A Wikipedia article on the red panda. The AI cursor rests on the title with an orange bubble that reads: Reading up on the red panda, the animal Firefox is named after.">
+
+*A real capture: an MCP client asked Foxhand to search Wikipedia, then point at
+the article. The orange bubble is the AI saying what it's doing.*
 
 ## Features
 
@@ -29,7 +36,7 @@ your own machine.
   doing. Toggle it from the popup.
 - **Pause AI.** The popup button, or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd>,
   stops every command until you resume. The toolbar badge shows `II` while
-  paused and a lime dot while the AI is working.
+  paused and an orange dot while the AI is working.
 - **44 tools.** Tabs, windows, navigation, page reading, screenshots, form
   filling, clicking, bookmarks, history, downloads and cookies (read-only).
   See [Tools](#tools).

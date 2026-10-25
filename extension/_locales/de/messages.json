@@ -17,6 +17,9 @@
   "setupGuideLink": {
     "message": "Einrichtungsanleitung"
   },
+  "formerly": {
+    "message": "Früher WebMCP Controller"
+  },
   "checking": {
     "message": "Wird geprüft…"
   },

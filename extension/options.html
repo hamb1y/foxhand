@@ -27,7 +27,7 @@
   .facts div { min-width: 0; }
 
   #install { order: -1; gap: 16px; }
-  #install.attention { border-color: var(--lime); }
+  #install.attention { border-color: var(--orange); }
   #install:not(.attention) { order: 1; }
 
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -39,7 +39,7 @@
   }
   .chips label:hover span { border-color: var(--muted); }
   .chips input:checked + span { background: var(--fg); border-color: var(--fg); color: var(--ink); font-weight: 600; }
-  .chips input:focus-visible + span { outline: 2px solid var(--lime); outline-offset: 2px; }
+  .chips input:focus-visible + span { outline: 2px solid var(--orange); outline-offset: 2px; }
   #kindHint { margin: -8px 0 0; color: var(--soft); }
   #cfg {
     margin: 0; padding: 24px; background: var(--surface); border-radius: 16px; max-height: 320px; overflow: auto;
@@ -49,7 +49,7 @@
   #whereRow { display: flex; align-items: center; gap: 10px; min-height: 44px; color: var(--soft); cursor: pointer; }
   #whereRow input { accent-color: var(--fg); width: 18px; height: 18px; margin: 0; }
   #wsl { display: flex; flex-direction: column; gap: 6px; }
-  #wslState.ok { color: var(--lime); }
+  #wslState.ok { color: var(--orange); }
   #wslState.warn { color: var(--soft); }
 
   .toggles { gap: 8px; }
@@ -120,7 +120,7 @@
   <div class="top">
     <div class="head"><span id="dot" class="dot"></span><span id="stateTxt" data-i18n="loading">Loading…</span></div>
     <div class="row">
-      <button id="pause" type="button" class="lime" hidden data-i18n="pauseAI">Pause AI</button>
+      <button id="pause" type="button" class="orange" hidden data-i18n="pauseAI">Pause AI</button>
       <button id="retry" type="button" hidden data-i18n="retry">Retry</button>
     </div>
   </div>

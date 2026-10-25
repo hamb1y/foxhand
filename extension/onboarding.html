@@ -10,7 +10,7 @@
   header { display: flex; align-items: center; gap: 16px; }
   h1 { margin: 0; font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
   .lead { font-size: 17px; color: var(--soft); margin: -16px 0 0; max-width: 620px; }
-  #renamed { padding: 18px 22px; border: 1px solid var(--lime); border-radius: 16px; color: var(--fg); }
+  #renamed { padding: 18px 22px; border: 1px solid var(--orange); border-radius: 16px; color: var(--fg); }
 
   ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 20px; counter-reset: step; }
   .step { position: relative; padding: 28px 32px 32px 88px; border: 1px solid var(--line); border-radius: 20px; display: flex; flex-direction: column; gap: 16px; }
@@ -20,13 +20,13 @@
     font-weight: 600; color: var(--muted);
   }
   .step.done { border-color: #2a2a2a; }
-  .step.done::before { content: '✓'; background: var(--lime); border-color: var(--lime); color: var(--ink); }
-  .step.current { border-color: var(--lime); }
+  .step.done::before { content: '✓'; background: var(--orange); border-color: var(--orange); color: var(--ink); }
+  .step.current { border-color: var(--orange); }
   .step.later { opacity: .55; }
   .step h2 { margin: 0; font-size: 21px; font-weight: 600; }
   .why { margin: -6px 0 0; color: var(--muted); }
   .state { display: flex; align-items: center; gap: 10px; font-weight: 500; }
-  .state.ok { color: var(--lime); }
+  .state.ok { color: var(--orange); }
 
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chips label { position: relative; cursor: pointer; }
@@ -34,7 +34,7 @@
   .chips span { display: flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); font-weight: 500; }
   .chips label:hover span { border-color: var(--muted); }
   .chips input:checked + span { background: var(--fg); border-color: var(--fg); color: var(--ink); font-weight: 600; }
-  .chips input:focus-visible + span { outline: 2px solid var(--lime); outline-offset: 2px; }
+  .chips input:focus-visible + span { outline: 2px solid var(--orange); outline-offset: 2px; }
   #cfg { margin: 0; padding: 18px 20px; background: var(--surface); border-radius: 14px; max-height: 260px; overflow: auto;
     font: 13px/1.7 var(--mono); color: #e6e6e6; white-space: pre-wrap; overflow-wrap: anywhere; }
   #hint { color: var(--soft); margin: 0; }
@@ -80,7 +80,7 @@
       </div>
       <p id="hint"></p>
       <pre id="cfg" tabindex="0" data-i18n-attr="aria-label:configToCopy"></pre>
-      <div class="row"><button id="copyCfg" type="button" class="lime" data-i18n="copy">Copy</button></div>
+      <div class="row"><button id="copyCfg" type="button" class="orange" data-i18n="copy">Copy</button></div>
       <div class="sub" id="wslNote" hidden data-i18n="obWslNote"></div>
       <div class="state" id="s2state" role="status"><span class="dot wait"></span><span id="s2text" data-i18n="ob2Waiting"></span></div>
     </li>

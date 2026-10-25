@@ -1227,7 +1227,7 @@ function isListening() {
   return !!(isConnected() && hostStatus && hostStatus.listening && isCompatible());
 }
 
-/* Toolbar badge: lime dot while the AI is acting, "II" when paused, "!" when not serving, "↑" for a helper update. */
+/* Toolbar badge: orange dot while the AI is acting, "II" when paused, "!" when not serving, "↑" for a helper update. */
 function updateBadge() {
   var ba = B.browserAction;
   if (!ba) return;
@@ -1238,7 +1238,7 @@ function updateBadge() {
     : on ? (busy && now ? now.text : t('badgeServing', hostStatus.url)) + (update ? ' · ' + t('softUpdate') : '')
     : (lastError || (port ? t('stStarting') : t('stNotRunning')));
   var text = paused ? 'II' : !on ? '!' : busy ? '●' : update ? '↑' : '';
-  var bg = paused ? '#f5f5f5' : !on ? (hostMissing ? '#8a8a8a' : '#c50042') : '#D7F75B';
+  var bg = paused ? '#f5f5f5' : !on ? (hostMissing ? '#8a8a8a' : '#c50042') : '#FF7139';
   try {
     ba.setBadgeText({ text: text });
     ba.setBadgeBackgroundColor({ color: bg });

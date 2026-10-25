@@ -17,6 +17,9 @@
   "setupGuideLink": {
     "message": "安装向导"
   },
+  "formerly": {
+    "message": "原名 WebMCP Controller"
+  },
   "checking": {
     "message": "正在检查…"
   },
