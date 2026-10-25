@@ -64,6 +64,7 @@ CI (`.github/workflows/ci.yml`) runs all of the above. Run it locally before you
   3. publishes the GitHub release (which creates the tag),
   4. submits the add-on to AMO (`scripts/amo-sign.sh`, `AMO_CHANNEL=listed`).
 - The AMO secrets are already set as repo secrets (`gh secret set ... -R hamb1y/foxhand`). Never look for API keys locally.
+- The AMO listing text (name, summaries, descriptions in every language, privacy policy) comes from `docs/amo-listing.md`. The "AMO listing" workflow (`gh workflow run amo-listing.yml -R hamb1y/foxhand`, needs the owner's OK) pushes it with `scripts/amo-listing.mjs`. `node scripts/amo-listing.mjs --dry-run` shows what it would send.
 
 ## Rules (the owner set these)
 
