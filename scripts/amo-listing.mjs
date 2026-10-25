@@ -52,12 +52,16 @@ const support = urls[0];
 const homepage = 'https://hamb1y.github.io/foxhand/';
 
 /* ---- AMO API ---- */
+// Stored secrets sometimes carry a trailing newline from how they were pasted.
+const ISSUER = String(process.env.AMO_JWT_ISSUER || '').trim();
+const SECRET = String(process.env.AMO_JWT_SECRET || '').trim();
+
 function jwt() {
   const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
   const now = Math.floor(Date.now() / 1000);
   const head = b64({ alg: 'HS256', typ: 'JWT' });
-  const claims = b64({ iss: process.env.AMO_JWT_ISSUER, jti: randomUUID(), iat: now, exp: now + 60 });
-  const sig = createHmac('sha256', process.env.AMO_JWT_SECRET).update(`${head}.${claims}`).digest('base64url');
+  const claims = b64({ iss: ISSUER, jti: randomUUID(), iat: now, exp: now + 60 });
+  const sig = createHmac('sha256', SECRET).update(`${head}.${claims}`).digest('base64url');
   return `${head}.${claims}.${sig}`;
 }
 async function api(method, url, data) {
@@ -94,11 +98,15 @@ if (dry) {
   process.exit(0);
 }
 
-if (!process.env.AMO_JWT_ISSUER || !process.env.AMO_JWT_SECRET) {
+if (!ISSUER || !SECRET) {
   console.error('Set AMO_JWT_ISSUER and AMO_JWT_SECRET (the "AMO listing" workflow passes the repo secrets).');
   process.exit(1);
 }
 
+// Shape only, never the values: AMO issuers look like user:123:456, secrets are 64 hex characters.
+console.log(`key check: issuer ${/^user:\d+:\d+$/.test(ISSUER) ? 'has the user:N:N form' : 'does NOT have the user:N:N form'}, ` +
+  `secret ${SECRET.length} chars${/^[0-9a-f]+$/i.test(SECRET) ? ', hex' : ', not hex'}` +
+  `${ISSUER !== process.env.AMO_JWT_ISSUER || SECRET !== process.env.AMO_JWT_SECRET ? ', had surrounding whitespace (trimmed)' : ''}`);
 const before = await api('GET', API);
 if (!before.ok) { console.error(`GET ${API}: ${before.status} ${before.text.slice(0, 500)}`); process.exit(1); }
 console.log(`listing: ${before.json.url} (slug ${before.json.slug}), current version ${before.json.current_version?.version}`);
