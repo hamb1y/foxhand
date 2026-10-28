@@ -15,7 +15,7 @@ There is no server to start by hand. Firefox launches a small helper app (a
 native messaging host) when the add-on loads, and the helper serves MCP on
 your own machine.
 
-[**Install the add-on from addons.mozilla.org**](https://addons.mozilla.org/en-US/firefox/addon/webmcp-controller/)
+[**Install the add-on from addons.mozilla.org**](https://addons.mozilla.org/en-US/firefox/addon/foxhand/)
 · [Website](https://hamb1y.github.io/foxhand/)
 · [What's new in 0.5.4](CHANGELOG.md)
 
