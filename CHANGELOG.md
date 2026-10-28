@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.5.5
+
+Small release, all of it about clicking the right thing and then saying so
+when it can't.
+
+### Sending a message
+
+- **A field's own Send button is the one that gets clicked.** The search for
+  it stops at the next landmark, so a form can no longer pick up "Send
+  feedback" in a footer or a Search button further up the page, and a button
+  has to come after the field it belongs to. "Post" and "Reply" count as
+  send buttons; "Submit query" and "Subscribe" no longer do.
+
+### Stale refs
+
+- **Acting on an element that was removed says so.** Instead of re-finding
+  whatever now has the same role and name and clicking that, the tool fails
+  with "ref N was removed from the page. Take a new page_snapshot before
+  acting on it again." Both have regression tests now.
+
+### Everything else
+
+- Install links in the README and on the website use the `foxhand` address
+  the add-on now lives at.
+- Dependencies updated (`zod` 4.6.7, MCP SDK 1.32.2, `express` 5.3.0);
+  nothing the helper ships has a known vulnerability.
+
 ## 0.5.4
 
 The tools are reworked so agents can read and act on real pages on the first
