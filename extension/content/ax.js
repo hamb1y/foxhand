@@ -1192,16 +1192,9 @@ function findTarget(msg, kind) {
     if (!el && !info) {
       throw be('REF_NOT_FOUND', 'Unknown ref ' + msg.ref + ' on this page (refs come from page_snapshot on the current page). Take a new page_snapshot.');
     }
-    // Re-rendered (React and friends replace nodes): the element with the same role and name, if exactly one.
-    if (info && info.name) {
-      var same = byName({ name: info.name, role: info.role }, kind).filter(function (e) {
-        return norm(computeName(e, e.tagName)) === norm(info.name);
-      });
-      if (same.length === 1) {
-        msg._notes = (msg._notes || []).concat('ref ' + r + ' was re-rendered by the page; used ' + describe(same[0]) + ', which has the same role and name.');
-        return same[0];
-      }
-    }
+    // The ref's element is gone. Do not guess: a same-named control elsewhere
+    // ("Send" in the next row, the next "Delete") is a different target, and
+    // acting on it silently is exactly what refs exist to prevent.
     return null;
   }
   if (given(msg.selector)) return deepSelect(String(msg.selector));
@@ -1261,8 +1254,7 @@ async function locate(msg, kind) {
     await sleep(150);
   }
   if (given(msg.ref)) {
-    throw be('REF_STALE', 'ref ' + msg.ref + ' was removed from the page' + (refInfo.get(Number(msg.ref)) ? ' and nothing with the same role and name replaced it' : '') +
-      '. Take a new page_snapshot.');
+    throw be('REF_STALE', 'ref ' + msg.ref + ' was removed from the page. Take a new page_snapshot before acting on it again.');
   }
   var like = given(msg.name) ? similarTo(String(msg.name), given(msg.role) ? String(msg.role) : '') : [];
   throw be('REF_NOT_FOUND', 'Nothing matches ' + describeTarget(msg) + (waitMs ? ' (waited ' + Math.round(waitMs / 100) / 10 + 's)' : '') +
@@ -1862,7 +1854,15 @@ function formSubmitButton(form) {
   return (prim.length ? prim : pool)[0];
 }
 
-var SEND_LABEL = /^(send|submit|post|reply|search|go|ask)\b|send (message|prompt)|submit/i;
+/* Only the verbs a field's own submit button uses. "Search", "Go" and "Ask"
+ * are page-navigation controls at least as often as they are a composer's
+ * submit button, so they are only reached through an explicit submitRef. */
+var SEND_LABEL = /^(send|submit|post|reply)\b|send (message|prompt)|submit/i;
+
+/* A landmark holds a whole region of the page, so a Send-like control found
+ * there is not necessarily this field's. Never climb into one. */
+var LANDMARK_SEL = 'main, nav, aside, header, footer, [role="main"], [role="navigation"], ' +
+  '[role="banner"], [role="contentinfo"], [role="search"], [role="complementary"]';
 
 var REGION_SEL = 'form, main, aside, nav, header, footer, section, article, dialog, [role="main"], [role="complementary"], ' +
   '[role="navigation"], [role="region"], [role="dialog"], [role="search"], [role="banner"], [role="contentinfo"]';
@@ -1889,6 +1889,7 @@ function composerButton(el) {
   for (var i = 0; i < 8; i++) {
     p = flatParent(p);
     if (!p || p === document.body || p === document.documentElement) break;
+    try { if (p.matches(LANDMARK_SEL)) break; } catch (e) {}
     var fields = p.querySelectorAll('input, textarea, select, [contenteditable=""], [contenteditable="true"]');
     var other = false;
     for (var f = 0; f < fields.length; f++) {
@@ -1902,6 +1903,9 @@ function composerButton(el) {
       var b = cands[j];
       if (b === el || !visible(b) || isInert(b)) continue;
       if (b.form || (b.closest && b.closest('form'))) continue;
+      /* A composer's button comes after its field; a "Send feedback" control
+       * before the textarea belongs to something else. */
+      if (!(el.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
       var tid = b.getAttribute('data-testid') || '';
       if (SEND_LABEL.test(buttonLabel(b)) || /send-button|submit-button/i.test(tid)) found.push(b);
     }

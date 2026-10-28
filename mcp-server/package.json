@@ -9,9 +9,9 @@
     "start": "node dist/host.js"
   },
   "dependencies": {
-    "@webmcp-controller/shared": "0.5.4",
     "@modelcontextprotocol/sdk": "^1.31.0",
-    "express": "^5.2.1",
+    "@webmcp-controller/shared": "0.5.4",
+    "express": "^5.3.0",
     "zod": "^4.6.5"
   },
   "license": "MPL-2.0",

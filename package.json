@@ -20,6 +20,10 @@
   },
   "license": "MPL-2.0",
   "devDependencies": {
-    "playwright": "^1.63.0"
+    "playwright": "^1.63.0",
+    "web-ext": "8.10.0"
+  },
+  "overrides": {
+    "body-parser": "^2.4.0"
   }
 }

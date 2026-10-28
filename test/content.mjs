@@ -59,6 +59,18 @@ await load(`<button>A</button>`);
 r = await run({ kind: "act-click", ref: refB });
 check("ref from a previous page load is unknown", r.error?.code === "REF_NOT_FOUND", JSON.stringify(r));
 
+await load(`<div id=rowA><button onclick="window.hit='A'">Send</button></div>`);
+let sSame = await snap();
+const refSend = refOf(sSame, "button", "Send");
+await page.evaluate(() => {
+  document.getElementById("rowA").remove();
+  const d = document.createElement("div");
+  d.innerHTML = `<button onclick="window.hit='B'">Send</button>`;
+  document.body.appendChild(d);
+});
+r = await run({ kind: "act-click", ref: refSend });
+check("a stale Send ref does not click another Send", r.error?.code === "REF_STALE" && (await ev("window.hit")) === undefined, JSON.stringify(r));
+
 // ---- submission ----
 await load(`<form id=f onsubmit="event.preventDefault(); window.n=(window.n||0)+1"><input id=q><button>Go</button></form>`);
 let s = await snap();
@@ -75,6 +87,16 @@ await load(`<div id=composer><textarea id=t></textarea><button onclick="window.s
 s = await snap();
 r = await run({ kind: "act-type", ref: refOf(s, "textbox"), text: "hi", submit: true });
 check("submit uses the composer's own Send button", (await ev("window.sent")) === 1 && r.submitted === "button", JSON.stringify(r));
+
+await load(`<main><textarea id=t></textarea><button onclick="window.sent=1">Send feedback</button></main>`);
+s = await snap();
+r = await run({ kind: "act-type", ref: refOf(s, "textbox"), text: "hi", submit: true });
+check("submit never presses a Send in the surrounding landmark", !(await ev("window.sent")) && r.submitted !== "button", JSON.stringify(r));
+
+await load(`<div id=composer><textarea id=t></textarea><button onclick="window.sent=1">Search</button></div>`);
+s = await snap();
+r = await run({ kind: "act-type", ref: refOf(s, "textbox"), text: "hi", submit: true });
+check("submit does not treat a Search button as the composer's submit", !(await ev("window.sent")) && r.submitted !== "button", JSON.stringify(r));
 
 // ---- select ----
 await load(`<select id=s><option value="US">United States</option><option value="us">Lowercase us</option><option value="fr">France</option></select>`);

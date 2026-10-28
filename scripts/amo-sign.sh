@@ -53,15 +53,24 @@ if [ "$CHANNEL" = "listed" ]; then
   META=(--amo-metadata="$WORK/meta.json" --approval-timeout=0)
 fi
 
+# The pinned devDependency, not whatever npx would fetch: the signing key must
+# never be handed to a package resolved at run time. Credentials go through the
+# environment web-ext reads (WEB_EXT_API_KEY/SECRET), not argv.
+WEB_EXT="./node_modules/.bin/web-ext"
+if [ ! -x "$WEB_EXT" ]; then
+  echo "[foxhand] ERROR: web-ext is not installed. Run 'npm ci' first." >&2
+  exit 1
+fi
+export WEB_EXT_API_KEY="$AMO_JWT_ISSUER"
+export WEB_EXT_API_SECRET="$AMO_JWT_SECRET"
+
 echo "[foxhand] linting extension..."
-npx -y web-ext@8 lint -s "$WORK/src"
+"$WEB_EXT" lint -s "$WORK/src"
 
 echo "[foxhand] submitting $VERSION (channel=$CHANNEL)..."
-npx -y web-ext@8 sign \
+"$WEB_EXT" sign \
   -s "$WORK/src" \
   -a "$WORK/artifacts" \
-  --api-key="$AMO_JWT_ISSUER" \
-  --api-secret="$AMO_JWT_SECRET" \
   --channel="$CHANNEL" \
   "${META[@]}" \
   --timeout 300000

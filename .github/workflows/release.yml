@@ -25,6 +25,8 @@ jobs:
       go: ${{ steps.v.outputs.go }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - id: v
         env:
           GH_TOKEN: ${{ github.token }}
@@ -55,6 +57,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -68,7 +72,7 @@ jobs:
       # The same checks as CI: never publish what CI would reject.
       - run: npm run build
       - run: npm run typecheck
-      - run: npx -y web-ext@8 lint -s extension
+      - run: npx --no-install web-ext lint -s extension
       - run: node test/e2e.mjs
       - run: MISSING=1 node test/e2e.mjs
       - run: node test/host.mjs
@@ -97,11 +101,17 @@ jobs:
   amo:
     needs: release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+      - run: npm ci
       - run: bash scripts/amo-sign.sh
         env:
           AMO_CHANNEL: listed
