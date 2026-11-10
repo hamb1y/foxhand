@@ -27,5 +27,6 @@ jobs:
       - run: npx playwright install --with-deps firefox
       - run: node test/content.mjs
       - run: node test/options.mjs
+      - run: node test/announcements.mjs
       # Real Firefox (preinstalled on the runner) + the add-on + the helper from this checkout.
       - run: node test/live.mjs

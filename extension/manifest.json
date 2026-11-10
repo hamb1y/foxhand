@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "__MSG_extName__",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "default_locale": "en",
   "description": "__MSG_extDescription__",
   "author": "hamb1y",
@@ -41,7 +41,8 @@
   ],
   "background": {
     "scripts": [
-      "background.js"
+      "background.js",
+      "announcements.js"
     ],
     "persistent": true
   },

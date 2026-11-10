@@ -1,4 +1,4 @@
-# AMO listing: paste-ready text (Foxhand 0.5.4)
+# AMO listing: paste-ready text (Foxhand 0.5.6)
 
 AMO keeps a name, summary and description per language: Developer Hub →
 Edit Product Page, then switch the language at the top of the form. English is
@@ -38,7 +38,7 @@ What the agent can do:
 
 While it works, a cursor glides to whatever it's clicking, with an orange bubble saying what it's doing. Press Ctrl+Shift+. (or the toolbar button) to pause every command at once.
 
-How it works: Firefox add-ons can't open network ports, so the add-on starts a small companion helper app through Firefox native messaging. The helper serves MCP only on localhost (this computer), and every request needs a random secret token that the add-on generates. Nothing is sent to the developer or any third party. Your AI tool talks to the helper, and the helper talks to this add-on.
+How it works: Firefox add-ons can't open network ports, so the add-on starts a small companion helper app through Firefox native messaging. The helper serves MCP only on localhost (this computer), and every request needs a random secret token that the add-on generates. Browsing data is not sent to the developer or any third party by the add-on. Your AI tool talks to the helper, and the helper talks to this add-on.
 
 Setup (about a minute): a setup page opens when you install it.
 1. Paste one line to install the helper. macOS and Linux: curl -fsSL https://hamb1y.github.io/foxhand/sh | sh. Windows (PowerShell): irm https://hamb1y.github.io/foxhand/ps | iex
@@ -73,7 +73,7 @@ Lo que puede hacer el agente:
 
 Mientras trabaja, un cursor se desliza hasta lo que está tocando, con una burbuja naranja que dice lo que hace. Presiona Ctrl+Mayús+. (o el botón de la barra de herramientas) para pausar todos los comandos a la vez.
 
-Cómo funciona: los complementos de Firefox no pueden abrir puertos de red, así que el complemento inicia una pequeña app auxiliar mediante la mensajería nativa de Firefox. La app auxiliar sirve MCP solo en localhost (esta computadora) y cada solicitud necesita un token secreto aleatorio que genera el complemento. No se envía nada al desarrollador ni a terceros.
+Cómo funciona: los complementos de Firefox no pueden abrir puertos de red, así que el complemento inicia una pequeña app auxiliar mediante la mensajería nativa de Firefox. La app auxiliar sirve MCP solo en localhost (esta computadora) y cada solicitud necesita un token secreto aleatorio que genera el complemento.
 
 Configuración (alrededor de un minuto): al instalarlo se abre una página de configuración.
 1. Pega una línea para instalar la app auxiliar. macOS y Linux: curl -fsSL https://hamb1y.github.io/foxhand/sh | sh. Windows (PowerShell): irm https://hamb1y.github.io/foxhand/ps | iex
@@ -105,7 +105,7 @@ Ce que l’agent peut faire :
 
 Pendant qu’il travaille, un curseur glisse vers ce qu’il touche, avec une bulle orange qui indique ce qu’il fait. Appuyez sur Ctrl+Maj+. (ou sur le bouton de la barre d’outils) pour mettre toutes les commandes en pause d’un coup.
 
-Fonctionnement : les extensions Firefox ne peuvent pas ouvrir de ports réseau ; l’extension lance donc une petite application d’assistance via la messagerie native de Firefox. L’assistant sert MCP uniquement sur localhost (cet ordinateur) et chaque requête exige un jeton secret aléatoire généré par l’extension. Rien n’est envoyé au développeur ni à des tiers.
+Fonctionnement : les extensions Firefox ne peuvent pas ouvrir de ports réseau ; l’extension lance donc une petite application d’assistance via la messagerie native de Firefox. L’assistant sert MCP uniquement sur localhost (cet ordinateur) et chaque requête exige un jeton secret aléatoire généré par l’extension.
 
 Installation (environ une minute) : une page de configuration s’ouvre à l’installation.
 1. Collez une ligne pour installer l’assistant. macOS et Linux : curl -fsSL https://hamb1y.github.io/foxhand/sh | sh. Windows (PowerShell) : irm https://hamb1y.github.io/foxhand/ps | iex
@@ -137,7 +137,7 @@ Was der Agent kann:
 
 Während er arbeitet, gleitet ein Cursor zu dem, was er gerade anklickt, mit einer orangen Sprechblase, die sagt, was er tut. Mit Strg+Umschalt+. (oder der Schaltfläche in der Symbolleiste) halten Sie alle Befehle auf einmal an.
 
-So funktioniert es: Firefox-Add-ons können keine Netzwerk-Ports öffnen, deshalb startet das Add-on über das Native Messaging von Firefox eine kleine Hilfs-App. Die Hilfs-App stellt MCP nur auf localhost (diesem Computer) bereit, und jede Anfrage braucht ein zufälliges geheimes Token, das das Add-on erzeugt. Es wird nichts an den Entwickler oder Dritte gesendet.
+So funktioniert es: Firefox-Add-ons können keine Netzwerk-Ports öffnen, deshalb startet das Add-on über das Native Messaging von Firefox eine kleine Hilfs-App. Die Hilfs-App stellt MCP nur auf localhost (diesem Computer) bereit, und jede Anfrage braucht ein zufälliges geheimes Token, das das Add-on erzeugt.
 
 Einrichtung (etwa eine Minute): Nach der Installation öffnet sich eine Einrichtungsseite.
 1. Eine Zeile einfügen, um die Hilfs-App zu installieren. macOS und Linux: curl -fsSL https://hamb1y.github.io/foxhand/sh | sh. Windows (PowerShell): irm https://hamb1y.github.io/foxhand/ps | iex
@@ -169,7 +169,7 @@ Foxhand 通过 Model Context Protocol（MCP），把你正在使用的 Firefox�
 
 工作时，光标会移动到它要点击的位置，旁边的橙色气泡会说明它在做什么。按 Ctrl+Shift+.（或点击工具栏按钮）可以一次暂停所有命令。
 
-工作原理：Firefox 扩展无法打开网络端口，所以扩展会通过 Firefox 的原生消息机制启动一个小型辅助程序。辅助程序只在 localhost（本机）上提供 MCP 服务，每个请求都需要扩展生成的随机密钥令牌。不会向开发者或任何第三方发送数据。
+工作原理：Firefox 扩展无法打开网络端口，所以扩展会通过 Firefox 的原生消息机制启动一个小型辅助程序。辅助程序只在 localhost（本机）上提供 MCP 服务，每个请求都需要扩展生成的随机密钥令牌。
 
 设置（大约一分钟）：安装后会打开设置页面。
 1. 粘贴一行命令安装辅助程序。macOS 和 Linux：curl -fsSL https://hamb1y.github.io/foxhand/sh | sh。Windows（PowerShell）：irm https://hamb1y.github.io/foxhand/ps | iex
@@ -186,17 +186,21 @@ Foxhand 通过 Model Context Protocol（MCP），把你正在使用的 Firefox�
 ---
 
 ## Privacy policy
-Foxhand does not collect, store or send any data to the developer or to any third party, and contains no analytics or tracking.
+Foxhand does not send browsing data to the developer or to third parties and contains no analytics or tracking.
 
-The add-on exchanges data only with the companion helper app on your own computer, through Firefox native messaging. The helper makes that data available only to programs you connect to it on your computer (by default it listens on localhost and requires a secret token that the add-on generates). That data can include tab URLs and titles, page content, screenshots, bookmarks, history, downloads, cookies for a tab, and notes the AI saves in the add-on. The helper sends data only when one of those programs asks for it.
+The add-on exchanges browsing data with the companion helper app on your own computer, through Firefox native messaging. The helper makes that data available only to programs you connect to it on your computer (by default it listens on localhost and requires a secret token that the add-on generates). That data can include tab URLs and titles, page content, screenshots, bookmarks, history, downloads, cookies for a tab, and notes the AI saves in the add-on. The helper sends data only when one of those programs asks for it.
 
 Firefox's data-collection labels on this listing ("browsing activity", "website content" and so on) describe this exchange with programs on your computer, not collection by the developer.
 
 If you connect an AI tool that uses a cloud service, that tool may send what it reads to its provider under that provider's own privacy policy. That's outside this add-on's control.
 
-Settings (port, token, toggles) are stored locally in Firefox extension storage. Uninstalling the add-on removes them.
+Starting with version 0.5.6, the add-on requests https://foxhand-popup-endpoint.pages.dev/popup.json on startup and every four hours to check for occasional announcements. The endpoint is hosted on Cloudflare Pages. These requests include standard HTTPS connection metadata, such as your IP address, but omit credentials and referrers and do not include browsing data, saved announcement IDs, or a user identifier. Cloudflare processes requests under its own privacy policy: https://www.cloudflare.com/privacypolicy/.
+
+Settings (port, token, toggles) and the IDs of announcements already displayed are stored locally in Firefox extension storage. Uninstalling the add-on removes them.
 
 ## Notes to reviewer
+Version 0.5.6 adds a remote announcement data feed at https://foxhand-popup-endpoint.pages.dev/popup.json (initially null). announcements.js fetches only JSON data, with a 10-second timeout and 64 KiB response limit. announcement.js rebuilds HTML using an explicit tag allowlist and HTTPS links; scripts, event handlers, styles, embeds and forms are discarded. All executable code and styling are packaged in the add-on. No remote code is executed. Each announcement ID is shown once per profile, and IDs remain local. The privacy policy discloses periodic Cloudflare requests.
+
 Foxhand is WebMCP Controller renamed (same add-on ID). This add-on uses native messaging with an open-source companion helper app, like KeePassXC-Browser or 1Password do. The add-on's JavaScript is not minified or bundled; no build step. `_locales/*/messages.json` are generated from `i18n/*.json` by `scripts/i18n.mjs` and committed as-is.
 
 Helper source: https://github.com/hamb1y/foxhand/tree/main/mcp-server (TypeScript, compiled to single-file binaries with `bun build --compile`). Release binaries and SHA256SUMS are at https://github.com/hamb1y/foxhand/releases/latest

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.6
+
+- Announcements can display in a small Foxhand window once per Firefox profile.
+  Shown IDs survive browser restarts and add-on updates.
+- The add-on checks a Cloudflare Pages feed on startup and every four hours.
+  The feed is initially empty. Requests omit credentials and browsing data.
+- Announcement HTML supports basic formatting and HTTPS links. Scripts,
+  embedded content, styles and event handlers are removed; executable code
+  ships inside the add-on.
+- Live tests support Firefox 159's system-access environment variable and
+  verify announcement display and persistence in a real extension window.
+
 ## 0.5.5
 
 Small release, all of it about clicking the right thing and then saying so

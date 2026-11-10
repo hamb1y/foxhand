@@ -45,8 +45,14 @@ python3 -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv
 META=()
 if [ "$CHANNEL" = "listed" ]; then
   node -e '
-    const notes = require("fs").readFileSync(0, "utf8").trim();
-    console.log(JSON.stringify({ version: { release_notes: { "en-US": notes } } }));
+    const fs = require("fs");
+    const notes = fs.readFileSync(0, "utf8").trim();
+    const listing = fs.readFileSync("docs/amo-listing.md", "utf8");
+    const reviewer = listing.split(/^## Notes to reviewer\s*$/m)[1]?.split(/^## /m)[0].trim();
+    if (!reviewer) throw new Error("Missing AMO reviewer notes");
+    console.log(JSON.stringify({ version: {
+      release_notes: { "en-US": notes }, approval_notes: reviewer
+    } }));
   ' < <(node scripts/amo-notes.mjs "$VERSION") > "$WORK/meta.json"
   # Listed versions go through AMO review. Don't wait for it: AMO publishes
   # the version once it's approved.

@@ -79,6 +79,7 @@ jobs:
       - run: npx playwright install --with-deps firefox
       - run: node test/content.mjs
       - run: node test/options.mjs
+      - run: node test/announcements.mjs
       - run: node test/live.mjs
       - run: npm run release
         env:

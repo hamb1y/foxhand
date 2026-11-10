@@ -185,7 +185,8 @@ async function until(fn, ms, what) {
 const tmp = mkdtempSync(path.join(tmpdir(), 'webmcp-live-'));
 const profile = path.join(tmp, 'profile');
 const home = path.join(tmp, 'home');
-const env = { ...process.env };
+// Firefox 159+ requires the environment variable; retain the flag below for older builds.
+const env = { ...process.env, MOZ_REMOTE_ALLOW_SYSTEM_ACCESS: '1' };
 if (!flag('--installed')) {
   Object.assign(env, { HOME: home, USERPROFILE: home, XDG_DATA_HOME: path.join(home, '.local/share'), XDG_CONFIG_HOME: path.join(home, '.config') });
 }
@@ -239,6 +240,23 @@ async function start() {
   const ctx = (await bidi.send('browsingContext.create', { type: 'tab' })).context;
   await bidi.send('browsingContext.navigate', { context: ctx, url: `moz-extension://${UUID}/popup.html`, wait: 'complete' });
   const st0 = await until(() => bidi.evaluate(ctx, `browser.runtime.sendMessage({ type: 'get-status' })`), 20000, 'add-on status');
+  // Substitute only the announcement response in this throwaway profile. The real
+  // background timer, window, renderer and display acknowledgement still run.
+  await bidi.evaluate(ctx, `(async () => {
+    const bg = await browser.runtime.getBackgroundPage();
+    const original = bg.fetch.bind(bg);
+    bg.fetch = (url, options) => String(url) === 'https://foxhand-popup-endpoint.pages.dev/popup.json'
+      ? Promise.resolve(new bg.Response(JSON.stringify({ id: 'live-announcement-test', html: '<h2>Announcement test</h2><p>Local fixture.</p>' })))
+      : original(url, options);
+  })()`);
+  await until(() => bidi.evaluate(ctx, `browser.storage.local.get('shownPopupIds').then(s => (s.shownPopupIds || []).includes('live-announcement-test'))`), 30000, 'announcement displayed and acknowledged');
+  ok('announcement window renders and records its ID in real Firefox', true);
+  await bidi.evaluate(ctx, `(async () => {
+    for (const win of await browser.windows.getAll({ populate: true })) {
+      if (win.tabs.some(tab => tab.url === browser.runtime.getURL('announcement.html'))) await browser.windows.remove(win.id);
+    }
+  })()`);
+
   // Our own port, so a real helper the user runs on 8901 is never disturbed.
   await bidi.evaluate(ctx, `browser.runtime.sendMessage({ type: 'set-config', port: ${PORT} })`);
   const st = await until(async () => {

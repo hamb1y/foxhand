@@ -390,6 +390,16 @@ to 1000 keys. `area: "local"` and `"session"` read and write the page's own
   Browser Console (Ctrl+Shift+J) with a `[foxhand]` prefix, and to
   `foxhand-host.log` next to the helper.
 
+## Announcements
+
+The add-on checks `https://foxhand-popup-endpoint.pages.dev/popup.json` on
+startup and every four hours for occasional announcements. Each announcement
+opens once per Firefox profile; shown IDs stay in local extension storage across
+restarts and updates. The endpoint receives ordinary HTTPS connection metadata
+(such as the IP address), but no credentials, browsing data, or shown IDs.
+Announcement HTML is limited to basic formatting and HTTPS links; scripts and
+embedded content are removed. See [publishing announcements](popup-endpoint/README.md).
+
 ## Development
 
 ```bash

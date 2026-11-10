@@ -13,6 +13,7 @@ python3 - "$OUT" <<'EOF2'
 import os, sys, zipfile
 out = sys.argv[1]
 SHIP = ["manifest.json", "background.js", "common.js", "ui.css", "popup.html", "popup.js",
+        "announcements.js", "announcement.html", "announcement.js", "announcement.css",
         "options.html", "options.js", "onboarding.html", "onboarding.js", "_locales",
         "content", "icons", "fonts", "cursors"]
 files = []
