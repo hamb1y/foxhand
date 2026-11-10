@@ -510,6 +510,18 @@ npm run build          # compiles shared/ and mcp-server/ with tsc
 npm run build:host     # optional: single-file binaries in dist/host/ (needs Bun)
 ```
 
+## Star History
+
+If Foxhand is useful to you, please [star the repository](https://github.com/hamb1y/foxhand) to support the project and help others discover it.
+
+<a href="https://www.star-history.com/?repos=hamb1y%2Ffoxhand&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=hamb1y/foxhand&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=hamb1y/foxhand&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=hamb1y/foxhand&type=date&legend=top-left" />
+ </picture>
+</a>
+
 ## License
 
 [Mozilla Public License 2.0](LICENSE).
