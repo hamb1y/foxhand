@@ -1,4 +1,4 @@
-# AMO listing: paste-ready text (Foxhand 0.5.6)
+# AMO listing: paste-ready text (Foxhand 0.5.7)
 
 AMO keeps a name, summary and description per language: Developer Hub →
 Edit Product Page, then switch the language at the top of the form. English is
@@ -199,7 +199,9 @@ Starting with version 0.5.6, the add-on requests https://foxhand-popup-endpoint.
 Settings (port, token, toggles) and the IDs of announcements already displayed are stored locally in Firefox extension storage. Uninstalling the add-on removes them.
 
 ## Notes to reviewer
-Version 0.5.6 adds a remote announcement data feed at https://foxhand-popup-endpoint.pages.dev/popup.json (initially null). announcements.js fetches only JSON data, with a 10-second timeout and 64 KiB response limit. announcement.js rebuilds HTML using an explicit tag allowlist and HTTPS links; scripts, event handlers, styles, embeds and forms are discarded. All executable code and styling are packaged in the add-on. No remote code is executed. Each announcement ID is shown once per profile, and IDs remain local. The privacy policy discloses periodic Cloudflare requests.
+Version 0.5.7 changes only the locally packaged announcement layout and window size. Text is centered and links in lists are shown as cards. The first announcement asks users to recommend Foxhand, leave honest AMO reviews, star the GitHub repository, or report suggestions and issues. No reward is offered for reviews. The feed may return null or the announcement data described below.
+
+Version 0.5.6 adds a remote announcement data feed at https://foxhand-popup-endpoint.pages.dev/popup.json. announcements.js fetches only JSON data, with a 10-second timeout and 64 KiB response limit. announcement.js rebuilds HTML using an explicit tag allowlist and HTTPS links; scripts, event handlers, styles, embeds and forms are discarded. All executable code and styling are packaged in the add-on. No remote code is executed. Each announcement ID is shown once per profile, and IDs remain local. The privacy policy discloses periodic Cloudflare requests.
 
 Foxhand is WebMCP Controller renamed (same add-on ID). This add-on uses native messaging with an open-source companion helper app, like KeePassXC-Browser or 1Password do. The add-on's JavaScript is not minified or bundled; no build step. `_locales/*/messages.json` are generated from `i18n/*.json` by `scripts/i18n.mjs` and committed as-is.
 

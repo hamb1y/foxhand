@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.7
+
+- Center announcement text and give its links distinct cards with Firefox orange
+  accents, clear spacing, and supporting descriptions.
+- Give announcement windows more room so the message and links are easier to read.
+- Prepare the first community announcement with links for honest AMO reviews,
+  GitHub stars, suggestions, and issue reports.
+
 ## 0.5.6
 
 - Announcements can display in a small Foxhand window once per Firefox profile.

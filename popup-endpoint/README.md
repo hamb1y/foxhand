@@ -27,4 +27,7 @@ Deploy from the repository root using authenticated Wrangler:
 wrangler pages deploy --cwd popup-endpoint --branch main --commit-dirty=true
 ```
 
-The deployed feed is intentionally empty until the first announcement is ready.
+The first announcement, `foxhand-community-2026-11`, invites recommendations,
+honest AMO reviews, GitHub stars, and suggestions or issue reports. Version
+0.5.7 adds centered text and cards for its links; older 0.5.6 installations
+can render the same content using their original layout.

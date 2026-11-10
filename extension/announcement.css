@@ -1,13 +1,20 @@
 body { margin: 0; min-width: 260px; }
-header { display: flex; align-items: center; gap: 10px; padding: 18px 24px; border-bottom: 1px solid var(--line); }
+header { display: flex; align-items: center; gap: 10px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
 header strong { flex: 1; }
 #close { width: 44px; height: 44px; padding: 0; font-size: 26px; }
-main { padding: 24px; line-height: 1.65; overflow-wrap: anywhere; }
+main { max-width: 440px; margin: 0 auto; padding: 28px 24px; text-align: center; line-height: 1.6; overflow-wrap: anywhere; }
 main > :first-child { margin-top: 0; }
-h1, h2, h3 { line-height: 1.25; }
-h1 { font-size: 28px; }
-h2 { font-size: 24px; }
-h3 { font-size: 20px; }
+main > :last-child { margin-bottom: 0; }
+h1, h2, h3 { color: var(--fg); line-height: 1.2; letter-spacing: -0.025em; margin: 0 0 18px; }
+h1 { font-size: 30px; }
+h2 { font-size: 28px; }
+h3 { font-size: 22px; }
+p { margin: 0 0 18px; color: var(--soft); }
+ul, ol { display: grid; gap: 10px; padding: 0; margin: 22px 0; list-style: none; }
+li { padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+li > a { display: block; font-size: 15px; font-weight: 600; text-decoration: none; }
+li > span { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; }
+a { color: var(--orange); text-underline-offset: 3px; }
+a:hover { color: var(--orange); text-decoration: underline; }
 pre { white-space: pre-wrap; }
-a { color: var(--orange); }
-blockquote { margin-left: 0; padding-left: 16px; border-left: 3px solid var(--orange); }
+blockquote { margin-left: 0; margin-right: 0; padding: 12px 16px; border-left: 3px solid var(--orange); background: var(--surface); }

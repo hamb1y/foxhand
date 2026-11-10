@@ -41,7 +41,7 @@ async function check() {
     pending = { id: item.id, html: item.html, opening: null, windowId: null };
     var current = pending;
     current.opening = B.windows.create({
-      url: PAGE, type: 'popup', width: 460, height: 520
+      url: PAGE, type: 'popup', width: 480, height: 700
     });
     var win = await current.opening;
     current.windowId = win.id;
