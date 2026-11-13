@@ -10,6 +10,12 @@ assert.match(want, /^\d+\.\d+\.\d+$/);
 const home = mkdtempSync(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'foxhand-public-'));
 const env = { ...process.env, HOME: home, USERPROFILE: home, APPDATA: path.join(home, 'Roaming'), LOCALAPPDATA: path.join(home, 'Local'), XDG_CONFIG_HOME: path.join(home, '.config') };
 delete env.FOXHAND_BASE; delete env.WEBMCP_BASE;
+if (process.platform === 'win32') {
+  // The workflow's pwsh parent supplies a PS7 module path. Give Windows
+  // PowerShell 5.1 its own built-ins so Get-FileHash can autoload normally.
+  for (const key of Object.keys(env)) if (key.toLowerCase() === 'psmodulepath') delete env[key];
+  env.PSModulePath = path.win32.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'Modules');
+}
 for (const dir of [env.APPDATA, env.LOCALAPPDATA, env.XDG_CONFIG_HOME]) mkdirSync(dir, { recursive: true });
 const latest = await (await fetch('https://foxhand.pages.dev/download/latest.json', { cache: 'no-store' })).json();
 assert.equal(latest.version, want, 'Live pinned release differs from requested smoke-test version');
