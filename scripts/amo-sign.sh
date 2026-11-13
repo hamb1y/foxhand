@@ -50,6 +50,7 @@ if [ "$CHANNEL" = "listed" ]; then
     const listing = fs.readFileSync("docs/amo-listing.md", "utf8");
     const reviewer = listing.split(/^## Notes to reviewer\s*$/m)[1]?.split(/^## /m)[0].trim();
     if (!reviewer) throw new Error("Missing AMO reviewer notes");
+    if (reviewer.length > 3000) throw new Error("AMO reviewer notes exceed 3000 characters");
     console.log(JSON.stringify({ version: {
       release_notes: { "en-US": notes }, approval_notes: reviewer
     } }));
