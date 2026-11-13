@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.8
+
+- Move the website, helper installer links and announcement checks to foxhand.pages.dev.
+- Keep binary downloads on GitHub Releases through versioned download redirects.
+- Add downloads, privacy and changelog pages on the new website.
+- Preserve existing installer links, announcement identity and profile settings.
+
 ## 0.5.7
 
 - Center announcement text and give its links distinct cards with Firefox orange
