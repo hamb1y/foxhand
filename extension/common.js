@@ -4,8 +4,8 @@
 
 var B = (typeof browser !== 'undefined') ? browser : (typeof chrome !== 'undefined' ? chrome : {});
 var BIN = 'foxhand-host';
-var SITE = 'https://hamb1y.github.io/foxhand/';
-var DOWNLOAD = 'https://github.com/hamb1y/foxhand/releases/latest/download/';
+var SITE = 'https://foxhand.pages.dev/';
+var DOWNLOAD = SITE + 'download/latest/';
 
 /* ------------------------------------------------------------ i18n */
 
@@ -50,7 +50,7 @@ function hostSetup(platform) {
     return {
       os: 'Windows',
       open: t('openPowerShell'),
-      cmd: 'irm ' + SITE + 'ps | iex',
+      cmd: 'irm ' + SITE + 'download/ps | iex',
       file: BIN + '-windows-' + a + '.exe',
       uninstall: '& "$env:LOCALAPPDATA\\foxhand\\' + BIN + '.exe" uninstall',
       manual: t('manualWin')
@@ -61,7 +61,7 @@ function hostSetup(platform) {
   return {
     os: mac ? 'macOS' : 'Linux',
     open: mac ? t('openTerminalMac') : t('openTerminal'),
-    cmd: 'curl -fsSL ' + SITE + 'sh | sh',
+    cmd: 'curl -fsSL ' + SITE + 'download/sh | sh',
     file: file,
     uninstall: (mac ? '~/Library/Application\\ Support' : '~/.local/share') + '/foxhand/' + BIN + ' uninstall',
     // A browser download is quarantined on macOS: clear that first, or Gatekeeper blocks it.

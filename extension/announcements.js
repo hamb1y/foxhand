@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 var B = browser;
-var ENDPOINT = 'https://foxhand-popup-endpoint.pages.dev/popup.json';
+var ENDPOINT = 'https://foxhand.pages.dev/endpoint/announcement';
 var PAGE = B.runtime.getURL('announcement.html');
 var SEEN = 'shownPopupIds';
 var pending = null;

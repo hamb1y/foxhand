@@ -51,12 +51,12 @@ Helper app for the **Foxhand** add-on (formerly WebMCP Controller).
 
 **Windows**: open PowerShell and paste:
 \`\`\`powershell
-irm https://hamb1y.github.io/foxhand/ps | iex
+irm https://foxhand.pages.dev/download/ps | iex
 \`\`\`
 
 **macOS / Linux**: open Terminal and paste:
 \`\`\`sh
-curl -fsSL https://hamb1y.github.io/foxhand/sh | sh
+curl -fsSL https://foxhand.pages.dev/download/sh | sh
 \`\`\`
 
 Already installed? Run the same command again to update: Firefox switches to the

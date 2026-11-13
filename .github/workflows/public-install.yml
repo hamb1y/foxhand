@@ -1,0 +1,37 @@
+name: Public installer
+# Tests the deployed entry point, not locally built or served artifacts.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Expected helper version currently pinned on foxhand.pages.dev
+        required: true
+        default: '0.5.7'
+        type: string
+permissions:
+  contents: read
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, name: linux-x64 }
+          - { os: ubuntu-24.04-arm, name: linux-arm64 }
+          - { os: macos-15, name: darwin-arm64 }
+          - { os: macos-15-intel, name: darwin-x64 }
+          - { os: windows-latest, name: windows-x64 }
+          - { os: windows-11-arm, name: windows-arm64 }
+    runs-on: ${{ matrix.os }}
+    name: public ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install live helper in an isolated home and verify version/architecture
+        env:
+          PUBLIC_VERSION: ${{ inputs.version }}
+        run: node test/public-install.mjs

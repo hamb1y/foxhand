@@ -7,3 +7,6 @@ dist/
 *.tsbuildinfo
 web-ext-artifacts/
 extension/.amo-upload-uuid
+
+.wrangler/
+_site/

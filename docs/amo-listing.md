@@ -41,7 +41,7 @@ While it works, a cursor glides to whatever it's clicking, with an orange bubble
 How it works: Firefox add-ons can't open network ports, so the add-on starts a small companion helper app through Firefox native messaging. The helper serves MCP only on localhost (this computer), and every request needs a random secret token that the add-on generates. Browsing data is not sent to the developer or any third party by the add-on. Your AI tool talks to the helper, and the helper talks to this add-on.
 
 Setup (about a minute): a setup page opens when you install it.
-1. Paste one line to install the helper. macOS and Linux: curl -fsSL https://hamb1y.github.io/foxhand/sh | sh. Windows (PowerShell): irm https://hamb1y.github.io/foxhand/ps | iex
+1. Paste one line to install the helper. macOS and Linux: curl -fsSL https://foxhand.pages.dev/download/sh | sh. Windows (PowerShell): irm https://foxhand.pages.dev/download/ps | iex
 2. Copy the config for your AI (Claude Code, Codex, Gemini CLI, opencode, the Claude app, or any MCP client).
 3. Ask your AI to do something in Firefox.
 
@@ -76,7 +76,7 @@ Mientras trabaja, un cursor se desliza hasta lo que está tocando, con una burbu
 Cómo funciona: los complementos de Firefox no pueden abrir puertos de red, así que el complemento inicia una pequeña app auxiliar mediante la mensajería nativa de Firefox. La app auxiliar sirve MCP solo en localhost (esta computadora) y cada solicitud necesita un token secreto aleatorio que genera el complemento.
 
 Configuración (alrededor de un minuto): al instalarlo se abre una página de configuración.
-1. Pega una línea para instalar la app auxiliar. macOS y Linux: curl -fsSL https://hamb1y.github.io/foxhand/sh | sh. Windows (PowerShell): irm https://hamb1y.github.io/foxhand/ps | iex
+1. Pega una línea para instalar la app auxiliar. macOS y Linux: curl -fsSL https://foxhand.pages.dev/download/sh | sh. Windows (PowerShell): irm https://foxhand.pages.dev/download/ps | iex
 2. Copia la configuración para tu IA.
 3. Pídele a tu IA que haga algo en Firefox.
 
@@ -108,7 +108,7 @@ Pendant qu’il travaille, un curseur glisse vers ce qu’il touche, avec une bu
 Fonctionnement : les extensions Firefox ne peuvent pas ouvrir de ports réseau ; l’extension lance donc une petite application d’assistance via la messagerie native de Firefox. L’assistant sert MCP uniquement sur localhost (cet ordinateur) et chaque requête exige un jeton secret aléatoire généré par l’extension.
 
 Installation (environ une minute) : une page de configuration s’ouvre à l’installation.
-1. Collez une ligne pour installer l’assistant. macOS et Linux : curl -fsSL https://hamb1y.github.io/foxhand/sh | sh. Windows (PowerShell) : irm https://hamb1y.github.io/foxhand/ps | iex
+1. Collez une ligne pour installer l’assistant. macOS et Linux : curl -fsSL https://foxhand.pages.dev/download/sh | sh. Windows (PowerShell) : irm https://foxhand.pages.dev/download/ps | iex
 2. Copiez la configuration pour votre IA.
 3. Demandez à votre IA de faire quelque chose dans Firefox.
 
@@ -140,7 +140,7 @@ Während er arbeitet, gleitet ein Cursor zu dem, was er gerade anklickt, mit ein
 So funktioniert es: Firefox-Add-ons können keine Netzwerk-Ports öffnen, deshalb startet das Add-on über das Native Messaging von Firefox eine kleine Hilfs-App. Die Hilfs-App stellt MCP nur auf localhost (diesem Computer) bereit, und jede Anfrage braucht ein zufälliges geheimes Token, das das Add-on erzeugt.
 
 Einrichtung (etwa eine Minute): Nach der Installation öffnet sich eine Einrichtungsseite.
-1. Eine Zeile einfügen, um die Hilfs-App zu installieren. macOS und Linux: curl -fsSL https://hamb1y.github.io/foxhand/sh | sh. Windows (PowerShell): irm https://hamb1y.github.io/foxhand/ps | iex
+1. Eine Zeile einfügen, um die Hilfs-App zu installieren. macOS und Linux: curl -fsSL https://foxhand.pages.dev/download/sh | sh. Windows (PowerShell): irm https://foxhand.pages.dev/download/ps | iex
 2. Die Konfiguration für Ihre KI kopieren.
 3. Ihre KI bitten, etwas in Firefox zu erledigen.
 
@@ -172,7 +172,7 @@ Foxhand 通过 Model Context Protocol（MCP），把你正在使用的 Firefox�
 工作原理：Firefox 扩展无法打开网络端口，所以扩展会通过 Firefox 的原生消息机制启动一个小型辅助程序。辅助程序只在 localhost（本机）上提供 MCP 服务，每个请求都需要扩展生成的随机密钥令牌。
 
 设置（大约一分钟）：安装后会打开设置页面。
-1. 粘贴一行命令安装辅助程序。macOS 和 Linux：curl -fsSL https://hamb1y.github.io/foxhand/sh | sh。Windows（PowerShell）：irm https://hamb1y.github.io/foxhand/ps | iex
+1. 粘贴一行命令安装辅助程序。macOS 和 Linux：curl -fsSL https://foxhand.pages.dev/download/sh | sh。Windows（PowerShell）：irm https://foxhand.pages.dev/download/ps | iex
 2. 为你的 AI 复制配置。
 3. 让你的 AI 在 Firefox 里做点事。
 
@@ -194,11 +194,15 @@ Firefox's data-collection labels on this listing ("browsing activity", "website 
 
 If you connect an AI tool that uses a cloud service, that tool may send what it reads to its provider under that provider's own privacy policy. That's outside this add-on's control.
 
-Starting with version 0.5.6, the add-on requests https://foxhand-popup-endpoint.pages.dev/popup.json on startup and every four hours to check for occasional announcements. The endpoint is hosted on Cloudflare Pages. These requests include standard HTTPS connection metadata, such as your IP address, but omit credentials and referrers and do not include browsing data, saved announcement IDs, or a user identifier. Cloudflare processes requests under its own privacy policy: https://www.cloudflare.com/privacypolicy/.
+The current add-on requests https://foxhand.pages.dev/endpoint/announcement on startup and every four hours to check for occasional announcements. Versions 0.5.6 and 0.5.7 use the legacy https://foxhand-popup-endpoint.pages.dev/popup.json endpoint, which remains available for installed versions. Both endpoints are hosted on Cloudflare Pages. These requests include standard HTTPS connection metadata, such as your IP address, but omit credentials and referrers and do not include browsing data, saved announcement IDs, or a user identifier. Cloudflare processes requests under its own privacy policy: https://www.cloudflare.com/privacypolicy/.
+
+This policy is also available at https://foxhand.pages.dev/privacy.
 
 Settings (port, token, toggles) and the IDs of announcements already displayed are stored locally in Firefox extension storage. Uninstalling the add-on removes them.
 
 ## Notes to reviewer
+The domain transition changes installer links to https://foxhand.pages.dev/download/sh and /download/ps, direct downloads to /download/latest/, and announcements to https://foxhand.pages.dev/endpoint/announcement. Versioned downloads redirect to the original GitHub Release assets and installers verify their published checksums. The legacy GitHub Pages installers and announcement feed remain available. The extension ID, native host name, announcement content and seen IDs are unchanged.
+
 Version 0.5.7 changes only the locally packaged announcement layout and window size. Text is centered and links in lists are shown as cards. The first announcement asks users to recommend Foxhand, leave honest AMO reviews, star the GitHub repository, or report suggestions and issues. No reward is offered for reviews. The feed may return null or the announcement data described below.
 
 Version 0.5.6 adds a remote announcement data feed at https://foxhand-popup-endpoint.pages.dev/popup.json. announcements.js fetches only JSON data, with a 10-second timeout and 64 KiB response limit. announcement.js rebuilds HTML using an explicit tag allowlist and HTTPS links; scripts, event handlers, styles, embeds and forms are discarded. All executable code and styling are packaged in the add-on. No remote code is executed. Each announcement ID is shown once per profile, and IDs remain local. The privacy policy discloses periodic Cloudflare requests.
@@ -209,8 +213,8 @@ Helper source: https://github.com/hamb1y/foxhand/tree/main/mcp-server (TypeScrip
 
 To test:
 1. Install the add-on; a setup page opens. Install the helper:
-   Linux/macOS: curl -fsSL https://hamb1y.github.io/foxhand/sh | sh
-   Windows (PowerShell): irm https://hamb1y.github.io/foxhand/ps | iex
+   Linux/macOS: curl -fsSL https://foxhand.pages.dev/download/sh | sh
+   Windows (PowerShell): irm https://foxhand.pages.dev/download/ps | iex
 2. The setup page ticks off its first step. Copy the config in step 2 (contains URL + token).
 3. From a terminal (replace TOKEN):
    curl -s http://localhost:8901/mcp -H "Authorization: Bearer TOKEN" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"tab_query","arguments":{"query":"*"}}}'

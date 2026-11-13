@@ -16,7 +16,7 @@ native messaging host) when the add-on loads, and the helper serves MCP on
 your own machine.
 
 [**Install the add-on from addons.mozilla.org**](https://addons.mozilla.org/en-US/firefox/addon/foxhand/)
-· [Website](https://hamb1y.github.io/foxhand/)
+· [Website](https://foxhand.pages.dev/)
 · [What's new in 0.5.4](CHANGELOG.md)
 
 <img src="site/shots/cursor.webp" alt="A Wikipedia article on the red panda. The AI cursor rests on the title with an orange bubble that reads: Reading up on the red panda, the animal Firefox is named after.">
@@ -54,8 +54,8 @@ the article. The orange bubble is the AI saying what it's doing.*
 
 1. **Install the add-on** from the link above. A setup page opens.
 2. **Install the helper** (once per computer), by pasting one line:
-   - macOS and Linux, in Terminal: `curl -fsSL https://hamb1y.github.io/foxhand/sh | sh`
-   - Windows, in PowerShell: `irm https://hamb1y.github.io/foxhand/ps | iex`
+   - macOS and Linux, in Terminal: `curl -fsSL https://foxhand.pages.dev/download/sh | sh`
+   - Windows, in PowerShell: `irm https://foxhand.pages.dev/download/ps | iex`
 
    See [Installing the helper](#installing-the-helper).
 3. **Connect your AI.** The setup page (or the toolbar popup's **Copy MCP
@@ -136,7 +136,7 @@ the sanctioned way for an add-on to reach a local program.
 **Windows**, in PowerShell:
 
 ```powershell
-irm https://hamb1y.github.io/foxhand/ps | iex
+irm https://foxhand.pages.dev/download/ps | iex
 ```
 
 (In Command Prompt, type `powershell` first.)
@@ -144,7 +144,7 @@ irm https://hamb1y.github.io/foxhand/ps | iex
 **macOS, Linux, WSL**, in a terminal (inside WSL it installs the Windows helper):
 
 ```sh
-curl -fsSL https://hamb1y.github.io/foxhand/sh | sh
+curl -fsSL https://foxhand.pages.dev/download/sh | sh
 ```
 
 The script picks the x64 or arm64 binary, checks its SHA-256 against the
@@ -392,7 +392,7 @@ to 1000 keys. `area: "local"` and `"session"` read and write the page's own
 
 ## Announcements
 
-The add-on checks `https://foxhand-popup-endpoint.pages.dev/popup.json` on
+The add-on checks `https://foxhand.pages.dev/endpoint/announcement` on
 startup and every four hours for occasional announcements. Each announcement
 opens once per Firefox profile; shown IDs stay in local extension storage across
 restarts and updates. The endpoint receives ordinary HTTPS connection metadata

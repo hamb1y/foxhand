@@ -1,6 +1,8 @@
 # Foxhand announcements
 
-Production: https://foxhand-popup-endpoint.pages.dev/popup.json
+Current endpoint: https://foxhand.pages.dev/endpoint/announcement
+
+Legacy endpoint for versions 0.5.6–0.5.7: https://foxhand-popup-endpoint.pages.dev/popup.json
 
 `public/popup.json` is `null` when no announcement is active. To publish one,
 replace it with an object containing a unique `id` (up to 128 characters) and
@@ -21,7 +23,13 @@ lists, blockquotes, code/pre, and HTTPS links. All attributes except validated
 link hrefs are discarded. Scripts, embedded content, images, forms, styles,
 and event handlers are removed. Styling and window controls ship in the add-on.
 
-Deploy from the repository root using authenticated Wrangler:
+For a feed update, deploy the unified project through the Cloudflare workflow
+with the currently published version and publish=true. It copies this same
+`public/popup.json` verbatim. Keep the announcement ID unchanged when only moving
+domains; changing it would redisplay the message.
+
+Also update the legacy endpoint for already-installed older add-ons. Deploy that
+compatibility project from the repository root using authenticated Wrangler:
 
 ```sh
 wrangler pages deploy --cwd popup-endpoint --branch main --commit-dirty=true

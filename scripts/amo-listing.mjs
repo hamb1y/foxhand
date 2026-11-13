@@ -49,7 +49,8 @@ const name = tidy(body('Name'));
 const privacy = tidy(body('Privacy policy'));
 const urls = tidy(body('Support')).match(/https?:\/\/\S+/g) || [];
 const support = urls[0];
-const homepage = 'https://hamb1y.github.io/foxhand/';
+const homepage = 'https://foxhand.pages.dev/';
+const privacyURL = 'https://foxhand.pages.dev/privacy';
 
 /* ---- AMO API ---- */
 // Stored secrets sometimes carry a trailing newline from how they were pasted.
@@ -94,7 +95,7 @@ if (dry) {
   console.log(`addon ${GUID}`);
   console.log(`name: ${name}\nhomepage: ${homepage}\nsupport: ${support}`);
   for (const [loc, s] of Object.entries(p.summary)) console.log(`\n[${loc}] summary (${s.length} chars): ${s}\n[${loc}] description: ${p.description[loc].length} chars, starts "${p.description[loc].slice(0, 70)}…"`);
-  console.log(`\nprivacy policy: ${privacy.length} chars, starts "${privacy.slice(0, 70)}…"`);
+  console.log(`\nprivacy URL: ${privacyURL}\nprivacy policy: ${privacy.length} chars, starts "${privacy.slice(0, 70)}…"`);
   process.exit(0);
 }
 

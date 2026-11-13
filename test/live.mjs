@@ -245,7 +245,7 @@ async function start() {
   await bidi.evaluate(ctx, `(async () => {
     const bg = await browser.runtime.getBackgroundPage();
     const original = bg.fetch.bind(bg);
-    bg.fetch = (url, options) => String(url) === 'https://foxhand-popup-endpoint.pages.dev/popup.json'
+    bg.fetch = (url, options) => String(url) === 'https://foxhand.pages.dev/endpoint/announcement'
       ? Promise.resolve(new bg.Response(JSON.stringify({ id: 'live-announcement-test', html: '<h2>Announcement test</h2><p>Local fixture.</p>' })))
       : original(url, options);
   })()`);

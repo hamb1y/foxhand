@@ -1,7 +1,7 @@
 # Foxhand (formerly WebMCP Controller)
 
 A Firefox add-on plus a native helper. The helper serves MCP on `localhost:8901`, so an AI agent can drive the user's real Firefox profile.
-GitHub: `hamb1y/foxhand`. Site: https://hamb1y.github.io/foxhand/ (from `site/`).
+GitHub: `hamb1y/foxhand`. Site: https://foxhand.pages.dev/ (from `site/`).
 
 ## Layout
 
