@@ -6,11 +6,19 @@
 <title>Foxhand</title>
 <link rel="stylesheet" href="ui.css">
 <style>
-  main { max-width: 760px; margin: 0 auto; padding: 72px 16px 96px; display: flex; flex-direction: column; gap: 40px; }
+  main { max-width: 760px; margin: 0 auto; padding: 56px 16px 96px; display: flex; flex-direction: column; gap: 32px; }
   header { display: flex; align-items: center; gap: 16px; }
   h1 { margin: 0; font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
-  .lead { font-size: 17px; color: var(--soft); margin: -16px 0 0; max-width: 620px; }
-  #renamed { padding: 18px 22px; border: 1px solid var(--orange); border-radius: 16px; color: var(--fg); }
+  .lead { font-size: 17px; color: var(--soft); margin: -12px 0 0; max-width: 620px; }
+  #renamed { color: var(--fg); }
+
+  /* Progress: three segments that fill in as the steps below complete. */
+  .progress { display: flex; flex-direction: column; gap: 10px; margin-top: -8px; }
+  .progress .bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .progress .bar i { height: 6px; border-radius: 3px; background: var(--line); }
+  .progress .bar i.on { background: var(--orange); }
+  .progress .bar i.cur { background: var(--fg); }
+  #progText { font-size: 14px; color: var(--soft); }
 
   ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 20px; counter-reset: step; }
   .step { position: relative; padding: 28px 32px 32px 88px; border: 1px solid var(--line); border-radius: 20px; display: flex; flex-direction: column; gap: 16px; }
@@ -19,14 +27,17 @@
     width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center;
     font-weight: 600; color: var(--muted);
   }
-  .step.done { border-color: #2a2a2a; }
+  .step.done { border-color: var(--line); }
+  .step.done .why { display: none; }
   .step.done::before { content: '✓'; background: var(--orange); border-color: var(--orange); color: var(--ink); }
   .step.current { border-color: var(--orange); }
-  .step.later { opacity: .55; }
+  .step.later { opacity: .6; }
+  .step.later .tries button, .step.later #copyCfg { pointer-events: none; }
   .step h2 { margin: 0; font-size: 21px; font-weight: 600; }
   .why { margin: -6px 0 0; color: var(--muted); }
   .state { display: flex; align-items: center; gap: 10px; font-weight: 500; }
   .state.ok { color: var(--orange); }
+  .state .dot { flex: none; }
 
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chips label { position: relative; cursor: pointer; }
@@ -35,16 +46,18 @@
   .chips label:hover span { border-color: var(--muted); }
   .chips input:checked + span { background: var(--fg); border-color: var(--fg); color: var(--ink); font-weight: 600; }
   .chips input:focus-visible + span { outline: 2px solid var(--orange); outline-offset: 2px; }
-  #cfg { margin: 0; padding: 18px 20px; background: var(--surface); border-radius: 14px; max-height: 260px; overflow: auto;
+  #cfg { margin: 0; padding: 18px 20px; background: #0f0f0f; border: 1px solid var(--line); border-radius: 14px; max-height: 260px; overflow: auto;
     font: 13px/1.7 var(--mono); color: #e6e6e6; white-space: pre-wrap; overflow-wrap: anywhere; }
   #hint { color: var(--soft); margin: 0; }
 
   .tries { display: flex; flex-direction: column; gap: 10px; }
-  .try { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; background: var(--surface); border-radius: 14px; }
+  .try { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
   .try q { quotes: none; font-size: 15px; }
   .try button { height: 36px; padding: 0 14px; flex: none; }
   ul.tips { margin: 0; padding-left: 20px; color: var(--soft); display: flex; flex-direction: column; gap: 8px; }
-  kbd { font: 12px var(--mono); padding: 2px 6px; border: 1px solid var(--line); border-radius: 6px; color: var(--fg); }
+  details.help { border-top: 1px solid var(--line); padding-top: 14px; }
+  details.help summary { cursor: pointer; font-weight: 500; min-height: 24px; }
+  details.help ul { margin: 12px 0 0; padding-left: 20px; color: var(--soft); display: flex; flex-direction: column; gap: 8px; }
   footer { display: flex; gap: 20px; flex-wrap: wrap; color: var(--muted); font-size: 14px; }
   footer a { color: var(--soft); }
   @media (max-width: 560px) { .step { padding: 72px 20px 24px; } .step::before { top: 22px; left: 20px; } }
@@ -57,7 +70,12 @@
     <h1 data-i18n="obTitle">Welcome to Foxhand</h1>
   </header>
   <p class="lead" data-i18n="obIntro"></p>
-  <div id="renamed" hidden data-i18n="obRenamed"></div>
+  <div id="renamed" class="callout attn" hidden data-i18n="obRenamed"></div>
+
+  <div class="progress" role="status">
+    <div class="bar" aria-hidden="true"><i id="p1"></i><i id="p2"></i><i id="p3"></i></div>
+    <div id="progText"></div>
+  </div>
 
   <ol class="steps">
     <li class="step" id="s1">
@@ -82,7 +100,16 @@
       <pre id="cfg" tabindex="0" data-i18n-attr="aria-label:configToCopy"></pre>
       <div class="row"><button id="copyCfg" type="button" class="orange" data-i18n="copy">Copy</button></div>
       <div class="sub" id="wslNote" hidden data-i18n="obWslNote"></div>
+      <div class="callout" id="tokenNote"><span data-i18n="configSecret"></span></div>
       <div class="state" id="s2state" role="status"><span class="dot wait"></span><span id="s2text" data-i18n="ob2Waiting"></span></div>
+      <details class="help">
+        <summary data-i18n="obHelpTitle">Your AI isn’t connecting?</summary>
+        <ul>
+          <li data-i18n="obHelp1"></li>
+          <li data-i18n="obHelp2"></li>
+          <li data-i18n="obHelp3"></li>
+        </ul>
+      </details>
     </li>
 
     <li class="step" id="s3">

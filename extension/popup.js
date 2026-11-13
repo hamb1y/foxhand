@@ -34,12 +34,22 @@ function autoRetry(st) {
   send({ type: 'probe' }).catch(function () {});
 }
 
+/* While serving, this card is either what the AI is doing or an empty state that says what to do. */
 function renderNow(st) {
   var n = st.now;
-  $('now').hidden = !st.listening || !n;
-  if (!n) return;
+  $('now').hidden = !st.listening;
+  if (!st.listening) return;
+  if (!n) {
+    $('nowLbl').className = '';
+    setText($('nowLbl'), t('activity'));
+    $('nowText').className = 'empty';
+    setText($('nowText'), t('nowEmpty'));
+    setText($('nowSite'), '');
+    return;
+  }
   $('nowLbl').className = n.active ? 'live' : '';
   setText($('nowLbl'), n.active ? t('now') : t('lastAgo', ago(n.at)));
+  $('nowText').className = '';
   setText($('nowText'), n.text);
   setText($('nowSite'), n.site || '');
 }
@@ -56,15 +66,22 @@ function render(st) {
   last = st;
   var sum = F.summarize(st);
   dotEl.className = 'dot ' + sum.cls;
+  $('hero').setAttribute('data-state', sum.cls);
   setText(stateEl, sum.text);
+  setText($('hint'), F.hint(st));
   setText(errEl, st.listening ? '' : ((st.host && st.host.error) || (st.hostMissing ? '' : st.lastError) || ''));
   var need = F.setupNeed(st);
   setupEl.hidden = !need;
   if (need) renderSteps(st, need);
   autoRetry(st);
   copyBtn.hidden = !st.listening;
+  // Retry is the main action when the helper should be running but isn't; with no helper the install steps are.
   $('retry').hidden = !!st.listening;
-  $('guide').hidden = !!st.listening;
+  $('retry').className = st.hostMissing ? '' : 'orange';
+  $('guide').hidden = !!st.listening && (st.commands || 0) > 0;
+  var guard = st.confirmDestructive !== false;
+  setText($('guardState'), guard ? t('on') : t('off'));
+  $('guardVal').className = 'value' + (guard ? ' ok' : '');
   if (!busy) renderPause(st);
   renderNow(st);
   if (document.activeElement !== cursorEl) cursorEl.checked = st.showCursor !== false;
@@ -109,6 +126,11 @@ function openSettings(ev) {
   B.runtime.openOptionsPage();
   window.close();
 }
+$('guardLink').addEventListener('click', function (ev) {
+  ev.preventDefault();
+  B.tabs.create({ url: B.runtime.getURL('options.html#safety') });
+  window.close();
+});
 $('open').addEventListener('click', openSettings);
 $('gear').addEventListener('click', openSettings);
 $('guide').addEventListener('click', function (ev) {

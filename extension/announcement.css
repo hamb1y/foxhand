@@ -1,20 +1,32 @@
-body { margin: 0; min-width: 260px; }
-header { display: flex; align-items: center; gap: 10px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
-header strong { flex: 1; }
-#close { width: 44px; height: 44px; padding: 0; font-size: 26px; }
-main { max-width: 440px; margin: 0 auto; padding: 28px 24px; text-align: center; line-height: 1.6; overflow-wrap: anywhere; }
+body { margin: 0; min-width: 260px; min-height: 100vh; display: flex; flex-direction: column; }
+header { display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 24px; border-bottom: 1px solid var(--line); }
+header strong { font-weight: 600; }
+.tag { margin-left: 4px; padding: 2px 10px; border: 1px solid var(--line-strong); border-radius: 999px; font-size: 12px; color: var(--muted); }
+#close { margin-left: auto; width: 44px; height: 44px; padding: 0; font-size: 26px; border-color: transparent; }
+main { flex: 1; width: 100%; box-sizing: border-box; max-width: 480px; margin: 0 auto; padding: 32px 24px 24px; text-align: center; line-height: 1.6; overflow-wrap: anywhere; }
 main > :first-child { margin-top: 0; }
 main > :last-child { margin-bottom: 0; }
-h1, h2, h3 { color: var(--fg); line-height: 1.2; letter-spacing: -0.025em; margin: 0 0 18px; }
-h1 { font-size: 30px; }
-h2 { font-size: 28px; }
-h3 { font-size: 22px; }
-p { margin: 0 0 18px; color: var(--soft); }
-ul, ol { display: grid; gap: 10px; padding: 0; margin: 22px 0; list-style: none; }
-li { padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
-li > a { display: block; font-size: 15px; font-weight: 600; text-decoration: none; }
-li > span { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; }
+h1, h2, h3 { color: var(--fg); line-height: 1.2; letter-spacing: -0.025em; margin: 0 0 16px; }
+h1, h2 { font-size: 28px; }
+h2::after, h1::after { content: ''; display: block; width: 36px; height: 3px; margin: 14px auto 0; border-radius: 2px; background: var(--orange); }
+h3 { font-size: 20px; }
+p { margin: 0 0 16px; color: var(--soft); font-size: 15px; }
+ul, ol { display: grid; gap: 10px; padding: 0; margin: 20px 0; list-style: none; }
+li { position: relative; padding: 14px 44px 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; transition: border-color .12s, background-color .12s; }
+li:hover, li:focus-within { border-color: var(--orange); background: var(--surface-2); }
+/* The whole card is the link target, and says so with an arrow. */
+li:has(> a)::after { content: '↗'; position: absolute; right: 16px; top: 14px; color: var(--muted); font-size: 16px; }
+li:hover::after { color: var(--orange); }
+li > a { font-size: 15px; font-weight: 600; text-decoration: none; }
+li > a::before { content: ''; position: absolute; inset: 0; border-radius: 16px; }
+li > a:focus-visible { outline: none; }
+li:has(> a:focus-visible) { outline: 2px solid var(--orange); outline-offset: 2px; }
+li > span { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; }
 a { color: var(--orange); text-underline-offset: 3px; }
 a:hover { color: var(--orange); text-decoration: underline; }
 pre { white-space: pre-wrap; }
 blockquote { margin-left: 0; margin-right: 0; padding: 12px 16px; border-left: 3px solid var(--orange); background: var(--surface); }
+footer { position: sticky; bottom: 0; display: flex; align-items: center; gap: 16px; padding: 14px 24px; border-top: 1px solid var(--line); background: rgba(10, 10, 10, .96); }
+footer p { flex: 1; margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+footer button { flex: none; }
+@media (max-width: 380px) { footer { flex-direction: column; align-items: stretch; } }

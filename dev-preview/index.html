@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foxhand · UX review</title>
+<style>
+@font-face{font-family:Foxhand;src:url('/_ext/fonts/GoogleSansFlex-latin.woff2')}*{box-sizing:border-box}body{margin:0;background:#0a0a0a;color:#f5f5f5;font:15px/1.5 Foxhand,system-ui,sans-serif}a{color:inherit;text-underline-offset:4px}button,select{font:inherit;background:#171717;border:1px solid #474747;color:inherit;border-radius:9px;padding:9px 13px;cursor:pointer}button[aria-pressed=true]{background:#ff7139;border-color:#ff7139;color:#0a0a0a;font-weight:600}:focus-visible{outline:2px solid #ff7139;outline-offset:3px}header{padding:28px 32px 24px;border-bottom:1px solid #292929}header p{color:#aaa;margin:7px 0 0;max-width:85ch}h1{font-size:30px;letter-spacing:-.025em;margin:4px 0}.eyebrow{color:#ff7139;text-transform:uppercase;letter-spacing:.1em;font-size:12px}.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:18px 32px;border-bottom:1px solid #292929}.controls .spacer{flex:1}.controls label{display:flex;gap:9px;align-items:center;color:#aaa}main{padding:24px 32px}h2{font-size:22px;margin:0 0 8px}.description{color:#bbb;max-width:90ch;margin:0 0 22px}.comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}.comparison.single{grid-template-columns:minmax(0,1fr)}article{min-width:0;background:#141414;border:1px solid #333;border-radius:16px;overflow:hidden}.caption{display:flex;justify-content:space-between;gap:12px;padding:13px 18px;border-bottom:1px solid #333}.caption b{font-weight:550}.caption a{color:#aaa;font-size:13px}.stage{overflow:auto;padding:18px;display:flex;justify-content:center;background:#101010}.stage.wide{display:block;padding:0}.stage iframe{border:0;background:#0a0a0a;flex-shrink:0;display:block}.stage.wide iframe{width:100%}.shot{padding:12px 18px;border-top:1px solid #333;color:#aaa;font-size:13px}.shot a{margin-right:12px}[hidden]{display:none!important}footer{padding:0 32px 28px;color:#999;font-size:13px}@media(max-width:850px){.comparison{grid-template-columns:1fr}header,main{padding:20px 16px}.controls{padding:14px 16px}.controls .spacer{display:none}}
+</style>
+<header>
+  <div class="eyebrow">Local review · baseline 0.5.8 · approved UX pass</div>
+  <h1>Foxhand, easier to get started with.</h1>
+  <p>Sonnet’s UX pass, through Claude Code. Compare the released UI with the local changes. Extension screens use disposable fixture data; the controls work without accessing your Firefox settings.</p>
+</header>
+<div class="controls" aria-label="Review controls">
+  <label>Screen <select id="screen">
+    <option value="popup">Toolbar popup</option><option value="onboarding">Setup guide</option><option value="settings">Settings</option><option value="announcement">Announcement</option><option value="website">Website</option>
+  </select></label>
+  <label id="stateLabel">State <select id="state"></select></label>
+  <label>Language <select id="language"><option value="en">English</option><option value="de">Deutsch</option><option value="es">Español</option><option value="fr">Français</option><option value="zh_CN">简体中文</option></select></label>
+  <div class="spacer"></div>
+  <button id="mobile" aria-pressed="false">Mobile width</button>
+  <button id="compare" aria-pressed="true">Before + after</button>
+</div>
+<main>
+  <h2 id="heading"></h2><p class="description" id="description"></p>
+  <div class="comparison" id="comparison">
+    <article id="before"><div class="caption"><b>Before · released 0.5.8</b><a id="openBefore" target="_blank" rel="noopener">Open interactive ↗</a></div><div class="stage" id="stageBefore"><iframe title="Before changes" id="frameBefore"></iframe></div><div class="shot"><a id="shotBefore" target="_blank" rel="noopener">Captured screenshot ↗</a></div></article>
+    <article><div class="caption"><b>After · local changes</b><a id="openAfter" target="_blank" rel="noopener">Open interactive ↗</a></div><div class="stage" id="stageAfter"><iframe title="After changes" id="frameAfter"></iframe></div><div class="shot"><a id="shotAfter" target="_blank" rel="noopener">Captured screenshot ↗</a></div></article>
+  </div>
+</main>
+<footer>These are the actual HTML pages. The announcement uses the approved message unchanged. Sonnet reached the Claude Code usage limit after implementation; Codex completed the gallery and verification. This gallery uses local fixture data and is excluded from the production website and extension.</footer>
+<script>
+const $=id=>document.getElementById(id);
+const areas={
+ popup:{title:'Status first. Pause within reach.',description:'The main action follows the connection state. Ready, paused and disconnected screens explain what to do next; an empty activity card helps new users connect their AI. The confirm guard links directly to its settings.',states:['ready','idle','paused','disconnected','missing','port','update'],file:'popup.html'},
+ onboarding:{title:'Three steps, with live progress.',description:'A progress strip, completion feedback and troubleshooting help users install the helper, connect an AI and try their first request.',states:['missing','idle','connected'],file:'onboarding.html'},
+ settings:{title:'Find the setting you need.',description:'Section navigation groups status, connection, safety, activity and advanced settings. Safety controls explain their effect, while advanced connection details stay collapsed until needed.',states:['ready','missing','wsl','empty'],file:'options.html'},
+ announcement:{title:'The same message, easier to act on.',description:'Centered text, larger link cards, visible keyboard focus, and a Done button. The approved message and announcement ID are unchanged.',states:['approved'],file:'announcement.html'},
+ website:{title:'Understand it. Install it. Know it is working.',description:'Clear setup checkpoints, a How it works section, keyboard-accessible tabs, copy feedback, expandable tool details and responsive layouts. Existing product screenshots are labeled with their original version.',states:['desktop'],file:''}
+};
+let mobile=false,compare=true;
+function changeScreen(){const a=areas[$('screen').value];$('state').replaceChildren(...a.states.map(s=>{const o=document.createElement('option');o.value=s;o.textContent=s.charAt(0).toUpperCase()+s.slice(1);return o}));render()}
+function render(){const key=$('screen').value,a=areas[key],state=$('state').value,lang=$('language').value;
+ $('heading').textContent=a.title;$('description').textContent=a.description;$('stateLabel').hidden=key==='website'||key==='announcement';$('language').disabled=key==='website';
+ $('before').hidden=!compare;$('comparison').classList.toggle('single',!compare);
+ for(const side of ['Before','After']){const prior=side==='Before';const route=key==='website'?(prior?'/_site-before/':'/'):`/${prior?'_ext-before':'_ext'}/${a.file}?state=${state}&lang=${lang}`;
+ const iframe=$('frame'+side);iframe.src=route;iframe.style.width=key==='popup'?'360px':mobile?'390px':key==='announcement'?'480px':'100%';iframe.style.height=key==='popup'?'800px':'900px';$('stage'+side).classList.toggle('wide',key!=='popup'&&!mobile&&key!=='announcement');$('open'+side).href=route;
+ let shotState=key==='website'?(mobile?'mobile':'desktop'):state;
+ if(mobile&&key==='onboarding')shotState='idle-mobile';if(mobile&&key==='settings')shotState='ready-mobile';
+ const shot=$('shot'+side);shot.href=`review/screens/${key}-${shotState}-${side.toLowerCase()}.png`;shot.hidden=lang!=='en'&&key!=='website';
+ }
+}
+$('screen').addEventListener('change',changeScreen);$('state').addEventListener('change',render);$('language').addEventListener('change',render);
+$('mobile').addEventListener('click',()=>{mobile=!mobile;$('mobile').setAttribute('aria-pressed',mobile);render()});$('compare').addEventListener('click',()=>{compare=!compare;$('compare').setAttribute('aria-pressed',compare);render()});changeScreen();
+</script>
+</html>

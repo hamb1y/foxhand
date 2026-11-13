@@ -312,20 +312,17 @@
   "firewallNote": {
     "message": "La première fois, Windows peut vous demander d’autoriser foxhand-host dans le pare-feu : cochez Réseaux privés et cliquez sur Autoriser."
   },
-  "whileWorks": {
-    "message": "Pendant que l’IA travaille"
-  },
   "showCursorLong": {
     "message": "Afficher le curseur de l’IA"
   },
   "askBeforeClosing": {
-    "message": "Demander avant de fermer des onglets ou de supprimer"
+    "message": "Exiger une confirmation pour fermer et supprimer"
   },
   "activity": {
     "message": "Activité"
   },
   "nothingYet": {
-    "message": "Rien pour l’instant."
+    "message": "Rien pour l’instant. Dès que votre IA envoie une commande, elle apparaît ici."
   },
   "helperApp": {
     "message": "Application d’assistance"
@@ -1051,6 +1048,142 @@
   "lblStorageRemovePast": {
     "message": "A supprimé des données enregistrées"
   },
+  "hintPaused": {
+    "message": "Chaque commande de l’IA est refusée tant que vous ne reprenez pas."
+  },
+  "hintReady": {
+    "message": "Votre IA peut utiliser ce Firefox. Mettez en pause à tout moment."
+  },
+  "hintReadyIdle": {
+    "message": "Assistant en cours d’exécution. Copiez la configuration MCP et ajoutez-la à votre outil d’IA pour vous connecter."
+  },
+  "hintReadyUpdate": {
+    "message": "Votre IA peut utiliser ce Firefox. Un assistant plus récent est disponible ; mettez-le à jour quand vous le souhaitez."
+  },
+  "hintNoHelper": {
+    "message": "Foxhand a besoin d’une petite application d’assistance pour parler à votre IA. Installez-la avec la commande ci-dessous."
+  },
+  "hintHelperOld": {
+    "message": "L’application d’assistance est trop ancienne pour cette extension. Exécutez la commande ci-dessous pour la mettre à jour."
+  },
+  "hintAddonOld": {
+    "message": "Cette extension est plus ancienne que l’application d’assistance. Mettez à jour Foxhand depuis la page des extensions de Firefox."
+  },
+  "hintStarting": {
+    "message": "Cela prend quelques secondes."
+  },
+  "hintPort": {
+    "message": "Un autre programme utilise peut-être le port. Modifiez-le dans Paramètres → Jeton et port."
+  },
+  "hintNotRunning": {
+    "message": "Firefox ne peut pas joindre l’application d’assistance. Appuyez sur Réessayer, ou ouvrez les Paramètres pour plus de détails."
+  },
+  "nowEmpty": {
+    "message": "Rien pour l’instant. Demandez à votre IA de faire quelque chose dans Firefox."
+  },
+  "on": {
+    "message": "Activé"
+  },
+  "off": {
+    "message": "Désactivé"
+  },
+  "guardLabel": {
+    "message": "Garde de confirmation"
+  },
+  "review": {
+    "message": "Vérifier"
+  },
+  "close": {
+    "message": "Fermer"
+  },
+  "secStatus": {
+    "message": "État"
+  },
+  "secSafety": {
+    "message": "Sécurité et retours"
+  },
+  "advanced": {
+    "message": "Avancé"
+  },
+  "connectLead": {
+    "message": "Choisissez votre outil d’IA, copiez la configuration, puis exécutez-la ou collez-la là où votre IA lit ses paramètres MCP. Cette page s’affiche dès que la première commande arrive."
+  },
+  "configSecret": {
+    "message": "Cette configuration contient votre jeton d’accès. Traitez-le comme un mot de passe : quiconque le possède peut contrôler ce Firefox. Ne le collez pas dans des conversations, des signalements ou des captures d’écran."
+  },
+  "connDone": {
+    "message": "Votre IA est connectée : $P1$ commandes jusqu’ici.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "connNeedsHelper": {
+    "message": "En attente de l’application d’assistance. Vérifiez l’état ci-dessus."
+  },
+  "safetyLead": {
+    "message": "Ces réglages s’appliquent pendant que votre IA travaille. La pause est le seul contrôle qui arrête tout."
+  },
+  "pauseRow": {
+    "message": "Tout mettre en pause"
+  },
+  "pauseRowNote": {
+    "message": "Appuyez sur ce raccourci, ou utilisez Mettre l’IA en pause dans le menu de la barre d’outils. Chaque commande est refusée tant que vous ne reprenez pas. Pour modifier le raccourci, ouvrez la page des extensions de Firefox et choisissez Gérer les raccourcis des extensions."
+  },
+  "showCursorNote": {
+    "message": "Un curseur et une bulle orange indiquent où l’IA agit et pourquoi. Il ne bloque jamais votre souris ni votre clavier."
+  },
+  "guardNote": {
+    "message": "La fermeture d’onglets et de fenêtres, ainsi que la suppression de marque-pages ou de cookies, sont refusées tant que l’IA ne transmet pas confirm:true. Cela évite les erreurs, mais c’est l’IA qui définit ce paramètre elle-même : ce n’est pas une demande d’approbation de votre part."
+  },
+  "passwordsRow": {
+    "message": "Mots de passe enregistrés"
+  },
+  "passwordsNote": {
+    "message": "Aucun outil ne lit les identifiants ni le gestionnaire de mots de passe de Firefox. L’IA peut tout de même voir et agir sur n’importe quelle page où vous êtes connecté."
+  },
+  "activityLead": {
+    "message": "Ce que votre IA a fait récemment. Effacé au redémarrage de Firefox."
+  },
+  "activityEmptyLink": {
+    "message": "Pas encore connecté ?"
+  },
+  "advancedLead": {
+    "message": "Détails de l’assistant, jeton d’accès, port et désinstallation. Vous en avez rarement besoin."
+  },
+  "annTag": {
+    "message": "Annonce"
+  },
+  "annNote": {
+    "message": "Affichée une seule fois, depuis foxhand.pages.dev. Les liens s’ouvrent dans un nouvel onglet."
+  },
+  "annDone": {
+    "message": "Terminé"
+  },
+  "obProgress": {
+    "message": "Étape $P1$ sur 3 · $P2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "obHelpTitle": {
+    "message": "Votre IA ne se connecte pas ?"
+  },
+  "obHelp1": {
+    "message": "Foxhand ne fonctionne que lorsque Firefox est ouvert."
+  },
+  "obHelp2": {
+    "message": "Vérifiez que l’étape 1 indique que l’assistant fonctionne, puis copiez de nouveau la configuration. Un jeton ou un port modifié nécessite une nouvelle copie."
+  },
+  "obHelp3": {
+    "message": "Lancez une nouvelle session dans votre outil d’IA après avoir ajouté la configuration. Beaucoup d’outils ne lisent leurs paramètres MCP qu’au démarrage."
+  },
   "obTitle": {
     "message": "Bienvenue dans Foxhand"
   },
@@ -1127,7 +1260,7 @@
     }
   },
   "obTipSafety": {
-    "message": "L’IA doit confirmer avant de fermer des onglets ou de supprimer des marque-pages, et elle ne peut pas lire vos mots de passe enregistrés."
+    "message": "Fermer des onglets ou supprimer des marque-pages ou des cookies exige confirm:true de la part de l’IA. Cela évite les erreurs, mais ce n’est pas une fenêtre surgissante qui vous demande votre accord. La pause est le vrai bouton d’arrêt. Aucun outil ne lit les mots de passe enregistrés dans Firefox."
   },
   "obSettings": {
     "message": "Tous les paramètres"

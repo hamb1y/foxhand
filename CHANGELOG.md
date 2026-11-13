@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.9
+
+- Make connection status and the next action clearer in the toolbar popup, with Pause AI first and a link to safety settings.
+- Organize settings into navigable sections with connection feedback, activity recovery links and clearer safety explanations.
+- Show setup progress and live completion feedback in onboarding.
+- Improve centered announcements with larger link targets, keyboard focus and a Done button. Keep the approved message and its identity unchanged.
+- Clarify website setup steps, add a How it works section, and improve mobile layouts, keyboard tabs and copy feedback.
+- Refresh shared controls, focus states and reduced-motion support, with updated English, German, Spanish, French and Chinese UI text.
+
 ## 0.5.8
 
 - Move the website, helper installer links and announcement checks to foxhand.pages.dev.

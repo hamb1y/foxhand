@@ -9,8 +9,13 @@
 <link rel="stylesheet" href="announcement.css">
 </head>
 <body>
-<header><img src="icons/icon.svg" width="28" height="28" alt=""> <strong>Foxhand</strong><button id="close" type="button" aria-label="Close">×</button></header>
+<header><strong>Foxhand</strong><span class="tag" data-i18n="annTag">Announcement</span><button id="close" type="button" data-i18n-attr="aria-label:close;title:close">×</button></header>
 <main id="announcement" hidden></main>
+<footer id="annFoot" hidden>
+  <p data-i18n="annNote">Shown once, from foxhand.pages.dev. Links open in a new tab.</p>
+  <button id="done" type="button" class="orange" data-i18n="annDone">Done</button>
+</footer>
+<script src="common.js"></script>
 <script src="announcement.js"></script>
 </body>
 </html>

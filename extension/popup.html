@@ -6,32 +6,49 @@
 <link rel="stylesheet" href="ui.css">
 <style>
   body { width: 360px; }
-  main { box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+  main { box-sizing: border-box; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
   header { display: flex; align-items: center; justify-content: space-between; }
   .brand { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; }
   .brand small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
   #gear { width: 44px; height: 44px; padding: 0; border: 0; margin-right: -10px; }
   #gear:hover { background: var(--surface); }
-  .status { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; }
-  .status .head { display: flex; align-items: center; gap: 12px; }
-  #state { font-size: 30px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.2; }
-  #detail { font-size: 14px; color: var(--muted); line-height: 1.6; word-break: break-all; white-space: pre-line; }
+
+  /* The one thing to read first: is the AI connected, and what should I do about it. */
+  .hero { display: flex; flex-direction: column; gap: 8px; padding: 18px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+  .hero[data-state="on"] { border-color: var(--orange); }
+  .hero[data-state="off"] { border-color: var(--bad); }
+  .hero[data-state="paused"] { border-color: var(--fg); }
+  .hero .head { display: flex; align-items: center; gap: 12px; }
+  #state { font-size: 24px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.2; }
+  #hint { margin: 0; font-size: 14px; line-height: 1.5; color: var(--soft); }
+  #detail { font-size: 12.5px; color: var(--muted); line-height: 1.5; overflow-wrap: anywhere; }
   #detail:empty, #err:empty { display: none; }
-  #err { font-size: 13px; color: var(--bad); word-break: break-word; }
-  #setup { font-size: 13px; }
-  #setup .row > * { flex: 1; }
-  #now { display: flex; flex-direction: column; gap: 8px; padding: 18px; border: 1px solid var(--line); border-radius: 20px; }
+  #err { font-size: 13px; color: var(--bad); overflow-wrap: anywhere; }
+
+  #setup { font-size: 13px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-lg); }
+  #setup .row > * { flex: 1 1 auto; white-space: nowrap; padding: 0 14px; }
+
+  .buttons { display: flex; flex-direction: column; gap: 8px; }
+  .buttons button { height: 48px; font-size: 15px; width: 100%; }
+
+  #now { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-md); }
   #nowLbl { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
   #nowLbl.live { color: var(--orange); }
   #nowText { font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+  #nowText.empty { font-size: 13px; color: var(--muted); }
   #nowSite { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
   #nowSite:empty { display: none; }
-  .buttons { display: flex; flex-direction: column; gap: 10px; }
-  .buttons button { height: 48px; font-size: 15px; width: 100%; }
-  label.toggle { display: flex; align-items: center; justify-content: space-between; min-height: 44px; font-size: 15px; cursor: pointer; }
-  footer { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); }
-  footer a { text-decoration: none; }
-  footer .links { display: flex; gap: 14px; }
+
+  .prefs { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+  .prefs > * { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; font-size: 14px; border-bottom: 1px solid var(--line); }
+  label.toggle { cursor: pointer; }
+  .prefs .value { color: var(--muted); display: flex; align-items: center; gap: 10px; }
+  .prefs .value.ok { color: var(--soft); }
+  .prefs .value a { font-size: 13px; }
+  footer { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; color: var(--muted); }
+  footer a { text-decoration: none; color: var(--soft); padding: 8px 0; }
+  footer a:hover { text-decoration: underline; }
+  footer .links { display: flex; gap: 16px; }
 </style>
 </head>
 <body>
@@ -43,13 +60,25 @@
   </button>
 </header>
 
-<div class="status" role="status">
-  <div class="head"><span id="dot" class="dot"></span><span id="state" data-i18n="checking">Checking…</span></div>
+<section class="hero" id="hero" data-state="wait">
+  <div role="status">
+    <div class="head"><span id="dot" class="dot"></span><span id="state" data-i18n="checking">Checking…</span></div>
+    <p id="hint"></p>
+  </div>
   <div id="detail"></div>
   <div id="err"></div>
-</div>
+</section>
 
 <div id="setup" hidden></div>
+
+<div class="buttons">
+  <button id="pause" type="button" class="orange" hidden>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="#0a0a0a" aria-hidden="true"><g id="pauseIcon"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></g><path id="playIcon" d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z" style="display:none"/></svg>
+    <span id="pauseTxt" data-i18n="pauseAI">Pause AI</span>
+  </button>
+  <button id="retry" type="button" class="orange" hidden data-i18n="retry">Retry</button>
+  <button id="copy" type="button" hidden data-i18n="copyConfig">Copy MCP config</button>
+</div>
 
 <div id="now" hidden>
   <div id="nowLbl" data-i18n="now">Now</div>
@@ -57,16 +86,10 @@
   <div id="nowSite"></div>
 </div>
 
-<div class="buttons">
-  <button id="pause" type="button" class="orange" hidden>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="#0a0a0a" aria-hidden="true"><g id="pauseIcon"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></g><path id="playIcon" d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z" style="display:none"/></svg>
-    <span id="pauseTxt" data-i18n="pauseAI">Pause AI</span>
-  </button>
-  <button id="copy" type="button" hidden data-i18n="copyConfig">Copy MCP config</button>
-  <button id="retry" type="button" hidden data-i18n="retry">Retry</button>
+<div class="prefs">
+  <label class="toggle"><span data-i18n="showCursor">Show AI cursor</span> <input type="checkbox" id="cursor" class="switch"></label>
+  <div id="guardRow"><span data-i18n="guardLabel">Confirm guard</span><span class="value" id="guardVal"><span id="guardState"></span><a id="guardLink" href="#" data-i18n="review">Review</a></span></div>
 </div>
-
-<label class="toggle"><span data-i18n="showCursor">Show AI cursor</span> <input type="checkbox" id="cursor" class="switch"></label>
 
 <footer>
   <span id="shortcut"></span>

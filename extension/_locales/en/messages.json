@@ -312,20 +312,17 @@
   "firewallNote": {
     "message": "The first time, Windows may ask to let foxhand-host through the firewall: tick Private networks and click Allow."
   },
-  "whileWorks": {
-    "message": "While the AI works"
-  },
   "showCursorLong": {
     "message": "Show the AI cursor"
   },
   "askBeforeClosing": {
-    "message": "Ask before closing tabs or deleting"
+    "message": "Require confirm for closing and deleting"
   },
   "activity": {
     "message": "Activity"
   },
   "nothingYet": {
-    "message": "Nothing yet."
+    "message": "Nothing yet. Once your AI sends a command, it shows up here."
   },
   "helperApp": {
     "message": "Helper app"
@@ -1051,6 +1048,142 @@
   "lblStorageRemovePast": {
     "message": "Deleted saved data"
   },
+  "hintPaused": {
+    "message": "Every AI command is refused until you resume."
+  },
+  "hintReady": {
+    "message": "Your AI can use this Firefox. Pause any time."
+  },
+  "hintReadyIdle": {
+    "message": "Helper running. Copy the MCP config and add it to your AI tool to connect."
+  },
+  "hintReadyUpdate": {
+    "message": "Your AI can use this Firefox. A newer helper is available; update when it suits you."
+  },
+  "hintNoHelper": {
+    "message": "Foxhand needs a small helper app to talk to your AI. Install it with the command below."
+  },
+  "hintHelperOld": {
+    "message": "The helper app is too old for this add-on. Run the command below to update it."
+  },
+  "hintAddonOld": {
+    "message": "This add-on is older than the helper app. Update Foxhand from Firefox’s Add-ons page."
+  },
+  "hintStarting": {
+    "message": "This takes a few seconds."
+  },
+  "hintPort": {
+    "message": "Another program may be using the port. Change it in Settings → Token and port."
+  },
+  "hintNotRunning": {
+    "message": "Firefox can’t reach the helper app. Press Retry, or open Settings for details."
+  },
+  "nowEmpty": {
+    "message": "Nothing yet. Ask your AI to do something in Firefox."
+  },
+  "on": {
+    "message": "On"
+  },
+  "off": {
+    "message": "Off"
+  },
+  "guardLabel": {
+    "message": "Confirm guard"
+  },
+  "review": {
+    "message": "Review"
+  },
+  "close": {
+    "message": "Close"
+  },
+  "secStatus": {
+    "message": "Status"
+  },
+  "secSafety": {
+    "message": "Safety and feedback"
+  },
+  "advanced": {
+    "message": "Advanced"
+  },
+  "connectLead": {
+    "message": "Pick your AI tool, copy the config, then run or paste it where your AI reads its MCP settings. This page shows when the first command arrives."
+  },
+  "configSecret": {
+    "message": "This config contains your access token. Treat it like a password: anyone who has it can control this Firefox. Don’t paste it into chats, issues or screenshots."
+  },
+  "connDone": {
+    "message": "Your AI is connected: $P1$ commands so far.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "connNeedsHelper": {
+    "message": "Waiting for the helper app. Check the status above."
+  },
+  "safetyLead": {
+    "message": "These apply while your AI is working. Pausing is the only control that stops everything."
+  },
+  "pauseRow": {
+    "message": "Pause everything"
+  },
+  "pauseRowNote": {
+    "message": "Press this shortcut, or use Pause AI in the toolbar popup. Every command is refused until you resume. To change the shortcut, open Firefox’s Add-ons page and choose Manage Extension Shortcuts."
+  },
+  "showCursorNote": {
+    "message": "A cursor and an orange bubble show where the AI is acting and why. It never blocks your own mouse or keyboard."
+  },
+  "guardNote": {
+    "message": "Closing tabs and windows and deleting bookmarks or cookies are refused unless the AI passes confirm:true. This catches accidents, but the AI sets it itself, so it isn’t an approval prompt for you."
+  },
+  "passwordsRow": {
+    "message": "Saved passwords"
+  },
+  "passwordsNote": {
+    "message": "No tool reads Firefox’s saved logins or password manager. The AI can still see and act on any page you’re signed in to."
+  },
+  "activityLead": {
+    "message": "What your AI did recently. Cleared when Firefox restarts."
+  },
+  "activityEmptyLink": {
+    "message": "Not connected yet?"
+  },
+  "advancedLead": {
+    "message": "Helper details, access token, port and uninstall. You rarely need these."
+  },
+  "annTag": {
+    "message": "Announcement"
+  },
+  "annNote": {
+    "message": "Shown once, from foxhand.pages.dev. Links open in a new tab."
+  },
+  "annDone": {
+    "message": "Done"
+  },
+  "obProgress": {
+    "message": "Step $P1$ of 3 · $P2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "obHelpTitle": {
+    "message": "Your AI isn’t connecting?"
+  },
+  "obHelp1": {
+    "message": "Foxhand only works while Firefox is open."
+  },
+  "obHelp2": {
+    "message": "Make sure step 1 says the helper is running, then copy the config again. A changed token or port needs a fresh copy."
+  },
+  "obHelp3": {
+    "message": "Start a new session in your AI tool after adding the config. Many tools only read their MCP settings when they start."
+  },
   "obTitle": {
     "message": "Welcome to Foxhand"
   },
@@ -1127,7 +1260,7 @@
     }
   },
   "obTipSafety": {
-    "message": "The AI has to confirm before closing tabs or deleting bookmarks, and it can’t read your saved passwords."
+    "message": "Closing tabs and deleting bookmarks or cookies need confirm:true from the AI. That guards against mistakes; it isn’t a pop-up asking you. Pause is the real stop button. No tool reads Firefox’s saved passwords."
   },
   "obSettings": {
     "message": "All settings"

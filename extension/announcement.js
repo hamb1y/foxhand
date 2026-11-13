@@ -33,7 +33,9 @@ function clean(node, parent, depth) {
   Array.from(node.childNodes).forEach(function (child) { clean(child, target, depth + 1); });
 }
 
+if (window.FxMcp) window.FxMcp.localize();
 document.getElementById('close').addEventListener('click', function () { window.close(); });
+document.getElementById('done').addEventListener('click', function () { window.close(); });
 document.addEventListener('keydown', function (event) { if (event.key === 'Escape') window.close(); });
 B.runtime.sendMessage({ type: 'announcement-get' }).then(async function (item) {
   if (!item) { window.close(); return; }
@@ -43,6 +45,7 @@ B.runtime.sendMessage({ type: 'announcement-get' }).then(async function (item) {
   if (!fragment.textContent.trim()) { window.close(); return; }
   container.replaceChildren(fragment);
   container.hidden = false;
+  document.getElementById('annFoot').hidden = false;
   document.getElementById('close').focus();
   // Wait for an actual paint before consuming the announcement ID.
   await new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });

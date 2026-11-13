@@ -95,7 +95,7 @@ function renderSetup(container, platform, intro, installed) {
   row.appendChild(btn);
   row.appendChild(dl);
   var parts = [el('div', '', s.open), pre, row, el('div', 'sub', s.manual)];
-  if (!installed) parts.push(el('div', 'sub', t('updatesItself')));
+  if (!installed) parts.push(el('div', 'sub live', t('updatesItself')));
   parts.forEach(function (x) { container.appendChild(x); });
   return s;
 }
@@ -229,6 +229,24 @@ function summarize(st) {
   return { cls: 'off', text: t('stNotRunning') };
 }
 
+/* One sentence under the status headline: what it means and what to do next. */
+function hint(st) {
+  st = st || {};
+  var c = (st.compat && st.compat.state) || '';
+  if (st.listening && st.paused) return t('hintPaused');
+  if (st.listening) {
+    if (c === 'helper-update') return t('hintReadyUpdate');
+    return (st.commands || 0) > 0 ? t('hintReady') : t('hintReadyIdle');
+  }
+  if (st.hostMissing) return t('hintNoHelper');
+  if (c === 'helper-old') return t('hintHelperOld');
+  if (c === 'addon-old') return t('hintAddonOld');
+  if (st.starting) return t('hintStarting');
+  if (st.connected && st.host && st.host.error) return t('hintPort');
+  if (st.connected) return t('hintStarting');
+  return t('hintNotRunning');
+}
+
 /* Last harness and place picked; the popup's Copy button and onboarding use them too. */
 function pref(key, set, fallback, allowed) {
   try {
@@ -268,6 +286,6 @@ window.FxMcp = {
   t: t, localize: localize, ago: ago,
   hostSetup: hostSetup, renderSetup: renderSetup, setupNeed: setupNeed, mcpUrl: mcpUrl,
   mcpConfig: mcpConfig, configHint: configHint, configKind: configKind, configWhere: configWhere, canWsl: canWsl,
-  copy: copy, summarize: summarize, pauseShortcut: pauseShortcut, HARNESSES: HARNESSES
+  copy: copy, summarize: summarize, hint: hint, pauseShortcut: pauseShortcut, HARNESSES: HARNESSES
 };
 })();

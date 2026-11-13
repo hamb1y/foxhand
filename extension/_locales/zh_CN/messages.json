@@ -312,20 +312,17 @@
   "firewallNote": {
     "message": "首次使用时，Windows 可能会询问是否允许 foxhand-host 通过防火墙：勾选“专用网络”并点击“允许”。"
   },
-  "whileWorks": {
-    "message": "AI 工作时"
-  },
   "showCursorLong": {
     "message": "显示 AI 光标"
   },
   "askBeforeClosing": {
-    "message": "关闭标签页或删除内容前先确认"
+    "message": "关闭和删除操作需要 confirm:true"
   },
   "activity": {
     "message": "活动"
   },
   "nothingYet": {
-    "message": "暂无记录。"
+    "message": "暂无记录。AI 发出命令后，会显示在这里。"
   },
   "helperApp": {
     "message": "辅助程序"
@@ -1051,6 +1048,142 @@
   "lblStorageRemovePast": {
     "message": "删除了保存的数据"
   },
+  "hintPaused": {
+    "message": "恢复之前，所有 AI 命令都会被拒绝。"
+  },
+  "hintReady": {
+    "message": "你的 AI 可以使用这个 Firefox。随时可以暂停。"
+  },
+  "hintReadyIdle": {
+    "message": "辅助程序正在运行。复制 MCP 配置，并将其添加到你的 AI 工具中即可连接。"
+  },
+  "hintReadyUpdate": {
+    "message": "你的 AI 可以使用这个 Firefox。有新版辅助程序可用，请在方便时更新。"
+  },
+  "hintNoHelper": {
+    "message": "Foxhand 需要一个小型辅助程序才能与你的 AI 通信。请使用下面的命令安装。"
+  },
+  "hintHelperOld": {
+    "message": "辅助程序版本太旧，不适用于此扩展。请运行下面的命令进行更新。"
+  },
+  "hintAddonOld": {
+    "message": "此扩展比辅助程序旧。请在 Firefox 的附加组件页面更新 Foxhand。"
+  },
+  "hintStarting": {
+    "message": "这需要几秒钟。"
+  },
+  "hintPort": {
+    "message": "可能有其他程序正在占用端口。请在“设置 → 令牌和端口”中更改。"
+  },
+  "hintNotRunning": {
+    "message": "Firefox 无法连接到辅助程序。请点击“重试”，或打开设置查看详情。"
+  },
+  "nowEmpty": {
+    "message": "暂无记录。请让你的 AI 在 Firefox 中做点什么。"
+  },
+  "on": {
+    "message": "开"
+  },
+  "off": {
+    "message": "关"
+  },
+  "guardLabel": {
+    "message": "确认保护"
+  },
+  "review": {
+    "message": "检查"
+  },
+  "close": {
+    "message": "关闭"
+  },
+  "secStatus": {
+    "message": "状态"
+  },
+  "secSafety": {
+    "message": "安全与反馈"
+  },
+  "advanced": {
+    "message": "高级"
+  },
+  "connectLead": {
+    "message": "选择你的 AI 工具，复制配置，然后在 AI 读取 MCP 设置的位置运行或粘贴。收到第一条命令时，此页面会显示。"
+  },
+  "configSecret": {
+    "message": "此配置包含你的访问令牌。请像对待密码一样保管：任何拿到它的人都能控制这个 Firefox。不要把它粘贴到聊天、问题反馈或截图中。"
+  },
+  "connDone": {
+    "message": "你的 AI 已连接：目前共 $P1$ 条命令。",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "connNeedsHelper": {
+    "message": "正在等待辅助程序。请查看上方的状态。"
+  },
+  "safetyLead": {
+    "message": "以下设置在 AI 工作时生效。只有暂停能停止全部操作。"
+  },
+  "pauseRow": {
+    "message": "全部暂停"
+  },
+  "pauseRowNote": {
+    "message": "按下此快捷键，或使用工具栏弹窗中的“暂停 AI”。恢复之前，所有命令都会被拒绝。如需更改快捷键，请打开 Firefox 的附加组件页面，选择“管理扩展快捷键”。"
+  },
+  "showCursorNote": {
+    "message": "光标和橙色气泡会显示 AI 正在哪里操作以及原因。它绝不会阻止你自己的鼠标或键盘。"
+  },
+  "guardNote": {
+    "message": "除非 AI 传入 confirm:true，否则关闭标签页和窗口、删除书签或 Cookie 的操作都会被拒绝。这可以防止误操作，但 confirm:true 由 AI 自己设置，因此它不是需要你批准的提示。"
+  },
+  "passwordsRow": {
+    "message": "已保存的密码"
+  },
+  "passwordsNote": {
+    "message": "没有任何工具会读取 Firefox 保存的登录信息或密码管理器。但 AI 仍然可以查看并操作你已登录的任何页面。"
+  },
+  "activityLead": {
+    "message": "你的 AI 最近的操作。Firefox 重启后会清空。"
+  },
+  "activityEmptyLink": {
+    "message": "还没有连接？"
+  },
+  "advancedLead": {
+    "message": "辅助程序详情、访问令牌、端口和卸载。通常用不到这些。"
+  },
+  "annTag": {
+    "message": "公告"
+  },
+  "annNote": {
+    "message": "仅显示一次，来自 foxhand.pages.dev。链接将在新标签页中打开。"
+  },
+  "annDone": {
+    "message": "完成"
+  },
+  "obProgress": {
+    "message": "第 $P1$ 步，共 3 步 · $P2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "obHelpTitle": {
+    "message": "你的 AI 没有连接上？"
+  },
+  "obHelp1": {
+    "message": "Foxhand 只在 Firefox 打开时才能工作。"
+  },
+  "obHelp2": {
+    "message": "请确认第 1 步显示辅助程序正在运行，然后重新复制配置。令牌或端口更改后，需要重新复制。"
+  },
+  "obHelp3": {
+    "message": "添加配置后，请在你的 AI 工具中开始新会话。很多工具只在启动时读取 MCP 设置。"
+  },
   "obTitle": {
     "message": "欢迎使用 Foxhand"
   },
@@ -1127,7 +1260,7 @@
     }
   },
   "obTipSafety": {
-    "message": "AI 在关闭标签页或删除书签前必须先确认，而且无法读取你保存的密码。"
+    "message": "关闭标签页，或删除书签、Cookie，需要 AI 自己设置 confirm:true。这只能防止误操作，不是弹窗让你确认。真正能立即停止一切的是暂停。没有任何工具会读取 Firefox 保存的密码。"
   },
   "obSettings": {
     "message": "所有设置"

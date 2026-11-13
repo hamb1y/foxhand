@@ -71,12 +71,19 @@ function renderConnected(st) {
   return used;
 }
 
+/* Three segments: finished steps are orange, the step you're on is white. */
+function renderProgress(current) {
+  [1, 2, 3].forEach(function (n) { $('p' + n).className = n < current ? 'on' : n === current ? 'cur' : ''; });
+  setText($('progText'), t('obProgress', [current, 3, t('ob' + current)]));
+}
+
 function render(st) {
   if (!st || st.error) return;
   last = st;
   var h = renderHelper(st);
   renderConnect(st);
   var c = renderConnected(st);
+  renderProgress(!h ? 1 : !c ? 2 : 3);
   stepState('s1', h ? 'done' : 'current');
   stepState('s2', !h ? 'later' : c ? 'done' : 'current');
   stepState('s3', c ? 'current' : 'later');

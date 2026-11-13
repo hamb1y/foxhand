@@ -6,22 +6,32 @@
 <title>Foxhand</title>
 <link rel="stylesheet" href="ui.css">
 <style>
-  main { max-width: 720px; margin: 0 auto; padding: 72px 16px 96px; display: flex; flex-direction: column; gap: 56px; }
-  header { display: flex; align-items: center; gap: 16px; order: -3; }
+  main { max-width: 1000px; margin: 0 auto; padding: 56px 16px 96px; display: flex; flex-direction: column; gap: 32px; }
+  header { display: flex; align-items: center; gap: 16px; }
+  header .ver { margin-left: auto; color: var(--muted); font-size: 13px; }
   h1 { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
   h2 { margin: 0; font-size: 20px; font-weight: 600; }
-  section { display: flex; flex-direction: column; gap: 24px; }
-  .card { padding: 32px; border: 1px solid var(--line); border-radius: 20px; gap: 20px; }
+  section { display: flex; flex-direction: column; gap: 20px; scroll-margin-top: 24px; }
+  .card { padding: 28px; border: 1px solid var(--line); border-radius: var(--r-lg); }
+  .lead { margin: -8px 0 0; color: var(--soft); max-width: 60ch; }
+
+  .layout { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 48px; align-items: start; }
+  .content { display: flex; flex-direction: column; gap: 32px; min-width: 0; max-width: 760px; }
+  .toc { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 2px; }
+  .toc a { display: block; padding: 9px 12px; border-radius: var(--r-sm); color: var(--muted); text-decoration: none; font-size: 14px; border-left: 2px solid transparent; }
+  .toc a:hover { color: var(--fg); background: var(--surface); }
+  .toc a[aria-current=true] { color: var(--fg); border-left-color: var(--orange); background: var(--surface); }
 
   #status { order: -2; }
   #status .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   #status .head { display: flex; align-items: center; gap: 14px; }
   #status .dot { width: 14px; height: 14px; }
-  #stateTxt { font-size: 36px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.2; }
+  #stateTxt { font-size: 32px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.2; }
+  #stateHint { margin: -8px 0 0; color: var(--soft); max-width: 60ch; }
   #stateErr { color: var(--bad); overflow-wrap: anywhere; }
   #stateErr:empty { display: none; }
-  .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-  .facts dt { color: var(--muted); }
+  .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 0; padding-top: 20px; border-top: 1px solid var(--line); }
+  .facts dt { color: var(--muted); font-size: 13px; }
   .facts dd { margin: 4px 0 0; overflow-wrap: anywhere; }
   .facts dd.mono { font: 13px/1.6 var(--mono); }
   .facts div { min-width: 0; }
@@ -35,46 +45,56 @@
   .chips input { position: absolute; opacity: 0; pointer-events: none; }
   .chips span {
     display: flex; align-items: center; height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px;
-    border: 1px solid var(--line); font-weight: 500;
+    border: 1px solid var(--line-strong); font-weight: 500;
   }
   .chips label:hover span { border-color: var(--muted); }
   .chips input:checked + span { background: var(--fg); border-color: var(--fg); color: var(--ink); font-weight: 600; }
   .chips input:focus-visible + span { outline: 2px solid var(--orange); outline-offset: 2px; }
-  #kindHint { margin: -8px 0 0; color: var(--soft); }
+  #kindHint { margin: 0; color: var(--soft); }
   #cfg {
-    margin: 0; padding: 24px; background: var(--surface); border-radius: 16px; max-height: 320px; overflow: auto;
+    margin: 0; padding: 20px; background: #0f0f0f; border: 1px solid var(--line); border-radius: var(--r-md); max-height: 320px; overflow: auto;
     font: 13px/1.7 var(--mono); color: #e6e6e6; white-space: pre-wrap; overflow-wrap: anywhere;
   }
   .act { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   #whereRow { display: flex; align-items: center; gap: 10px; min-height: 44px; color: var(--soft); cursor: pointer; }
   #whereRow input { accent-color: var(--fg); width: 18px; height: 18px; margin: 0; }
-  #wsl { display: flex; flex-direction: column; gap: 6px; }
+  .state { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+  .state.ok { color: var(--orange); }
+  #wsl { display: flex; flex-direction: column; gap: 6px; padding-top: 16px; border-top: 1px solid var(--line); }
   #wslState.ok { color: var(--orange); }
   #wslState.warn { color: var(--soft); }
 
-  .toggles { gap: 8px; }
-  .toggles h2 { margin-bottom: 16px; }
-  label.toggle {
+  .toggles { gap: 4px; }
+  .toggles h2 { margin-bottom: 8px; }
+  .toggles .lead { margin-bottom: 8px; }
+  .toggle, .static {
     display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 18px 0;
-    border-top: 1px solid var(--line); font-size: 15px; cursor: pointer;
+    border-top: 1px solid var(--line); font-size: 15px;
   }
-  label.toggle:last-child { border-bottom: 1px solid var(--line); }
+  label.toggle { cursor: pointer; }
+  .toggle .tx, .static .tx { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .static.last { border-bottom: 1px solid var(--line); }
+  .toggle .tx small, .static .tx small { color: var(--muted); font-size: 13px; line-height: 1.5; font-weight: 400; max-width: 56ch; }
+  .toggle .tx b, .static .tx b { font-weight: 500; }
   #wsl label.toggle { border: 0; padding: 0; min-height: 44px; }
 
-  #activity { gap: 16px; }
+  #activity { gap: 12px; }
   #events { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow: auto; }
   #events li { display: grid; grid-template-columns: 72px 1fr; gap: 16px; padding: 14px 0; border-top: 1px solid var(--line); }
-  #events li:last-child { border-bottom: 1px solid var(--line); }
   #events time { color: var(--muted); font: 13px/1.6 var(--mono); font-variant-numeric: tabular-nums; }
   #events .site, #events .count { color: var(--muted); }
   #events .bad { color: var(--bad); }
-  #events .empty { grid-column: 1 / -1; color: var(--muted); }
+  #events li.empty { display: block; padding: 20px; border: 1px dashed var(--line-strong); border-radius: var(--r-md); color: var(--muted); }
+  #events li.empty a { color: var(--soft); }
 
-  .more { gap: 0; }
-  details { border-top: 1px solid var(--line); padding: 20px 0; }
-  details:last-child { border-bottom: 1px solid var(--line); }
-  summary { font-size: 16px; font-weight: 500; cursor: pointer; min-height: 24px; }
-  details[open] summary { margin-bottom: 20px; }
+  .more { gap: 12px; }
+  .more > .lead { margin-top: -4px; }
+  .group { border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+  details { padding: 0 24px; }
+  details + details { border-top: 1px solid var(--line); }
+  summary { font-size: 16px; font-weight: 500; cursor: pointer; min-height: 24px; padding: 18px 0; }
+  details[open] summary { padding-bottom: 12px; }
+  details[open] { padding-bottom: 24px; }
   details .sub:first-of-type { margin-top: 0; }
   .lbl { display: block; color: var(--muted); margin: 16px 0 6px; }
   .lbl:first-child { margin-top: 0; }
@@ -82,7 +102,7 @@
   .field input { flex: 1 1 220px; }
   input[type=password], input[type=text], input[type=number] {
     box-sizing: border-box; width: 100%; height: 44px; padding: 0 14px; font: 13px var(--mono);
-    background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 12px;
+    background: var(--surface); color: var(--fg); border: 1px solid var(--line-strong); border-radius: 12px;
   }
   input[aria-invalid=true] { border-color: var(--bad); }
   .grid { display: grid; grid-template-columns: 160px 1fr; gap: 0 12px; }
@@ -93,7 +113,7 @@
   #helperInfo { margin: 0; }
   #logLine { overflow-wrap: anywhere; }
 
-  footer { font-size: 13px; color: var(--muted); line-height: 1.6; order: 2; }
+  footer { font-size: 13px; color: var(--muted); line-height: 1.6; }
   footer a { color: var(--soft); }
 
   #toast {
@@ -102,10 +122,20 @@
   }
   #toast.show { opacity: 1; transform: translate(-50%, 0); }
   #toast.err { background: var(--bad); }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; gap: 20px; }
+    .toc { position: sticky; top: 0; z-index: 5; flex-direction: row; overflow-x: auto; gap: 4px; margin: 0 -16px; padding: 10px 16px; background: rgba(10, 10, 10, .94); border-bottom: 1px solid var(--line); scrollbar-width: none; }
+    .toc a { flex: none; border-left: 0; border-bottom: 2px solid transparent; border-radius: 8px 8px 0 0; padding: 8px 12px; }
+    .toc a[aria-current=true] { border-bottom-color: var(--orange); }
+    section { scroll-margin-top: 72px; }
+  }
   @media (max-width: 560px) {
-    main { padding-top: 40px; gap: 40px; }
-    .card { padding: 24px; }
+    main { padding-top: 32px; gap: 20px; }
+    .card { padding: 20px; }
     .facts, .grid { grid-template-columns: 1fr; }
+    #stateTxt { font-size: 28px; }
+    details { padding: 0 18px; }
   }
 </style>
 </head>
@@ -114,8 +144,19 @@
 <header>
   <img src="icons/icon.svg" width="44" height="44" alt="">
   <h1>Foxhand</h1>
+  <span class="ver" id="addonVer"></span>
 </header>
 
+<div class="layout">
+<nav class="toc" aria-label="Settings sections" id="toc">
+  <a href="#status" data-i18n="secStatus">Status</a>
+  <a href="#connect" data-i18n="connectAI">Connect your AI</a>
+  <a href="#safety" data-i18n="secSafety">Safety and feedback</a>
+  <a href="#activity" data-i18n="activity">Activity</a>
+  <a href="#advanced" data-i18n="advanced">Advanced</a>
+</nav>
+
+<div class="content">
 <section id="status" class="card" role="status">
   <div class="top">
     <div class="head"><span id="dot" class="dot"></span><span id="stateTxt" data-i18n="loading">Loading…</span></div>
@@ -124,6 +165,7 @@
       <button id="retry" type="button" hidden data-i18n="retry">Retry</button>
     </div>
   </div>
+  <p id="stateHint"></p>
   <div id="stateErr"></div>
   <dl class="facts">
     <div><dt data-i18n="factHelper">Helper</dt><dd id="factHelper">—</dd></div>
@@ -137,8 +179,9 @@
   <div id="setupNow"></div>
 </section>
 
-<section id="connect">
+<section id="connect" class="card">
   <h2 data-i18n="connectAI">Connect your AI</h2>
+  <p class="lead" data-i18n="connectLead"></p>
   <div class="chips" role="radiogroup" data-i18n-attr="aria-label:yourAI">
     <label><input type="radio" name="kind" value="claude"><span>Claude Code</span></label>
     <label><input type="radio" name="kind" value="codex"><span>Codex</span></label>
@@ -153,27 +196,41 @@
     <button id="copyCfg" type="button" class="white" data-i18n="copy">Copy</button>
     <label id="whereRow"><input type="checkbox" id="inWsl"> <span data-i18n="aiInWsl">My AI runs inside WSL</span></label>
   </div>
+  <div class="callout" id="tokenNote"><span data-i18n="configSecret"></span></div>
+  <div class="state" id="connState" role="status"><span class="dot wait" id="connDot"></span><span id="connTxt"></span></div>
   <div id="wsl" hidden>
-    <label class="toggle"><span data-i18n="letWsl">Let AIs in WSL connect</span> <input type="checkbox" id="allowWsl" class="switch"></label>
+    <label class="toggle"><span class="tx"><b data-i18n="letWsl">Let AIs in WSL connect</b></span> <input type="checkbox" id="allowWsl" class="switch"></label>
     <div id="wslState"></div>
     <div class="sub" data-i18n="firewallNote"></div>
   </div>
 </section>
 
-<section class="toggles">
-  <h2 data-i18n="whileWorks">While the AI works</h2>
+<section id="safety" class="card toggles">
+  <h2 data-i18n="secSafety">Safety and feedback</h2>
+  <p class="lead" data-i18n="safetyLead"></p>
   <div>
-    <label class="toggle"><span data-i18n="showCursorLong">Show the AI cursor</span> <input type="checkbox" id="showCursor" class="switch"></label>
-    <label class="toggle"><span data-i18n="askBeforeClosing">Ask before closing tabs or deleting</span> <input type="checkbox" id="confirmDestructive" class="switch"></label>
+    <div class="static">
+      <span class="tx"><b data-i18n="pauseRow">Pause everything</b><small data-i18n="pauseRowNote"></small></span>
+      <span id="pauseKeys"></span>
+    </div>
+    <label class="toggle"><span class="tx"><b data-i18n="showCursorLong">Show the AI cursor</b><small data-i18n="showCursorNote"></small></span> <input type="checkbox" id="showCursor" class="switch"></label>
+    <label class="toggle"><span class="tx"><b data-i18n="askBeforeClosing">Require confirm for closing and deleting</b><small data-i18n="guardNote"></small></span> <input type="checkbox" id="confirmDestructive" class="switch"></label>
+    <div class="static last">
+      <span class="tx"><b data-i18n="passwordsRow">Saved passwords</b><small data-i18n="passwordsNote"></small></span>
+    </div>
   </div>
 </section>
 
-<section id="activity">
+<section id="activity" class="card">
   <h2 data-i18n="activity">Activity</h2>
+  <p class="lead" data-i18n="activityLead"></p>
   <ul id="events"></ul>
 </section>
 
-<section class="more">
+<section id="advanced" class="more">
+  <h2 data-i18n="advanced">Advanced</h2>
+  <p class="lead" data-i18n="advancedLead"></p>
+  <div class="group">
   <details id="helperDetails">
     <summary data-i18n="helperApp">Helper app</summary>
     <p id="helperInfo" class="sub"></p>
@@ -211,9 +268,12 @@
       · <a href="https://github.com/hamb1y/foxhand/releases/latest" target="_blank" rel="noopener" data-i18n="allDownloads">All downloads</a>
       · <a href="onboarding.html" data-i18n="setupGuideLink">Setup guide</a></div>
   </details>
+  </div>
 </section>
+</div>
+</div>
 
-<footer><span id="addonVer"></span>MPL 2.0 · <a href="https://github.com/hamb1y/foxhand" target="_blank" rel="noopener" data-i18n="source">Source</a>
+<footer>MPL 2.0 · <a href="https://github.com/hamb1y/foxhand" target="_blank" rel="noopener" data-i18n="source">Source</a>
   · Cursors: <a href="https://github.com/ful1e5/Bibata_Cursor" target="_blank" rel="noopener">Bibata</a> by ful1e5, GPL-3.0
   · Font: Google Sans Flex, OFL</footer>
 </main>

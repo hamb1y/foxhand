@@ -57,11 +57,12 @@ function renderStatus(st) {
   var sum = F.summarize(st);
   $('dot').className = 'dot ' + sum.cls;
   setText($('stateTxt'), sum.text);
+  setText($('stateHint'), F.hint(st));
   setText($('stateErr'), st.listening ? '' : ((st.host && st.host.error) || (st.hostMissing ? '' : st.lastError) || ''));
   setText($('factHelper'), st.host && st.host.version ? 'v' + st.host.version : st.hostMissing ? t('notInstalled') : '—');
   setText($('factUp'), st.listening && st.connectedAt ? since(st.connectedAt) + ' · ' + t('nCommands', st.commands || 0) : '—');
   setText($('factAddr'), st.listening ? F.mcpUrl(st).replace(/^http:\/\//, '').replace(/\/mcp$/, '') : '—');
-  setText($('addonVer'), t('addonV', st.version || '?') + ' · ');
+  setText($('addonVer'), t('addonV', st.version || '?'));
   setHidden($('retry'), !!st.listening);
   if (!pausing) {
     setHidden($('pause'), !st.listening && !st.paused);
@@ -105,6 +106,11 @@ function renderConnect(st) {
   var w = win ? where() : 'local';
   setText($('kindHint'), F.configHint(st, k, w));
   setText(cfgEl, F.mcpConfig(st, k, w));
+  // Did the AI ever call in? The first command proves the pasted config works.
+  var used = st.listening && (st.commands || 0) > 0;
+  $('connState').className = 'state' + (used ? ' ok' : '');
+  $('connDot').className = 'dot ' + (used ? 'on' : st.listening ? 'wait' : 'warn');
+  setText($('connTxt'), used ? t('connDone', st.commands) : st.listening ? t('ob2Waiting') : t('connNeedsHelper'));
   setHidden($('wsl'), w !== 'wsl');
   var extra = (st.host && st.host.extraUrls) || [];
   var ws = $('wslState');
@@ -166,7 +172,12 @@ function renderActivity(st) {
     ul.textContent = '';
     if (!evs.length) {
       var li0 = document.createElement('li');
-      li0.appendChild(span('empty', t('nothingYet')));
+      li0.className = 'empty';
+      li0.appendChild(document.createTextNode(t('nothingYet') + ' '));
+      var jump = document.createElement('a');
+      jump.href = '#connect';
+      jump.textContent = t('activityEmptyLink');
+      li0.appendChild(jump);
       ul.appendChild(li0);
     }
     evs.slice().reverse().forEach(function (e) {
@@ -335,6 +346,41 @@ $('form').addEventListener('submit', function (ev) {
   }).catch(function (e) {
     formErr.textContent = t('couldntSave', errText(e));
     updateSave();
+  });
+});
+
+/* Highlight the section in view in the side/top navigation. */
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll('#toc a'));
+  function mark(id) { links.forEach(function (a) { a.setAttribute('aria-current', String(a.getAttribute('href') === '#' + id)); }); }
+  mark('status');
+  if (!window.IntersectionObserver) return;
+  var visible = {};
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) { visible[e.target.id] = e.isIntersecting ? e.boundingClientRect.top : undefined; });
+    var best = null;
+    Object.keys(visible).forEach(function (id) {
+      if (visible[id] !== undefined && (best === null || visible[id] < visible[best])) best = id;
+    });
+    if (best) mark(best);
+  }, { rootMargin: '-10% 0px -70% 0px' });
+  links.forEach(function (a) {
+    var sec = document.getElementById(a.getAttribute('href').slice(1));
+    if (sec) io.observe(sec);
+  });
+  // Opening a section from the popup (options.html#safety) lands on it.
+  if (location.hash) mark(location.hash.slice(1));
+})();
+
+/* The real pause shortcut, which the user may have changed in about:addons. */
+F.pauseShortcut().then(function (k) {
+  var box = $('pauseKeys');
+  box.textContent = '';
+  (k || 'Ctrl+Shift+.').split('+').forEach(function (part, i) {
+    if (i) box.appendChild(document.createTextNode(' + '));
+    var kbd = document.createElement('kbd');
+    kbd.textContent = part;
+    box.appendChild(kbd);
   });
 });
 

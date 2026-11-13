@@ -312,20 +312,17 @@
   "firewallNote": {
     "message": "Beim ersten Mal fragt Windows eventuell, ob foxhand-host durch die Firewall darf: Haken bei Private Netzwerke setzen und auf Zulassen klicken."
   },
-  "whileWorks": {
-    "message": "Während die KI arbeitet"
-  },
   "showCursorLong": {
     "message": "KI-Cursor anzeigen"
   },
   "askBeforeClosing": {
-    "message": "Vor dem Schließen von Tabs oder dem Löschen nachfragen"
+    "message": "Bestätigung für Schließen und Löschen verlangen"
   },
   "activity": {
     "message": "Aktivität"
   },
   "nothingYet": {
-    "message": "Noch nichts."
+    "message": "Noch nichts. Sobald Ihre KI einen Befehl sendet, erscheint er hier."
   },
   "helperApp": {
     "message": "Hilfs-App"
@@ -1051,6 +1048,142 @@
   "lblStorageRemovePast": {
     "message": "Gespeicherte Daten gelöscht"
   },
+  "hintPaused": {
+    "message": "Jeder KI-Befehl wird abgelehnt, bis Sie fortsetzen."
+  },
+  "hintReady": {
+    "message": "Ihre KI kann dieses Firefox nutzen. Sie können jederzeit pausieren."
+  },
+  "hintReadyIdle": {
+    "message": "Hilfs-App läuft. Kopieren Sie die MCP-Konfiguration und fügen Sie sie in Ihr KI-Tool ein, um sich zu verbinden."
+  },
+  "hintReadyUpdate": {
+    "message": "Ihre KI kann dieses Firefox nutzen. Eine neuere Hilfs-App ist verfügbar; aktualisieren Sie sie, wenn es Ihnen passt."
+  },
+  "hintNoHelper": {
+    "message": "Foxhand braucht eine kleine Hilfs-App, um mit Ihrer KI zu sprechen. Installieren Sie sie mit dem Befehl unten."
+  },
+  "hintHelperOld": {
+    "message": "Die Hilfs-App ist zu alt für dieses Add-on. Führen Sie den Befehl unten aus, um sie zu aktualisieren."
+  },
+  "hintAddonOld": {
+    "message": "Dieses Add-on ist älter als die Hilfs-App. Aktualisieren Sie Foxhand über Firefox’ Add-ons-Seite."
+  },
+  "hintStarting": {
+    "message": "Das dauert ein paar Sekunden."
+  },
+  "hintPort": {
+    "message": "Vielleicht belegt ein anderes Programm den Port. Ändern Sie ihn unter Einstellungen → Token und Port."
+  },
+  "hintNotRunning": {
+    "message": "Firefox kann die Hilfs-App nicht erreichen. Drücken Sie auf Erneut versuchen oder öffnen Sie die Einstellungen für Details."
+  },
+  "nowEmpty": {
+    "message": "Noch nichts. Bitten Sie Ihre KI, etwas in Firefox zu tun."
+  },
+  "on": {
+    "message": "An"
+  },
+  "off": {
+    "message": "Aus"
+  },
+  "guardLabel": {
+    "message": "Bestätigungsschutz"
+  },
+  "review": {
+    "message": "Prüfen"
+  },
+  "close": {
+    "message": "Schließen"
+  },
+  "secStatus": {
+    "message": "Status"
+  },
+  "secSafety": {
+    "message": "Sicherheit und Rückmeldung"
+  },
+  "advanced": {
+    "message": "Erweitert"
+  },
+  "connectLead": {
+    "message": "Wählen Sie Ihr KI-Tool, kopieren Sie die Konfiguration und führen Sie sie aus oder fügen Sie sie dort ein, wo Ihre KI ihre MCP-Einstellungen liest. Diese Seite zeigt es an, sobald der erste Befehl ankommt."
+  },
+  "configSecret": {
+    "message": "Diese Konfiguration enthält Ihr Zugriffstoken. Behandeln Sie sie wie ein Passwort: Wer sie hat, kann dieses Firefox steuern. Fügen Sie sie nicht in Chats, Issues oder Screenshots ein."
+  },
+  "connDone": {
+    "message": "Ihre KI ist verbunden: bisher $P1$ Befehle.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "connNeedsHelper": {
+    "message": "Warten auf die Hilfs-App. Prüfen Sie den Status oben."
+  },
+  "safetyLead": {
+    "message": "Das gilt, während Ihre KI arbeitet. Pausieren ist die einzige Steuerung, die alles stoppt."
+  },
+  "pauseRow": {
+    "message": "Alles pausieren"
+  },
+  "pauseRowNote": {
+    "message": "Drücken Sie diese Tastenkombination oder nutzen Sie KI pausieren im Symbolleisten-Menü. Jeder Befehl wird abgelehnt, bis Sie fortsetzen. Um die Tastenkombination zu ändern, öffnen Sie Firefox’ Add-ons-Seite und wählen Sie Tastenkombinationen für Erweiterungen verwalten."
+  },
+  "showCursorNote": {
+    "message": "Ein Cursor und eine orange Sprechblase zeigen, wo die KI handelt und warum. Sie blockieren nie Ihre eigene Maus oder Tastatur."
+  },
+  "guardNote": {
+    "message": "Das Schließen von Tabs und Fenstern sowie das Löschen von Lesezeichen oder Cookies wird abgelehnt, solange die KI nicht confirm:true setzt. Das fängt Versehen ab, aber die KI setzt es selbst, deshalb ist es keine Bestätigungsabfrage für Sie."
+  },
+  "passwordsRow": {
+    "message": "Gespeicherte Passwörter"
+  },
+  "passwordsNote": {
+    "message": "Kein Tool liest die Anmeldedaten oder den Passwortmanager von Firefox. Die KI kann trotzdem jede Seite sehen und bedienen, bei der Sie angemeldet sind."
+  },
+  "activityLead": {
+    "message": "Was Ihre KI kürzlich getan hat. Wird geleert, wenn Firefox neu startet."
+  },
+  "activityEmptyLink": {
+    "message": "Noch nicht verbunden?"
+  },
+  "advancedLead": {
+    "message": "Details zur Hilfs-App, Zugriffstoken, Port und Deinstallation. Die brauchen Sie selten."
+  },
+  "annTag": {
+    "message": "Ankündigung"
+  },
+  "annNote": {
+    "message": "Wird einmal angezeigt, von foxhand.pages.dev. Links öffnen sich in einem neuen Tab."
+  },
+  "annDone": {
+    "message": "Fertig"
+  },
+  "obProgress": {
+    "message": "Schritt $P1$ von 3 · $P2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "obHelpTitle": {
+    "message": "Ihre KI verbindet sich nicht?"
+  },
+  "obHelp1": {
+    "message": "Foxhand funktioniert nur, solange Firefox geöffnet ist."
+  },
+  "obHelp2": {
+    "message": "Achten Sie darauf, dass Schritt 1 meldet, dass die Hilfs-App läuft, und kopieren Sie dann die Konfiguration erneut. Ein geändertes Token oder einen geänderten Port braucht eine neue Kopie."
+  },
+  "obHelp3": {
+    "message": "Starten Sie nach dem Hinzufügen der Konfiguration eine neue Sitzung in Ihrem KI-Tool. Viele Tools lesen ihre MCP-Einstellungen nur beim Start."
+  },
   "obTitle": {
     "message": "Willkommen bei Foxhand"
   },
@@ -1127,7 +1260,7 @@
     }
   },
   "obTipSafety": {
-    "message": "Die KI muss bestätigen, bevor sie Tabs schließt oder Lesezeichen löscht, und sie kann Ihre gespeicherten Passwörter nicht lesen."
+    "message": "Zum Schließen von Tabs sowie zum Löschen von Lesezeichen oder Cookies braucht die KI confirm:true. Das schützt vor Versehen, es ist aber kein Fenster, das Sie fragt. Pausieren ist der eigentliche Stoppknopf. Kein Tool liest Firefox’ gespeicherte Passwörter."
   },
   "obSettings": {
     "message": "Alle Einstellungen"

@@ -22,16 +22,17 @@
   }
   /* The add-on's own palette: black and white, with Firefox orange as the one accent. */
   :root {
-    --bg: #0a0a0a; --surface: #141414; --line: #262626; --muted: #8a8a8a; --soft: #c8c8c8; --fg: #f5f5f5;
+    --bg: #0a0a0a; --surface: #141414; --line: #2a2a2a; --line-strong: #474747; --muted: #9b9b9b; --soft: #cfcfcf; --fg: #f5f5f5;
     --orange: #FF7139; --ink: #0a0a0a;
     --sans: 'Google Sans Flex', system-ui, sans-serif;
     --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, monospace;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
-  html { scroll-padding-top: 24px; }
+  html { scroll-padding-top: 88px; scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
   body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
-  a { color: var(--fg); text-underline-offset: 3px; text-decoration-color: #555; }
+  a { color: var(--fg); text-underline-offset: 3px; text-decoration-color: #666; }
   a:hover { text-decoration-color: var(--fg); }
   :focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; border-radius: 4px; }
   code, kbd { font: .86em var(--mono); }
@@ -40,12 +41,19 @@
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
   @media (max-width: 600px) { .wrap { padding: 0 16px; } body { font-size: 16px; } }
 
+  .skip { position: absolute; left: 16px; top: -64px; z-index: 20; padding: 10px 16px; border-radius: 10px; background: var(--fg); color: var(--ink); font-weight: 600; text-decoration: none; }
+  .skip:focus { top: 12px; }
+
   /* Top */
+  .topbar { position: sticky; top: 0; z-index: 10; background: rgba(10, 10, 10, .88); backdrop-filter: blur(10px); border-bottom: 1px solid transparent; }
+  .topbar.stuck { border-bottom-color: var(--line); }
   nav { display: flex; align-items: center; gap: 24px; height: 72px; }
   nav .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; text-decoration: none; margin-right: auto; }
   nav a:not(.brand) { color: var(--soft); text-decoration: none; font-size: 15px; }
   nav a:not(.brand):hover { color: var(--fg); }
-  @media (max-width: 600px) { nav .hide-sm { display: none; } }
+  nav a.nav-cta { display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 10px; background: var(--orange); color: var(--ink); font-weight: 600; }
+  nav a.nav-cta:hover { color: var(--ink); filter: brightness(.93); }
+  @media (max-width: 760px) { nav { gap: 16px; } nav .hide-sm { display: none; } }
 
   header.hero { padding: 72px 0 48px; }
   .hero h1 { font-size: clamp(38px, 6.4vw, 68px); line-height: 1.04; letter-spacing: -0.035em; font-weight: 600; margin: 0; max-width: 14ch; }
@@ -60,6 +68,9 @@
   .btn.orange:hover { filter: brightness(.93); }
   .meta { margin-top: 20px; color: var(--muted); font-size: 14px; }
   .meta a { color: var(--soft); }
+  .trust { list-style: none; margin: 28px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 12px; }
+  .trust li { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--soft); font-size: 14px; }
+  .trust li::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); flex: none; }
 
   figure { margin: 0; }
   figcaption { color: var(--muted); font-size: 14px; margin-top: 12px; }
@@ -70,6 +81,21 @@
   h2 { font-size: clamp(28px, 3.6vw, 40px); letter-spacing: -0.025em; line-height: 1.1; font-weight: 600; margin: 0 0 16px; }
   .sub { color: var(--soft); max-width: 40em; margin: 0; }
   .eyebrow { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; font-weight: 500; }
+
+  /* How it works */
+  .flow { list-style: none; margin: 40px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; counter-reset: f; }
+  .flow li { position: relative; padding: 20px 20px 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+  .flow li + li { margin-left: 28px; }
+  .flow li + li::before { content: '→'; position: absolute; left: -28px; top: 50%; width: 28px; margin-top: -12px; text-align: center; color: var(--orange); font-size: 18px; }
+  .flow b { display: block; font-size: 16px; margin-bottom: 4px; }
+  .flow span { display: block; color: var(--soft); font-size: 14px; line-height: 1.5; }
+  .flow code { white-space: nowrap; }
+  .flow-note { margin: 20px 0 0; color: var(--muted); font-size: 14px; max-width: 60em; }
+  @media (max-width: 900px) {
+    .flow { grid-template-columns: 1fr; gap: 0; }
+    .flow li + li { margin: 28px 0 0; }
+    .flow li + li::before { content: '↓'; left: 50%; top: -28px; margin: 0 0 0 -14px; width: 28px; height: 28px; line-height: 28px; }
+  }
 
   /* Setup */
   .setup { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 56px; margin-top: 40px; align-items: start; }
@@ -82,16 +108,20 @@
   }
   ol.steps h3 { margin: 0 0 6px; font-size: 20px; font-weight: 600; }
   ol.steps p { margin: 0 0 14px; color: var(--soft); }
+  ol.steps .check { margin: 14px 0 0; font-size: 14px; color: var(--muted); }
+  ol.steps .check::before { content: '✓ '; color: var(--orange); font-weight: 600; }
   .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
   .tabs button {
     height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: transparent;
     color: var(--soft); font: 500 14px var(--sans); cursor: pointer;
   }
   .tabs button:hover { border-color: var(--muted); color: var(--fg); }
+  .tabs button:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
   .tabs button[aria-selected="true"] { background: var(--fg); border-color: var(--fg); color: var(--ink); font-weight: 600; }
   .cmd { position: relative; }
+  .cmd + .cmd { margin-top: 10px; }
   .cmd pre {
-    margin: 0; padding: 16px 92px 16px 18px; background: var(--surface); border-radius: 12px;
+    margin: 0; padding: 16px 92px 16px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
     font: 14px/1.65 var(--mono); color: #e6e6e6; white-space: pre-wrap; overflow-wrap: anywhere;
   }
   .cmd .copy {
@@ -101,6 +131,7 @@
   .cmd .copy:hover { color: var(--fg); border-color: var(--muted); }
   .cmd .copy.done { color: var(--ink); background: var(--orange); border-color: var(--orange); }
   .note { font-size: 14px; color: var(--muted); margin-top: 10px !important; }
+  .cmd pre { overflow-x: auto; }
   [hidden] { display: none !important; }
 
   /* Ask */
@@ -111,11 +142,20 @@
   .ask::after { content: '”'; color: var(--orange); font-weight: 600; }
 
   /* Tools */
-  .tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 32px 40px; margin-top: 40px; }
+  .toolkinds { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin: 40px 0 0; padding: 0; list-style: none; }
+  .toolkinds li { padding: 20px 22px; border: 1px solid var(--line); border-radius: 16px; }
+  .toolkinds b { display: flex; justify-content: space-between; gap: 12px; font-size: 17px; margin-bottom: 6px; }
+  .toolkinds b span { color: var(--orange); font-variant-numeric: tabular-nums; }
+  .toolkinds p { margin: 0; color: var(--soft); font-size: 15px; }
+  details.all { margin-top: 24px; border: 1px solid var(--line); border-radius: 16px; padding: 0 22px; }
+  details.all summary { cursor: pointer; padding: 18px 0; font-weight: 600; }
+  details.all[open] summary { border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  details.all .tools { margin: 24px 0 28px; }
+  .tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 32px 40px; }
   .tools h3 { font-size: 15px; font-weight: 600; margin: 0 0 10px; display: flex; gap: 8px; align-items: baseline; }
   .tools h3 span { color: var(--muted); font-weight: 400; }
   .tools ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-  .tools li { font: 13px var(--mono); color: var(--soft); padding: 3px 8px; background: var(--surface); border-radius: 6px; }
+  .tools li { font: 13px var(--mono); color: var(--soft); padding: 3px 8px; background: var(--surface-2, #1b1b1b); border-radius: 6px; }
   .fixes { margin: 32px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px 40px; color: var(--soft); }
   .fixes li { padding-left: 20px; position: relative; }
   .fixes li::before { content: ''; position: absolute; left: 0; top: .62em; width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
@@ -127,13 +167,20 @@
   dl.facts { margin: 0; display: grid; gap: 24px; }
   dl.facts dt { font-weight: 600; font-size: 18px; }
   dl.facts dd { margin: 4px 0 0; color: var(--soft); }
-  .warn { border-left: 2px solid var(--orange); padding-left: 16px; }
+  .warn { border-left: 3px solid var(--orange); padding: 4px 0 4px 18px; }
+  .stop { padding: 20px 22px; border: 1px solid var(--orange); border-radius: 16px; background: var(--surface); }
+  .stop dt { font-size: 20px; }
 
   /* Name */
   .name { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; margin-top: 32px; }
   @media (max-width: 800px) { .name { grid-template-columns: 1fr; gap: 32px; } }
   .name h3 { margin: 0 0 8px; font-size: 19px; font-weight: 600; }
   .name p { margin: 0 0 12px; color: var(--soft); }
+
+  .final { margin-top: 24px; padding: 40px; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px; }
+  .final h2 { margin: 0 0 8px; font-size: clamp(24px, 3vw, 32px); }
+  .final p { margin: 0; color: var(--soft); }
+  @media (max-width: 600px) { .final { padding: 28px 22px; } }
 
   footer { margin-top: 120px; padding: 32px 0 48px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; }
@@ -142,14 +189,20 @@
 </style>
 </head>
 <body>
-
-<div class="wrap">
+<a class="skip" href="#main">Skip to content</a>
+<div class="topbar" id="topbar"><div class="wrap">
   <nav aria-label="Site">
     <a class="brand" href="./"><img src="icon.svg" width="32" height="32" alt=""> Foxhand</a>
+    <a class="hide-sm" href="#how">How it works</a>
     <a class="hide-sm" href="#setup">Setup</a>
+    <a class="hide-sm" href="#control">Safety</a>
     <a class="hide-sm" href="https://github.com/hamb1y/foxhand/blob/main/CHANGELOG.md">Changelog</a>
-    <a href="https://github.com/hamb1y/foxhand">GitHub</a>
+    <a class="hide-sm" href="https://github.com/hamb1y/foxhand">GitHub</a>
+    <a class="nav-cta" href="https://addons.mozilla.org/firefox/addon/foxhand/">Add to Firefox</a>
   </nav>
+</div></div>
+
+<div class="wrap" id="main">
 
   <header class="hero">
     <h1>Let your AI agent use your real Firefox.</h1>
@@ -159,6 +212,12 @@
       <a class="btn" href="#setup">How setup works</a>
     </div>
     <p class="meta">Free and open source (MPL-2.0) · Version 0.5.4 · <a href="#name">Formerly WebMCP Controller</a></p>
+    <ul class="trust" aria-label="At a glance">
+      <li>Runs on your computer</li>
+      <li>You can pause it any time</li>
+      <li>Needs Firefox 142 or newer</li>
+      <li>Windows, macOS and Linux</li>
+    </ul>
   </header>
 
   <figure class="hero-shot">
@@ -169,15 +228,29 @@
     <figcaption>A real capture: an MCP client asked Foxhand to search Wikipedia, then point at the article. The orange bubble is the AI saying what it's doing.</figcaption>
   </figure>
 
+  <section id="how" aria-labelledby="how-h">
+    <p class="eyebrow">How it works</p>
+    <h2 id="how-h">Four pieces, all on your computer.</h2>
+    <p class="sub">Firefox add-ons can't open network ports, so Foxhand is a pair: the add-on works inside Firefox, and a small helper app speaks MCP to your AI tool.</p>
+    <ol class="flow">
+      <li><b>Your AI tool</b><span>Claude Code, Codex, Gemini CLI or any MCP client.</span></li>
+      <li><b>Foxhand helper</b><span>Serves MCP at <code>localhost:8901</code>. Every request needs your token.</span></li>
+      <li><b>Foxhand add-on</b><span>Receives commands from the helper and acts inside Firefox.</span></li>
+      <li><b>Your Firefox</b><span>Your tabs, your logins, your pages. The AI sees what you see.</span></li>
+    </ol>
+    <p class="flow-note">The helper listens on <code>localhost</code> only. Nothing leaves your computer unless the AI tool you connect sends it somewhere.</p>
+  </section>
+
   <section id="setup" aria-labelledby="setup-h">
     <p class="eyebrow">Setup</p>
     <h2 id="setup-h">About a minute, three steps.</h2>
-    <p class="sub">The add-on opens a setup page that walks you through this and ticks off each step when it works.</p>
+    <p class="sub">The add-on opens a setup page that walks you through this and ticks off each step when it works. Here's the same path, with what you should see after each step.</p>
     <div class="setup">
       <ol class="steps">
         <li>
           <h3>Add Foxhand to Firefox</h3>
           <p>From <a href="https://addons.mozilla.org/firefox/addon/foxhand/">addons.mozilla.org</a>. Firefox 142 or newer, on Windows, macOS or Linux.</p>
+          <p class="check">The setup page opens, and a fox icon appears in your toolbar.</p>
         </li>
         <li>
           <h3>Install the helper app</h3>
@@ -190,6 +263,7 @@
           <div class="cmd" data-panel="os:win" hidden><pre>irm https://hamb1y.github.io/foxhand/ps | iex</pre><button class="copy" type="button">Copy</button></div>
           <p class="note" data-panel="os:unix">In Terminal. The script checks the download against the release's SHA-256 sums. <a href="https://github.com/hamb1y/foxhand/blob/main/scripts/install.sh">Read it first</a>.</p>
           <p class="note" data-panel="os:win" hidden>In PowerShell. The script checks the download against the release's SHA-256 sums. <a href="https://github.com/hamb1y/foxhand/blob/main/scripts/install.ps1">Read it first</a>.</p>
+          <p class="check">The toolbar popup changes from “Helper app not installed” to “Ready”.</p>
         </li>
         <li>
           <h3>Connect your AI</h3>
@@ -201,13 +275,13 @@
             <button role="tab" aria-selected="false" data-tab="json">Other</button>
           </div>
           <div class="cmd" data-panel="ai:claude"><pre>claude mcp add -s user -t http firefox http://localhost:8901/mcp \
-  -H "Authorization: Bearer &lt;token&gt;"</pre></div>
+  -H "Authorization: Bearer &lt;token&gt;"</pre><button class="copy" type="button">Copy</button></div>
           <div class="cmd" data-panel="ai:codex" hidden><pre># ~/.codex/config.toml
 [mcp_servers.firefox]
 url = "http://localhost:8901/mcp"
-http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre></div>
+http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre><button class="copy" type="button">Copy</button></div>
           <div class="cmd" data-panel="ai:gemini" hidden><pre>gemini mcp add --scope user --transport http firefox \
-  http://localhost:8901/mcp --header "Authorization: Bearer &lt;token&gt;"</pre></div>
+  http://localhost:8901/mcp --header "Authorization: Bearer &lt;token&gt;"</pre><button class="copy" type="button">Copy</button></div>
           <div class="cmd" data-panel="ai:json" hidden><pre>{
   "mcpServers": {
     "firefox": {
@@ -216,12 +290,14 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre></div>
       "headers": { "Authorization": "Bearer &lt;token&gt;" }
     }
   }
-}</pre></div>
+}</pre><button class="copy" type="button">Copy</button></div>
+          <p class="note">The token is a secret: anyone who has it can control your Firefox. Keep it out of chats and screenshots.</p>
+          <p class="check">Ask your AI to list your open tabs. The setup page shows “Connected”.</p>
         </li>
       </ol>
       <figure>
         <img class="shot" src="shots/setup.webp" width="1584" height="1817" alt="Foxhand's setup page. Step 1, Install the helper app, is checked: Helper v0.5.4 is running. Step 2, Connect your AI, is checked: Connected. Your AI just did: Looked through tabs." loading="lazy" style="background:var(--bg)">
-        <figcaption>The setup page, with both steps done. The token is hidden here.</figcaption>
+        <figcaption>The setup page, with both steps done, from a real run of 0.5.4. The token is hidden here.</figcaption>
       </figure>
     </div>
   </section>
@@ -240,6 +316,15 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre></div>
     <p class="eyebrow">45 tools</p>
     <h2 id="tools-h">What the agent can do.</h2>
     <p class="sub">It reads pages through an accessibility snapshot, then clicks, types and fills forms by reference or by an element's visible name, the way a screen reader sees the page. Full descriptions are in the <a href="https://github.com/hamb1y/foxhand#tools">README</a>.</p>
+    <ul class="toolkinds">
+      <li><b>Tabs and windows <span>12</span></b><p>List, open, navigate, focus, pin, mute and close tabs and windows.</p></li>
+      <li><b>Reading pages <span>6</span></b><p>Accessibility snapshot, text, HTML, screenshot, page info and find.</p></li>
+      <li><b>Acting on pages <span>10</span></b><p>Click, type, fill forms, select, hover, scroll, press keys, wait, drag and upload.</p></li>
+      <li><b>Browser data <span>14</span></b><p>Bookmarks, history, downloads, cookies, page storage and recently closed tabs.</p></li>
+      <li><b>Meta <span>3</span></b><p>Extension status, a cursor “thought” bubble, and waiting for browser events.</p></li>
+    </ul>
+    <details class="all">
+      <summary>Show all 45 tool names</summary>
     <div class="tools">
       <div>
         <h3>Tabs and windows <span>12</span></h3>
@@ -258,6 +343,7 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre></div>
         <ul><li>extension_status</li><li>thought</li><li>event_wait</li></ul>
       </div>
     </div>
+    </details>
     <ul class="fixes" aria-label="Built for real pages">
       <li>Page dialogs (<code>alert</code>, <code>confirm</code>) never freeze an action.</li>
       <li>Links that open a new tab report which tab.</li>
@@ -274,12 +360,13 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre></div>
     <div class="control">
       <figure>
         <img class="shot" src="shots/popup.webp" width="720" height="1089" alt="The Foxhand toolbar popup: Ready, Helper v0.5.4, last action Looked through tabs, a Pause AI button, Copy MCP config, and Show AI cursor switched on." loading="lazy">
-        <figcaption>The toolbar popup.</figcaption>
+        <figcaption>The toolbar popup, from a real run of 0.5.4.</figcaption>
       </figure>
       <dl class="facts">
-        <div><dt>Pause at any moment</dt><dd>Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd>, or Pause AI in the popup, and every command stops until you resume.</dd></div>
+        <div class="stop"><dt>Pause at any moment</dt><dd>Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd>, or Pause AI in the popup, and every command is refused until you resume.</dd></div>
         <div><dt>See where it acts</dt><dd>A cursor glides to whatever the AI clicks or types into, and says why in an orange bubble. It never blocks your own input.</dd></div>
-        <div><dt>Asks before it destroys</dt><dd>Closing tabs or windows and deleting bookmarks or cookies need explicit confirmation. No tool reads saved passwords.</dd></div>
+        <div><dt>Guards against destructive slips</dt><dd>Closing tabs or windows and deleting bookmarks or cookies are refused unless the AI passes <code>confirm:true</code>. That stops accidents, but the AI sets it itself: it isn't a prompt asking you, so use Pause to stop it.</dd></div>
+        <div><dt>Passwords stay in Firefox</dt><dd>No tool reads Firefox's saved logins or password manager. The AI can still see and act on any page you're signed in to.</dd></div>
         <div><dt>Stays on your computer</dt><dd>The helper listens on <code>localhost</code> only, and every request needs a 256-bit token. Nothing leaves your machine unless the AI tool you connect sends it somewhere.</dd></div>
         <div class="warn"><dt>Pages can try to trick the agent</dt><dd>A web page can contain instructions aimed at your AI. Don't point it at anything you wouldn't let a stranger click through.</dd></div>
       </dl>
@@ -301,6 +388,14 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre></div>
       </div>
     </div>
   </section>
+
+  <aside class="final" aria-label="Get started">
+    <div>
+      <h2>Ready to try it?</h2>
+      <p>Add the add-on, paste one line, and ask your agent something. About a minute.</p>
+    </div>
+    <a class="btn orange" href="https://addons.mozilla.org/firefox/addon/foxhand/">Add to Firefox</a>
+  </aside>
 </div>
 
 <footer>
@@ -317,31 +412,62 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre></div>
   // Tabs: one group per data-group; panels are [data-panel="group:tab"].
   function pick(group, tab) {
     document.querySelectorAll('[data-group="' + group + '"] [role=tab]').forEach(function (b) {
-      b.setAttribute('aria-selected', String(b.dataset.tab === tab));
+      var on = b.dataset.tab === tab;
+      b.setAttribute('aria-selected', String(on));
+      b.tabIndex = on ? 0 : -1;
     });
     document.querySelectorAll('[data-panel^="' + group + ':"]').forEach(function (p) {
       p.hidden = p.dataset.panel !== group + ':' + tab;
     });
   }
   document.querySelectorAll('[data-group]').forEach(function (g) {
+    var tabs = Array.prototype.slice.call(g.querySelectorAll('[role=tab]'));
+    tabs.forEach(function (b) { b.tabIndex = b.getAttribute('aria-selected') === 'true' ? 0 : -1; });
     g.addEventListener('click', function (e) {
       var b = e.target.closest('[role=tab]');
       if (b) pick(g.dataset.group, b.dataset.tab);
+    });
+    // Arrow keys move between tabs, like any tab list.
+    g.addEventListener('keydown', function (e) {
+      var i = tabs.indexOf(document.activeElement);
+      if (i < 0) return;
+      if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return;
+      var next = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : tabs.length - 1;
+      e.preventDefault();
+      next = (next + tabs.length) % tabs.length;
+      pick(g.dataset.group, tabs[next].dataset.tab);
+      tabs[next].focus();
     });
   });
   // Show the Windows command first to Windows visitors.
   var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
   if (/^win/i.test(platform)) pick('os', 'win');
 
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+    return Promise.reject(new Error('no clipboard'));
+  }
   document.querySelectorAll('.copy').forEach(function (b) {
     b.addEventListener('click', function () {
       var text = b.parentNode.querySelector('pre').textContent;
-      navigator.clipboard.writeText(text).then(function () {
+      copyText(text).then(function () {
         b.textContent = 'Copied'; b.classList.add('done');
+      }, function () {
+        // No clipboard access: select the text so Ctrl+C works.
+        var r = document.createRange(); r.selectNodeContents(b.parentNode.querySelector('pre'));
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        b.textContent = 'Press Ctrl+C';
+      }).then(function () {
         setTimeout(function () { b.textContent = 'Copy'; b.classList.remove('done'); }, 1600);
       });
     });
   });
+
+  // A hairline under the sticky bar once the page scrolls.
+  var bar = document.getElementById('topbar');
+  function stuck() { bar.classList.toggle('stuck', window.scrollY > 4); }
+  window.addEventListener('scroll', stuck, { passive: true });
+  stuck();
 </script>
 </body>
 </html>
