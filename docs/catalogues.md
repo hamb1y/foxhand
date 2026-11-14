@@ -58,7 +58,7 @@ Not publishable yet. Needs the owner's OK on a new package first.
 - The helper is also started by Firefox, not by the MCP client, so whatever
   the registry points at has to be something a client can launch itself.
 - Smallest fit: the npm package proposed in docs/install-npx-proposal.md,
-  which a client runs as `npx -y foxhand` and which relays stdio to the
+  which a client runs as `npx -y foxhand mcp` and which relays stdio to the
   helper. The `server.json` would then be:
 
 ```json
@@ -76,6 +76,7 @@ Not publishable yet. Needs the owner's OK on a new package first.
       "identifier": "foxhand",
       "version": "X.Y.Z",
       "runtimeHint": "npx",
+      "packageArguments": [{ "type": "positional", "value": "mcp" }],
       "transport": { "type": "stdio" }
     }
   ]
