@@ -11,6 +11,8 @@ const rel = (p) => path.join(root, p);
 const readJson = (p) => JSON.parse(fs.readFileSync(rel(p), "utf8"));
 const writeJson = (p, v) => fs.writeFileSync(rel(p), JSON.stringify(v, null, 2) + "\n");
 const VERSION_TS = "shared/src/version.ts";
+// Catalogue manifests (Gemini CLI extension, Claude plugin) carry the same version.
+const CATALOGUE_MANIFESTS = ["gemini-extension.json", "claude-plugin/.claude-plugin/plugin.json"];
 // Places in README.md that quote the version. Each pattern must match exactly once.
 const README = "README.md";
 const README_SPOTS = [
@@ -34,6 +36,7 @@ function current() {
     "mcp-server/package.json (shared dep)": readJson("mcp-server/package.json").dependencies["@webmcp-controller/shared"],
     "extension/manifest.json": readJson("extension/manifest.json").version,
     [VERSION_TS]: (fs.readFileSync(rel(VERSION_TS), "utf8").match(/VERSION = "([^"]+)"/) || [])[1],
+    ...Object.fromEntries(CATALOGUE_MANIFESTS.map((p) => [p, readJson(p).version])),
     ...Object.fromEntries(readmeVersions(fs.readFileSync(rel(README), "utf8"))),
   };
   return found;
@@ -60,7 +63,7 @@ if (!/^\d+\.\d+\.\d+$/.test(v)) {
   console.error("usage: set-version.mjs <major.minor.patch> | --check [expected]");
   process.exit(2);
 }
-for (const p of ["package.json", "shared/package.json", "mcp-server/package.json", "extension/manifest.json"]) {
+for (const p of ["package.json", "shared/package.json", "mcp-server/package.json", "extension/manifest.json", ...CATALOGUE_MANIFESTS]) {
   const j = readJson(p);
   j.version = v;
   if (j.dependencies?.["@webmcp-controller/shared"]) j.dependencies["@webmcp-controller/shared"] = v;
