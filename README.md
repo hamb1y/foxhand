@@ -17,7 +17,7 @@ your own machine.
 
 [**Install the add-on from addons.mozilla.org**](https://addons.mozilla.org/en-US/firefox/addon/foxhand/)
 · [Website](https://foxhand.pages.dev/)
-· [What's new in 0.5.4](CHANGELOG.md)
+· [What's new in 0.5.9](CHANGELOG.md)
 
 <img src="site/shots/cursor.webp" alt="A Wikipedia article on the red panda. The AI cursor rests on the title with an orange bubble that reads: Reading up on the red panda, the animal Firefox is named after.">
 
@@ -102,7 +102,7 @@ Check the connection from a shell:
 
 ```bash
 curl http://localhost:8901/health
-# {"ok":true,"extensionConnected":true,"version":"0.5.4"}
+# {"ok":true,"extensionConnected":true,"version":"0.5.9"}
 ```
 
 ## Architecture
@@ -489,7 +489,7 @@ files into a zip.
 ```bash
 git clone https://github.com/hamb1y/foxhand.git
 cd foxhand
-git checkout v0.5.4
+git checkout v0.5.9
 bash scripts/pack-extension.sh      # writes foxhand.zip
 ```
 
