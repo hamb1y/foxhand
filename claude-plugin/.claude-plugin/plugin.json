@@ -1,0 +1,35 @@
+{
+  "name": "foxhand",
+  "displayName": "Foxhand",
+  "version": "0.5.9",
+  "description": "Let Claude drive the Firefox you already use: your profile, open tabs and logins. Needs the Foxhand add-on and its helper.",
+  "author": {
+    "name": "hamb1y",
+    "url": "https://github.com/hamb1y"
+  },
+  "homepage": "https://foxhand.pages.dev/",
+  "privacyPolicyUrl": "https://foxhand.pages.dev/privacy",
+  "repository": "https://github.com/hamb1y/foxhand",
+  "license": "MPL-2.0",
+  "keywords": [
+    "firefox",
+    "browser",
+    "browser-automation",
+    "mcp"
+  ],
+  "userConfig": {
+    "token": {
+      "type": "string",
+      "title": "Foxhand token",
+      "description": "The token from the Foxhand add-on in Firefox: toolbar icon, Settings, copy the token.",
+      "required": true,
+      "sensitive": true
+    },
+    "mcp_url": {
+      "type": "string",
+      "title": "Helper address",
+      "description": "Where the Foxhand helper listens. Change it only if you changed the port in the add-on.",
+      "default": "http://localhost:8901/mcp"
+    }
+  }
+}

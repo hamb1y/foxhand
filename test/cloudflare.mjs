@@ -19,6 +19,11 @@ assert.ok(text('download/sh').includes(String.raw`\$env:FOXHAND_BASE='$BASE'; ir
 assert.ok(!text('_headers').includes("default-src 'none'"), 'website inline code remains usable');
 assert.match(text('_headers'), /Content-Type: text\/plain/);
 assert.match(text('index.html'), /https:\/\/foxhand.pages.dev\/download\/sh/);
+// Link previews: the og tags must name the live site and an image the build really ships.
+assert.ok(text('index.html').includes('<meta property="og:url" content="https://foxhand.pages.dev/">'));
+assert.ok(text('index.html').includes('<meta property="og:image" content="https://foxhand.pages.dev/shots/og.jpg">'));
+assert.ok(readFileSync('dist/cloudflare/shots/og.jpg').length > 0);
+assert.ok(!text('index.html').includes('hamb1y.github.io'), 'no legacy Pages URLs in the built homepage');
 execFileSync('sh', ['-n', 'dist/cloudflare/download/sh']);
 const env = {
   ASSETS: { async fetch(request) {

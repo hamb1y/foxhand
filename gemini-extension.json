@@ -1,0 +1,23 @@
+{
+  "name": "foxhand",
+  "version": "0.5.9",
+  "description": "Drive the Firefox you already use from Gemini CLI: your profile, tabs and logins. Needs the Foxhand add-on and its helper.",
+  "mcpServers": {
+    "firefox": {
+      "type": "http",
+      "url": "http://localhost:8901/mcp",
+      "headers": {
+        "Authorization": "Bearer ${FOXHAND_TOKEN}"
+      }
+    }
+  },
+  "contextFileName": "GEMINI.md",
+  "settings": [
+    {
+      "name": "Foxhand token",
+      "description": "The token from the Foxhand add-on: toolbar icon, then Settings, then copy the token. It stays on this computer.",
+      "envVar": "FOXHAND_TOKEN",
+      "sensitive": true
+    }
+  ]
+}
