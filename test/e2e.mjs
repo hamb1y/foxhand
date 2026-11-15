@@ -140,6 +140,8 @@ check("thought tool exists", tools.some((t) => t.name === "thought"));
 check("no AI command yet: not marked as used", store.statsUsed === undefined);
 await tool("tab_query", { query: "*" });
 check("an AI command marks the install as used for the daily report", store.statsUsed === true);
+await tool("tab_query", { query: "*" }); await tool("tab_query", { query: "*" });
+check("minutes count distinct clock minutes, not commands", store.statsMinutes >= 1 && store.statsMinutes <= 2 && typeof store.statsLastMinute === "number", JSON.stringify([store.statsMinutes, store.statsLastMinute]));
 for (const gone of ["tabs_list", "tab_move", "tab_duplicate", "tab_unpin", "cursor_note", "snapshot_ax", "act_click"]) {
   check(`${gone} is gone`, !tools.some((t) => t.name === gone));
 }

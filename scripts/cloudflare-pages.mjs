@@ -62,10 +62,10 @@ nav { flex-wrap: wrap; height: auto; min-height: 72px; padding-block: 16px; gap:
 .document .hp { position: absolute; left: -9999px; }
 .document .note { color: var(--muted); font-size: 14px; }
 .document button.btn { width: fit-content; }
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 20px 0 8px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 20px 0 8px; }
 .tile { padding: 18px 20px; border: 1px solid var(--line); border-radius: 14px; }
 .tile .k { color: var(--muted); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
-.tile .n { font-size: 40px; font-weight: 600; letter-spacing: -.03em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.tile .n { font-size: clamp(32px, 6vw, 40px); font-weight: 600; letter-spacing: -.03em; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .tile .d { color: var(--muted); font-size: 13px; }
 .bar { display: grid; grid-template-columns: minmax(120px, 280px) 1fr 64px; gap: 12px; align-items: center; margin: 6px 0; font-size: 15px; }
 .bar i { display: block; height: 10px; background: var(--orange); border-radius: 3px; }
@@ -75,7 +75,7 @@ nav { flex-wrap: wrap; height: auto; min-height: 72px; padding-block: 16px; gap:
 .feedback-item { padding: 14px 0; border-top: 1px solid var(--line); }
 .feedback-item p { margin: 6px 0 0; white-space: pre-wrap; color: var(--fg); }
 svg.chart { width: 100%; height: auto; display: block; }
-svg.chart text { fill: #9b9b9b; font: 11px var(--sans); }
+.axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; margin-top: 6px; }
 svg.chart rect { fill: #FF7139; }
 svg.chart line { stroke: #2a2a2a; }
 .table-scroll { overflow-x: auto; } table { width: 100%; border-collapse: collapse; font-size: 15px; }

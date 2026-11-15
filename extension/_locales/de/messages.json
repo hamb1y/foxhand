@@ -3,7 +3,7 @@
     "message": "Foxhand"
   },
   "extDescription": {
-    "message": "Lassen Sie Ihren eigenen KI-Agenten (Claude Code, Codex, Gemini CLI oder einen beliebigen MCP-Client) dieses Firefox nutzen, mit Ihren Tabs und Anmeldungen. Läuft auf Ihrem Computer. Benötigt eine kleine Hilfs-App."
+    "message": "Lassen Sie Ihren eigenen KI-Agenten (Claude Code, Codex, Antigravity oder einen beliebigen MCP-Client) dieses Firefox nutzen, mit Ihren Tabs und Anmeldungen. Läuft auf Ihrem Computer. Benötigt eine kleine Hilfs-App."
   },
   "cmdPause": {
     "message": "KI pausieren oder fortsetzen"
@@ -261,6 +261,12 @@
   },
   "hintOtherWsl": {
     "message": "Fügen Sie dies in die MCP-Konfigurationsdatei Ihres Clients innerhalb von WSL ein, neben die bereits vorhandenen Server."
+  },
+  "hintAntigravity": {
+    "message": "Fügen Sie dies in ~/.gemini/config/mcp_config.json ein, neben die bereits vorhandenen Server."
+  },
+  "hintAntigravityWsl": {
+    "message": "Fügen Sie dies in ~/.gemini/config/mcp_config.json innerhalb von WSL ein, neben die bereits vorhandenen Server."
   },
   "wslAddrChanges": {
     "message": "Die darin enthaltene Windows-Adresse ändert sich bei jedem Neustart von Windows: Kopieren Sie es erneut, wenn Ihre KI keine Verbindung mehr bekommt."

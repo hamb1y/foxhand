@@ -1678,7 +1678,7 @@ async function onCommand(cmd: { id: string; method: BridgeMethod; params: Bridge
   var params = (cmd.params && typeof cmd.params === 'object') ? cmd.params : {};
   cmdCount += 1;
   trackSetup(2);
-  call(B.storage.local, 'set', { statsUsed: true }).catch(function () {}); // an AI command ran (for the daily report)
+  countMinute();
   var label = labelsFor(cmd.method);
   var cur: NowEntry = now = { text: label[0], past: label[1], site: '', tabId: null, at: Date.now(), done: false };
   if (TAB_METHODS.test(cmd.method)) {
@@ -1979,6 +1979,20 @@ function trackClient(hs: { client?: string; clientSeq?: number }): void {
   }).catch(function () {});
 }
 
+/* An AI command ran: mark the install as used and count the clock minute once (the last minute counted is kept,
+ * never a command time). stats.ts reports the count with the daily report and resets it. */
+var minuteChain: Promise<unknown> = Promise.resolve();
+function countMinute(): void {
+  var minute = Math.floor(Date.now() / 60000);
+  minuteChain = minuteChain.then(async function () {
+    var got: Record<string, unknown> = (await call(B.storage.local, 'get', ['statsMinutes', 'statsLastMinute'])) || {};
+    var n = typeof got.statsMinutes === 'number' && got.statsMinutes > 0 ? Math.floor(got.statsMinutes) : 0;
+    var data: Record<string, unknown> = { statsUsed: true };
+    if (got.statsLastMinute !== minute) { data.statsMinutes = Math.min(1440, n + 1); data.statsLastMinute = minute; }
+    await call(B.storage.local, 'set', data);
+  }).catch(function () {});
+}
+
 /* Remember setup progress (a number and a category, nothing else) for stats.ts. */
 function trackSetup(stage?: number): void {
   var data: Record<string, unknown> = {};
@@ -2165,8 +2179,8 @@ function applyConfig() {
   else reconnectNow();
 }
 
-/* The setup page's chips, as categories (Gemini CLI is deprecated: it falls under "other"). */
-var PICKED: Record<string, string> = { claude: 'claude-code', codex: 'codex', gemini: 'other', opencode: 'opencode', 'claude-app': 'claude-desktop', json: 'other' };
+/* The setup page's chips, as categories. */
+var PICKED: Record<string, string> = { claude: 'claude-code', codex: 'codex', antigravity: 'antigravity', opencode: 'opencode', 'claude-app': 'claude-desktop', json: 'other' };
 
 /* Only our own extension pages may reconfigure the bridge — never content scripts. Checked by the
  * sender's URL, not by sender.tab: the settings page opens in a tab too. */

@@ -14,12 +14,12 @@ function bars(rows, label) {
   }
   return box;
 }
-function chart(rows, today) {
-  const days = [], map = new Map(rows.map(r => [r.day, r.n]));
+function chart(rows, today, key = 'n', what = 'Daily active users') {
+  const days = [], map = new Map(rows.map(r => [r.day, Number(r[key] || 0)]));
   for (let i = 59; i >= 0; i--) { const d = new Date(Date.parse(today + 'T00:00:00Z') - i * 86400e3).toISOString().slice(0, 10); days.push({ d, n: map.get(d) || 0 }); }
   const max = Math.max(1, ...days.map(x => x.n)), W = 600, H = 150, bw = W / days.length;
   const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + (H + 20)); svg.setAttribute('class', 'chart'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Daily active users, last 60 days');
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + (H + 2)); svg.setAttribute('class', 'chart'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', what + ', last 60 days');
   const el = (name, attrs, text) => { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text !== undefined) e.textContent = text; svg.append(e); return e; };
   el('line', { x1: 0, x2: W, y1: H, y2: H });
   days.forEach((x, i) => {
@@ -28,8 +28,10 @@ function chart(rows, today) {
     const r = el('rect', { x: i * bw + 1, y: H - h, width: Math.max(1, bw - 2), height: h });
     const t = document.createElementNS(NS, 'title'); t.textContent = x.d + ': ' + x.n; r.append(t);
   });
-  el('text', { x: 0, y: H + 14 }, days[0].d); el('text', { x: W, y: H + 14, 'text-anchor': 'end' }, days[days.length - 1].d); el('text', { x: W, y: 10, 'text-anchor': 'end' }, 'max ' + max);
-  return svg;
+  // Labels are HTML so they stay readable when the chart shrinks on a phone.
+  const axis = $('div', 'axis'); axis.append($('span', '', days[0].d), $('span', '', 'max ' + num(max)), $('span', '', days[days.length - 1].d));
+  const box = $('div'); box.append(svg, axis);
+  return box;
 }
 const REASON = { missing: 'Helper not installed', old: 'Helper or add-on too old', noanswer: 'Helper started, never answered', port: 'Helper cannot listen (port)', stopped: 'Helper stopped', unknown: 'Other' };
 const AGE = { '0': 'day 0', '1-6': 'days 1 to 6', '7+': '7 days or more', na: 'age unknown' };
@@ -46,14 +48,22 @@ fetch('/endpoint/stats', { credentials: 'same-origin', cache: 'no-store' }).then
   const tiles = $('div', 'tiles');
   const usedRow = d => Number((s.daily.find(r => r.day === d) || {}).used || 0);
   const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : 'n/a';
-  tiles.append(tile('DAU', dayRow(yest), 'installs that reported yesterday; ' + num(dayRow(s.today)) + ' so far today'),
-    tile('AAU', usedRow(yest), 'installs where an AI command ran yesterday; ' + num(s.rolling.aau7) + ' in 7 days, ' + num(s.rolling.aau30) + ' in 30 days'),
-    tile('MAU', s.rolling.mau, 'installs that reported in 30 days; ' + num((s.months[0] || {}).n) + ' this calendar month'),
+  tiles.append(tile('DAU', dayRow(yest), 'yesterday; ' + num(dayRow(s.today)) + ' so far today'),
+    tile('AAU', usedRow(yest), 'yesterday; ' + num(s.rolling.aau7) + ' in 7 days; ' + num(s.rolling.aau30) + ' in 30'),
+    tile('MAU', s.rolling.mau, 'last 30 days; ' + num((s.months[0] || {}).n) + ' this month'),
     tile('Unique installs', s.installs, 'all time'));
-  const share = $('p', 'note', 'AAU share yesterday: ' + pct(usedRow(yest), dayRow(yest)) + ' of DAU. Over 30 days: ' + pct(s.rolling.aau30, s.installs) + ' of all installs, ' + pct(s.rolling.aau30, s.rolling.mau) + ' of MAU.');
+  const share = $('p', 'note', 'DAU and MAU count installs that reported. AAU counts installs where an AI command ran. AAU share yesterday: ' + pct(usedRow(yest), dayRow(yest)) + ' of DAU. Over 30 days: ' + pct(s.rolling.aau30, s.installs) + ' of all installs, ' + pct(s.rolling.aau30, s.rolling.mau) + ' of MAU.');
   out.append(tiles, share);
   h2('Daily actives', 'Installs that reported, last 60 days.');
   if (s.daily.length) out.append(chart(s.daily, s.today)); else out.append($('div', 'empty', 'No data.'));
+  h2('Usage minutes', 'A minute counts when an AI command ran in it. A report covers the time since the previous report, so a day can include the tail of the day before. Per actual active user per day.');
+  if (s.daily.some(r => r.minutes)) out.append(chart(s.daily, s.today, 'minutes', 'Usage minutes')); else out.append($('div', 'empty', 'No usage minutes yet.'));
+  const mt = $('div', 'tiles');
+  const mTile = (k, d) => tile(k, d.avg, d.days ? 'median ' + num(d.median) + ', over ' + num(d.days) + ' user-days' : 'no user-days yet');
+  mt.append(mTile('Average, 7 days', s.minutes.last7), mTile('Average, 30 days', s.minutes.last30));
+  out.append(mt);
+  out.append($('p', 'note', 'User-days by minutes, last 30 days.'));
+  out.append(bars(s.minutes.buckets.map(b => ({ name: b.label, n: b.n })), r => r.name + ' min'));
   h2('Setup funnel', 'Installs by the furthest step they reached.');
   const f = s.funnel;
   out.append(bars([{ k: 'Add-on installed', n: f.installed }, { k: 'Helper connected', n: f.helper }, { k: 'First AI command', n: f.command }], r => r.k));

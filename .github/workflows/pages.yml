@@ -1,8 +1,6 @@
 name: Pages
-# Serves the short install commands:
-#   curl -fsSL https://hamb1y.github.io/foxhand/sh | sh
-#   irm https://hamb1y.github.io/foxhand/ps | iex
-# The scripts download the helper from the latest GitHub release.
+# The old GitHub Pages site. It only redirects to https://foxhand.pages.dev/ and keeps the old
+# /sh and /ps installer URLs working.
 on:
   push:
     branches: [main]

@@ -139,7 +139,7 @@ function mcpUrl(st: St): string {
   return 'http://' + host + ':' + ((st && st.port) || 8901) + '/mcp';
 }
 
-/* `claude mcp add` / `gemini mcp add` refuse a name that already exists, so the first line drops any
+/* `claude mcp add` refuses a name that already exists, so the first line drops any
  * old "firefox" entry (e.g. one holding a token from before a reinstall). User scope: works in every folder. */
 function cliAdd(cli: string, url: string, auth: string, shell: string): string {
   var quiet = shell === 'powershell' ? ' 2>$null' : ' 2>/dev/null';
@@ -151,8 +151,8 @@ function cliAdd(cli: string, url: string, auth: string, shell: string): string {
     cli + ' mcp add --scope user --transport http firefox "' + url + '" --header "Authorization: ' + auth + '"';
 }
 
-var HARNESSES: string[] = ['claude', 'codex', 'gemini', 'opencode', 'claude-app', 'json'];
-var SHELL_HARNESSES: { [harness: string]: string } = { claude: 'claude', gemini: 'gemini' };
+var HARNESSES: string[] = ['claude', 'codex', 'antigravity', 'opencode', 'claude-app', 'json'];
+var SHELL_HARNESSES: { [harness: string]: string } = { claude: 'claude' };
 
 /* Where the AI runs: 'local' (this computer) or 'wsl' (Linux under WSL, Firefox on Windows). */
 function canWsl(st: St): boolean { return !!(st && st.platform && st.platform.os === 'win'); }
@@ -187,6 +187,9 @@ function mcpConfig(st: St, harness: string, where?: string): string {
       command: 'npx', args: ['-y', 'mcp-remote', url, '--header', 'Authorization:${AUTH}'], env: { AUTH: auth }
     } } }, null, 2);
   }
+  if (harness === 'antigravity') {
+    return JSON.stringify({ mcpServers: { firefox: { serverUrl: url, headers: { Authorization: auth } } } }, null, 2);
+  }
   if (harness === 'opencode') {
     return JSON.stringify({ mcp: { firefox: { type: 'remote', url: url, headers: { Authorization: auth } } } }, null, 2);
   }
@@ -198,9 +201,10 @@ function configHint(st: St, harness: string, where?: string): string {
   if (harness === 'claude-app') return t('hintClaudeApp');
   var wsl = where === 'wsl' && canWsl(st);
   var win = !!(st && st.platform && st.platform.os === 'win');
-  var name = ({ claude: 'Claude Code', gemini: 'Gemini CLI' } as { [harness: string]: string })[harness];
+  var name = ({ claude: 'Claude Code' } as { [harness: string]: string })[harness];
   var h = name ? t('hintRunIn', [wsl ? t('termWsl') : win ? t('termPowerShell') : t('termTerminal'), name])
     : harness === 'codex' ? t(wsl ? 'hintCodexWsl' : 'hintCodex')
+    : harness === 'antigravity' ? t(wsl ? 'hintAntigravityWsl' : 'hintAntigravity')
     : harness === 'opencode' ? t(wsl ? 'hintOpencodeWsl' : 'hintOpencode')
     : t(wsl ? 'hintOtherWsl' : 'hintOther');
   if (wsl && !name) {
@@ -325,6 +329,8 @@ function migrateKind(): void {
       localStorage.setItem('fxmcp.kind', 'claude');
       localStorage.setItem('fxmcp.where', 'wsl');
     }
+    // Gemini CLI is gone; its users are on Antigravity now.
+    if (localStorage.getItem('fxmcp.kind') === 'gemini') localStorage.setItem('fxmcp.kind', 'antigravity');
   } catch (e) {}
 }
 function configKind(set?: string): string { migrateKind(); return pref('fxmcp.kind', set, 'json', HARNESSES); }

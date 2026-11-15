@@ -1,10 +1,10 @@
 #!/bin/sh
 # Foxhand — helper installer for macOS and Linux.
-#   curl -fsSL https://hamb1y.github.io/foxhand/sh | sh
+#   curl -fsSL https://foxhand.pages.dev/download/sh | sh
 # Downloads the right foxhand-host binary, checks it, and registers it with Firefox.
 set -eu
-BASE="${FOXHAND_BASE:-${WEBMCP_BASE:-https://github.com/hamb1y/foxhand/releases/latest/download}}"
-PS_CMD="irm https://hamb1y.github.io/foxhand/ps | iex"
+BASE="${FOXHAND_BASE:-${WEBMCP_BASE:-https://foxhand.pages.dev/download/latest}}"
+PS_CMD="irm https://foxhand.pages.dev/download/ps | iex"
 
 # Inside WSL, Firefox is the Windows one: install the Windows helper from here.
 if [ -z "${FOXHAND_FORCE:-${WEBMCP_FORCE:-}}" ] && grep -qi microsoft /proc/version 2>/dev/null; then

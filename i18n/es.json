@@ -1,6 +1,6 @@
 {
   "extName": "Foxhand",
-  "extDescription": "Deja que tu propio agente de IA (Claude Code, Codex, Gemini CLI o cualquier cliente MCP) use este Firefox, con tus pestañas y tus sesiones iniciadas. Funciona en tu computadora. Necesita una pequeña app auxiliar.",
+  "extDescription": "Deja que tu propio agente de IA (Claude Code, Codex, Antigravity o cualquier cliente MCP) use este Firefox, con tus pestañas y tus sesiones iniciadas. Funciona en tu computadora. Necesita una pequeña app auxiliar.",
   "cmdPause": "Pausar o reanudar la IA",
 
   "settings": "Configuración",
@@ -66,6 +66,8 @@
   "hintOpencodeWsl": "Combina esto con opencode.json dentro de WSL (en tu proyecto o en ~/.config/opencode/).",
   "hintOther": "Agrega esto al archivo de configuración MCP de tu cliente, junto a los servidores que ya tenga.",
   "hintOtherWsl": "Agrega esto al archivo de configuración MCP de tu cliente dentro de WSL, junto a los servidores que ya tenga.",
+  "hintAntigravity": "Agrega esto a ~/.gemini/config/mcp_config.json, junto a los servidores que ya tengas.",
+  "hintAntigravityWsl": "Agrega esto a ~/.gemini/config/mcp_config.json dentro de WSL, junto a los servidores que ya tengas.",
   "wslAddrChanges": "La dirección de Windows que contiene cambia cuando Windows se reinicia: vuelve a copiarlo si tu IA deja de conectarse.",
   "wslReplaceIp": "Reemplaza WINDOWS-IP con el resultado de: $1",
 

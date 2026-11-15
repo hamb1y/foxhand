@@ -27,7 +27,7 @@ jobs:
           mkdir -p out
           cp dist/host/* out/
           cp scripts/install.sh scripts/install.ps1 out/
-          # What https://hamb1y.github.io/foxhand/ serves:
+          # The short names the site serves them under:
           cp scripts/install.sh out/sh
           cp scripts/install.ps1 out/ps
       - uses: actions/upload-artifact@v4

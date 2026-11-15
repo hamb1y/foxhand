@@ -136,6 +136,8 @@ export interface PingPayload {
   picked: Harness | null;
   /** An AI command ran since the last report (AAU, actual active users). */
   used: boolean;
+  /** Clock minutes in which an AI command was handled since the last report (0 to 1440). */
+  minutes: number;
 }
 
 /** The helper's last hostStatus message. */

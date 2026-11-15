@@ -12,7 +12,7 @@ GitHub: `hamb1y/foxhand`. Site: https://foxhand.pages.dev/ (from `site/`).
   - `LABELS` holds the activity-log labels.
   - `src/content/ax.ts` is the content script that does the page work. It reads and acts on pages through `{kind: ...}` messages (`ax-snapshot`, `page-text`, `act-click`, ...).
   - `src/messages.ts` has the types of those messages (`ContentMessage`, `UiMessage`, `Status`); change a message on both sides and the typecheck tells you if they disagree.
-  - `src/stats.ts` sends the once-a-day anonymous report and sets the uninstall URL. It checks Firefox's `technicalAndInteraction` data permission at send time. `background.ts` only writes setup progress (`statsStage`, `statsReason`, `statsUsed` when an AI command ran) to storage.
+  - `src/stats.ts` sends the once-a-day anonymous report and sets the uninstall URL. It checks Firefox's `technicalAndInteraction` data permission at send time. `background.ts` only writes setup progress (`statsStage`, `statsReason`, `statsUsed` and `statsMinutes` when an AI command ran) to storage.
   - `_locales/` is generated. Don't edit it by hand.
 - `mcp-server/`: TypeScript (zod, `@modelcontextprotocol/sdk`). It runs as the native messaging host and as the HTTP MCP server.
   - `src/tools/*.ts` registers the MCP tools.

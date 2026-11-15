@@ -21,6 +21,7 @@ Needed first. Everything in 2 gets judged by these numbers.
 - [x] `/stats` panel: DAU, MAU, AAU, installs, funnel, helper downloads
 - [x] Uninstall page, "Report a problem" links, `/feedback` form
 - [x] Which harnesses connect, and which one was picked on the setup page
+- [ ] Usage minutes (running)
 - [x] AAU = actual active users (an AI command ran), daily / 7 / 30 days
 - [x] Review, commit
 - [ ] Connect each harness once and record its real client name (5 of the mappings are guesses)
@@ -84,23 +85,24 @@ npm (`packaging/npm`):
 
 brew (`packaging/brew`):
 - [x] Formula name: `foxhand-helper`
-- [ ] Own tap, `hamb1y/homebrew-foxhand`. `brew install hamb1y/foxhand/foxhand-helper`
-- [ ] Installs the helper binary, runs `foxhand-host install` to register with Firefox
+- [ ] Official Homebrew (homebrew-core), no tap. `brew install foxhand-helper`
+- [ ] Blocked on notability: 9 stars today, Homebrew wants about 75 (more for self-submitted). Reopen after the launch
+- [ ] Formula must build from source: install the JS bundle with `depends_on "node"`, not the Bun binary
+- [ ] After install the user runs `foxhand-helper install` once to register with Firefox (a formula can't write to the home folder)
 - [ ] Release workflow updates the version and checksums
-- [ ] OWNER: OK creating the tap repo
 
 Both write to the same folder and registration as the curl installer.
 
 ## 5. Finish the move to foxhand.pages.dev
 
 Still pointing at the old places:
-- [ ] `scripts/install.sh`, `install.ps1`: default download base is GitHub `releases/latest`, comments say `hamb1y.github.io`
-- [ ] `site/index.html` source has the old URLs and the build rewrites them. Flip it: source uses the new URLs, nothing to rewrite
-- [ ] `extension/options.html` "all downloads" link, `extension/README-INSTALL.md`
+- [x] `scripts/install.sh`, `install.ps1`: default download base is GitHub `releases/latest`, comments say `hamb1y.github.io`
+- [x] `site/index.html` source has the old URLs and the build rewrites them. Flip it: source uses the new URLs, nothing to rewrite
+- [x] `extension/options.html` "all downloads" link, `extension/README-INSTALL.md`
 - [ ] `platforms.yml` and `public-install.yml` (default version still 0.5.7)
-- [ ] GitHub Pages stays as a redirect only
+- [x] GitHub Pages stays as a redirect only
 - [ ] Old announcement endpoint stays until 0.5.6 and 0.5.7 are gone. The per-version numbers say when
-- [ ] Binaries stay on GitHub Releases behind the `/download` redirect
+- [x] Binaries stay on GitHub Releases behind the `/download` redirect
 
 ## 6. Repo layout
 
@@ -142,6 +144,5 @@ Also: Lobsters, MCP Registry and community lists, Mozilla add-ons Discourse.
 
 - One-click connect: OK for the helper to write harness configs?
 - npm relay token: env var or a file the helper writes
-- brew tap repo `hamb1y/homebrew-foxhand`: OK to create?
 - README links through `/go` or direct
 - `docs/audit-remediation.md`

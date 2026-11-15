@@ -3,7 +3,7 @@
     "message": "Foxhand"
   },
   "extDescription": {
-    "message": "让你自己的 AI 智能体（Claude Code、Codex、Gemini CLI 或任何 MCP 客户端）使用这个 Firefox，包括你的标签页和登录状态。在你的电脑上本地运行。需要安装一个小型辅助程序。"
+    "message": "让你自己的 AI 智能体（Claude Code、Codex、Antigravity 或任何 MCP 客户端）使用这个 Firefox，包括你的标签页和登录状态。在你的电脑上本地运行。需要安装一个小型辅助程序。"
   },
   "cmdPause": {
     "message": "暂停或恢复 AI"
@@ -261,6 +261,12 @@
   },
   "hintOtherWsl": {
     "message": "在 WSL 中将此内容添加到客户端的 MCP 配置文件中，与已有的服务器放在一起。"
+  },
+  "hintAntigravity": {
+    "message": "将此内容添加到 ~/.gemini/config/mcp_config.json 中，与已有的服务器放在一起。"
+  },
+  "hintAntigravityWsl": {
+    "message": "在 WSL 中将此内容添加到 ~/.gemini/config/mcp_config.json 中，与已有的服务器放在一起。"
   },
   "wslAddrChanges": {
     "message": "其中的 Windows 地址会在 Windows 重启后改变：如果 AI 无法连接，请重新复制。"

@@ -13,13 +13,7 @@ cpSync(path.join(root, 'site'), out, { recursive: true });
 const homepage = path.join(out, 'index.html');
 const homeSource = readFileSync(homepage, 'utf8');
 writeFileSync(homepage, homeSource
-  .replace(/(<p class="meta">[^<]*Version )\d+\.\d+\.\d+/, `$1${version}`)
-  .replaceAll('https://github.com/hamb1y/foxhand/releases/latest', '/download')
-  .replaceAll('https://github.com/hamb1y/foxhand/blob/main/CHANGELOG.md', '/changelog')
-  .replace('<a href="/changelog">Changelog</a>', '<a href="/changelog">Changelog</a>\n    <a href="/privacy">Privacy</a>')
-  .replaceAll('https://hamb1y.github.io/foxhand/sh', 'https://foxhand.pages.dev/download/sh')
-  .replaceAll('https://hamb1y.github.io/foxhand/ps', 'https://foxhand.pages.dev/download/ps')
-  .replaceAll('https://hamb1y.github.io/foxhand/', 'https://foxhand.pages.dev/'));
+  .replace(/(<p class="meta">[^<]*Version )\d+\.\d+\.\d+/, `$1${version}`));
 const style = /<style>([\s\S]*?)<\/style>/.exec(homeSource)?.[1];
 if (!style) throw new Error('Homepage style is missing');
 const listing = readFileSync(path.join(root, 'docs/amo-listing.md'), 'utf8');
@@ -41,9 +35,9 @@ const origin = 'https://foxhand.pages.dev';
 const base = `${origin}/download/${version}`;
 for (const [source, destination] of [['install.sh', 'sh'], ['install.ps1', 'ps']]) {
   let script = readFileSync(path.join(root, 'scripts', source), 'utf8');
-  script = script.replaceAll('https://github.com/hamb1y/foxhand/releases/latest/download', base)
-    .replaceAll('https://hamb1y.github.io/foxhand/sh', `${origin}/download/sh`)
-    .replaceAll('https://hamb1y.github.io/foxhand/ps', `${origin}/download/ps`)
+  // The copies served here are pinned to this release; the scripts in the repo follow /download/latest.
+  if (!script.includes(`${origin}/download/latest`)) throw new Error(`${source} has no default download base to pin`);
+  script = script.replaceAll(`${origin}/download/latest`, base)
     .replace('irm $BASE/install.ps1 | iex', String.raw`\$env:FOXHAND_BASE='$BASE'; irm $BASE/install.ps1 | iex`);
   writeFileSync(path.join(out, 'download', destination), script);
 }

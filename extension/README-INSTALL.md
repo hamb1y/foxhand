@@ -6,8 +6,8 @@ Firefox starts the helper itself; the helper serves MCP on
 
 ## 1. Install the helper (once per computer)
 
-- **Windows:** in PowerShell: `irm https://hamb1y.github.io/foxhand/ps | iex`
-- **macOS / Linux:** in Terminal: `curl -fsSL https://hamb1y.github.io/foxhand/sh | sh`
+- **Windows:** in PowerShell: `irm https://foxhand.pages.dev/download/ps | iex`
+- **macOS / Linux:** in Terminal: `curl -fsSL https://foxhand.pages.dev/download/sh | sh`
 
 The toolbar popup shows the exact file and command for your system when the
 helper is missing. `status` / `uninstall` work the same way.

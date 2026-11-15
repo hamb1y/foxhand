@@ -149,9 +149,9 @@ await page.locator("#allowWsl").uncheck();
 await page.waitForTimeout(200);
 check("WSL off is flagged", /^Off/.test(await text(page, "#wslState")));
 await page.locator("#inWsl").uncheck();
-await page.locator("label:has(input[name=kind][value=gemini])").click();
+await page.locator("label:has(input[name=kind][value=antigravity])").click();
 cfgTxt = await text(page, "#cfg");
-check("Gemini on Windows uses localhost", /^gemini mcp /.test(cfgTxt) && cfgTxt.includes("127.0.0.1:8901") && !(await visible(page, "#wsl")), cfgTxt);
+check("Antigravity gets a serverUrl config", JSON.parse(cfgTxt).mcpServers.firefox.serverUrl.includes("127.0.0.1:8901") && /^Bearer /.test(JSON.parse(cfgTxt).mcpServers.firefox.headers.Authorization), cfgTxt);
 await page.locator("label:has(input[name=kind][value=claude])").click();
 
 // ---- toggles ----

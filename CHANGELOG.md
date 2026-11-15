@@ -11,7 +11,7 @@
 - Fixes: removing a missing storage key, HTML pages with .pdf in the title, cookies under first-party isolation, CORS preflight, reload timers.
 - New homepage and a shorter privacy policy.
 - AMO submissions now include the source code.
-- Usage counts, once a day, only while Firefox's "technical and interaction data" permission is on: version, OS and setup progress under a random install ID. One switch in Settings.
+- Usage counts, once a day, only while Firefox's "technical and interaction data" permission is on: version, OS, setup progress and active minutes under a random install ID. One switch in Settings.
 - "Report a problem" links open a pre-filled GitHub issue. A no-account feedback form and an uninstall page on foxhand.pages.dev.
 
 ## 0.5.9

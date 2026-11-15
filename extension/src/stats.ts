@@ -21,9 +21,10 @@ interface StatsStore {
   statsReason?: unknown;     // why the helper is not working, as a category (written by background.js)
   statsHarnesses?: unknown;  // kinds of AI client seen since the last report (written by background.js)
   statsPicked?: unknown;     // kind picked on the setup page (written by background.js)
+  statsMinutes?: unknown;    // clock minutes with an AI command since the last report (written by background.js)
   statsUsed?: unknown;       // true once an AI command ran since the last report (written by background.js)
 }
-var KEYS = ['statsId', 'statsLast', 'statsStage', 'statsReason', 'statsHarnesses', 'statsPicked', 'statsUsed'];
+var KEYS = ['statsId', 'statsLast', 'statsStage', 'statsReason', 'statsHarnesses', 'statsPicked', 'statsUsed', 'statsMinutes'];
 var REASONS: string[] = ['missing', 'old', 'noanswer', 'port', 'stopped', 'unknown'];
 var UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 var VERSION = (function () { try { return B.runtime.getManifest().version; } catch (e) { return '0.0.0'; } })();
@@ -72,7 +73,8 @@ function buildPayload(store: StatsStore, today: string, os: PingPayload['os']): 
   if (last >= today || typeof store.statsId !== 'string') return null;
   var stage = stageOf(store);
   var picked = kinds([store.statsPicked])[0] || null;
-  return { id: store.statsId, v: VERSION, os: os, stage: stage, reason: stage < 1 ? reasonOf(store) : null, harnesses: kinds(store.statsHarnesses), picked: picked, used: store.statsUsed === true };
+  var minutes = typeof store.statsMinutes === 'number' && store.statsMinutes > 0 ? Math.min(1440, Math.floor(store.statsMinutes)) : 0;
+  return { id: store.statsId, v: VERSION, os: os, stage: stage, reason: stage < 1 ? reasonOf(store) : null, harnesses: kinds(store.statsHarnesses), picked: picked, used: store.statsUsed === true || minutes > 0, minutes: minutes };
 }
 
 async function post(payload: PingPayload): Promise<boolean> {
@@ -102,6 +104,7 @@ async function report(): Promise<void> {
     await B.storage.local.set({
       statsLast: today,
       statsUsed: false,
+      statsMinutes: 0,
       statsHarnesses: kinds(store.statsHarnesses).filter(function (h) { return payload!.harnesses.indexOf(h) < 0; })
     });
   } catch (e) {

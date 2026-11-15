@@ -13,7 +13,7 @@ const STATS_PUBLIC = false;
 const REASONS = ['missing', 'old', 'noanswer', 'port', 'stopped', 'unknown'];
 const OSES = ['win', 'mac', 'linux', 'other'];
 const HARNESSES = ['claude-code', 'claude-desktop', 'codex', 'chatgpt-desktop', 'opencode', 'pi', 'omp', 'openclaw', 'antigravity', 'cursor', 'mcp-remote', 'other'];
-const PING_KEYS = ['id', 'v', 'os', 'stage', 'reason', 'harnesses', 'picked', 'used'].sort().join();
+const PING_KEYS = ['id', 'v', 'os', 'stage', 'reason', 'harnesses', 'picked', 'used', 'minutes'].sort().join();
 // A random per-install ID (UUID v4, made by the add-on). It is stored only to count each install once; it is never shown or returned.
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 // Global per-hour ceilings (nobody's address is involved): they stop a flood from filling the database.
@@ -69,14 +69,14 @@ async function authed(request, env) {
 
 function validPing(data) {
   if (!isObject(data) || Object.keys(data).sort().join() !== PING_KEYS) return null;
-  const { id, v, os, stage, reason, harnesses, picked, used } = data;
-  if (typeof used !== 'boolean') return null;
+  const { id, v, os, stage, reason, harnesses, picked, used, minutes } = data;
+  if (typeof used !== 'boolean' || !Number.isInteger(minutes) || minutes < 0 || minutes > 1440) return null;
   if (typeof id !== 'string' || !UUID_V4.test(id)) return null;
   if (typeof v !== 'string' || !/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(v) || !OSES.includes(os)) return null;
   if (![0, 1, 2].includes(stage) || (reason !== null && !REASONS.includes(reason))) return null;
   if (!Array.isArray(harnesses) || harnesses.length > HARNESSES.length || new Set(harnesses).size !== harnesses.length || !harnesses.every(h => HARNESSES.includes(h))) return null;
   if (picked !== null && !HARNESSES.includes(picked)) return null;
-  return { id, v, os, stage, reason, harnesses, picked, used };
+  return { id, v, os, stage, reason, harnesses, picked, used, minutes };
 }
 
 async function readBody(request, limit) {
@@ -100,8 +100,8 @@ async function ping(request, env) {
       'ON CONFLICT (id) DO UPDATE SET last_day = excluded.last_day, v = excluded.v, os = excluded.os, ' +
       'stage = MAX(stage, excluded.stage), reason = excluded.reason, picked = excluded.picked'
     ).bind(data.id, today, today, data.v, data.os, data.stage, data.reason, data.picked),
-    // A day counts as "used" if any report that day said an AI command ran.
-    env.DB.prepare('INSERT INTO activity (day, id, used) VALUES (?, ?, ?) ON CONFLICT (day, id) DO UPDATE SET used = MAX(used, excluded.used)').bind(today, data.id, data.used ? 1 : 0)
+    // A day counts as "used" if any report that day said an AI command ran; minutes add up over the day's reports (at most 1440).
+    env.DB.prepare('INSERT INTO activity (day, id, used, minutes) VALUES (?, ?, ?, ?) ON CONFLICT (day, id) DO UPDATE SET used = MAX(used, excluded.used), minutes = MIN(1440, minutes + excluded.minutes)').bind(today, data.id, data.used ? 1 : 0, data.minutes)
   ];
   for (const kind of data.harnesses) statements.push(env.DB.prepare('INSERT OR IGNORE INTO harness_use (day, id, kind) VALUES (?, ?, ?)').bind(today, data.id, kind));
   await env.DB.batch(statements);
@@ -147,14 +147,22 @@ async function feedback(request, env) {
 
 /* ----------------------------------------------------------- the numbers */
 
+// Average and median of a sorted list of per-user daily minutes.
+function minuteStats(rows) {
+  const list = rows.map(r => r.minutes);
+  if (!list.length) return { days: 0, avg: 0, median: 0 };
+  const mid = list.length >> 1;
+  return { days: list.length, avg: Math.round(list.reduce((a, b) => a + b, 0) / list.length * 10) / 10, median: list.length % 2 ? list[mid] : (list[mid - 1] + list[mid]) / 2 };
+}
+
 async function numbers(env, withFeedback) {
   const today = day();
   const since = n => new Date(Date.parse(today + 'T00:00:00Z') - n * 86400e3).toISOString().slice(0, 10);
   const q = (sql, ...args) => env.DB.prepare(sql).bind(...args);
   // Of the installs first seen at least k days ago, how many were active again on exactly day k.
   const kept = k => q("SELECT COUNT(*) AS cohort, COALESCE(SUM(EXISTS (SELECT 1 FROM activity a WHERE a.id = u.id AND a.day = date(u.first_day, '+" + k + " day'))), 0) AS kept, COALESCE(SUM(EXISTS (SELECT 1 FROM activity a WHERE a.id = u.id AND a.used = 1 AND a.day = date(u.first_day, '+" + k + " day'))), 0) AS keptUsed FROM users u WHERE u.first_day <= date(?, '-" + k + " day')", today);
-  const [daily, months, windows, totals, firsts, byVersion, byOs, downloads, assets, stuck, harnesses, r1, r7, r30, clicks, count, recent] = (await env.DB.batch([
-    q('SELECT day, COUNT(*) AS n, SUM(used) AS used FROM activity WHERE day >= ? GROUP BY day ORDER BY day', since(89)),
+  const [daily, months, windows, totals, firsts, byVersion, byOs, downloads, assets, stuck, harnesses, r1, r7, r30, m7, m30, mBuckets, clicks, count, recent] = (await env.DB.batch([
+    q('SELECT day, COUNT(*) AS n, SUM(used) AS used, SUM(minutes) AS minutes FROM activity WHERE day >= ? GROUP BY day ORDER BY day', since(89)),
     q('SELECT substr(day, 1, 7) AS month, COUNT(DISTINCT id) AS n FROM activity GROUP BY month ORDER BY month DESC LIMIT 24'),
     q('SELECT (SELECT COUNT(DISTINCT id) FROM activity WHERE day >= ?) AS mau, (SELECT COUNT(DISTINCT id) FROM activity WHERE used = 1 AND day >= ?) AS aau7, (SELECT COUNT(DISTINCT id) FROM activity WHERE used = 1 AND day >= ?) AS aau30', since(29), since(6), since(29)),
     q('SELECT COUNT(*) AS users, SUM(stage >= 0) AS f0, SUM(stage >= 1) AS f1, SUM(stage >= 2) AS f2, MIN(first_day) AS since FROM users'),
@@ -167,6 +175,9 @@ async function numbers(env, withFeedback) {
     q('SELECT p.kind AS name, p.picked, COALESCE(d.n, 0) AS used30, COALESCE(y.n, 0) AS usedYesterday FROM (SELECT picked AS kind, COUNT(*) AS picked FROM users WHERE picked IS NOT NULL GROUP BY picked UNION SELECT kind, 0 FROM harness_use WHERE kind NOT IN (SELECT picked FROM users WHERE picked IS NOT NULL) GROUP BY kind) p ' +
       'LEFT JOIN (SELECT kind, COUNT(DISTINCT id) AS n FROM harness_use WHERE day >= ? GROUP BY kind) d ON d.kind = p.kind LEFT JOIN (SELECT kind, COUNT(DISTINCT id) AS n FROM harness_use WHERE day = ? GROUP BY kind) y ON y.kind = p.kind ORDER BY used30 DESC, picked DESC', since(29), since(1)),
     kept(1), kept(7), kept(30),
+    q('SELECT minutes FROM activity WHERE used = 1 AND day >= ? ORDER BY minutes', since(6)),
+    q('SELECT minutes FROM activity WHERE used = 1 AND day >= ? ORDER BY minutes', since(29)),
+    q("SELECT CASE WHEN minutes < 5 THEN 'under 5' WHEN minutes < 30 THEN '5-29' WHEN minutes < 120 THEN '30-119' ELSE '120+' END AS label, COUNT(*) AS n FROM activity WHERE used = 1 AND day >= ? GROUP BY 1", since(29)),
     q('SELECT target, src, SUM(n) AS n, SUM(CASE WHEN day >= ? THEN n ELSE 0 END) AS recent FROM clicks GROUP BY target, src ORDER BY n DESC', since(29)),
     q('SELECT COUNT(*) AS n FROM feedback'),
     withFeedback ? q('SELECT id, at, v, os, stage, reason, body AS text FROM feedback ORDER BY id DESC LIMIT 100') : q('SELECT 1 WHERE 0')
@@ -182,6 +193,11 @@ async function numbers(env, withFeedback) {
     rolling: { mau: windows[0].mau, aau7: windows[0].aau7, aau30: windows[0].aau30 },
     funnel: { installed: t.f0 || 0, helper: t.f1 || 0, command: t.f2 || 0 },
     daily, months, firsts, byVersion, byOs, harnesses,
+    // Minutes per actual active user per day (a report covers the time since the previous one).
+    minutes: {
+      last7: minuteStats(m7), last30: minuteStats(m30),
+      buckets: ['under 5', '5-29', '30-119', '120+'].map(label => ({ label, n: mBuckets.find(b => b.label === label)?.n || 0 }))
+    },
     retention: [[1, r1], [7, r7], [30, r30]].map(([day, rows]) => ({ day, cohort: rows[0].cohort, kept: rows[0].kept, keptUsed: rows[0].keptUsed })),
     downloads: { daily: downloads, assets },
     clicks,

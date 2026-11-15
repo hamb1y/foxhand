@@ -1,6 +1,6 @@
 {
   "extName": "Foxhand",
-  "extDescription": "让你自己的 AI 智能体（Claude Code、Codex、Gemini CLI 或任何 MCP 客户端）使用这个 Firefox，包括你的标签页和登录状态。在你的电脑上本地运行。需要安装一个小型辅助程序。",
+  "extDescription": "让你自己的 AI 智能体（Claude Code、Codex、Antigravity 或任何 MCP 客户端）使用这个 Firefox，包括你的标签页和登录状态。在你的电脑上本地运行。需要安装一个小型辅助程序。",
   "cmdPause": "暂停或恢复 AI",
 
   "settings": "设置",
@@ -66,6 +66,8 @@
   "hintOpencodeWsl": "在 WSL 中将此内容合并到 opencode.json（位于你的项目中或 ~/.config/opencode/）。",
   "hintOther": "将此内容添加到客户端的 MCP 配置文件中，与已有的服务器放在一起。",
   "hintOtherWsl": "在 WSL 中将此内容添加到客户端的 MCP 配置文件中，与已有的服务器放在一起。",
+  "hintAntigravity": "将此内容添加到 ~/.gemini/config/mcp_config.json 中，与已有的服务器放在一起。",
+  "hintAntigravityWsl": "在 WSL 中将此内容添加到 ~/.gemini/config/mcp_config.json 中，与已有的服务器放在一起。",
   "wslAddrChanges": "其中的 Windows 地址会在 Windows 重启后改变：如果 AI 无法连接，请重新复制。",
   "wslReplaceIp": "将 WINDOWS-IP 替换为以下命令的输出：$1",
 

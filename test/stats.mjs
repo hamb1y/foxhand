@@ -12,6 +12,7 @@ function makeDb() {
   db.exec(readFileSync('cloudflare/migrations/0001_stats.sql', 'utf8'));
   db.exec(readFileSync('cloudflare/migrations/0002_clicks.sql', 'utf8'));
   db.exec(readFileSync('cloudflare/migrations/0003_used.sql', 'utf8'));
+  db.exec(readFileSync('cloudflare/migrations/0004_minutes.sql', 'utf8'));
   const statement = (sql, args = []) => ({
     bind: (...a) => statement(sql, a),
     first: async () => db.prepare(sql).get(...args) ?? null,
@@ -31,7 +32,7 @@ const call = (env, path, init) => worker.fetch(new Request('https://foxhand.page
 const post = (env, path, body, headers = { 'Content-Type': 'application/json' }) => call(env, path, { method: 'POST', headers, body: typeof body === 'string' ? body : JSON.stringify(body) });
 const auth = { Authorization: 'Bearer ' + TOKEN };
 const ID = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
-const PING = { id: ID(1), v: '0.6.0', os: 'linux', stage: 0, reason: 'missing', harnesses: ['claude-code', 'codex'], picked: 'claude-code', used: false };
+const PING = { id: ID(1), v: '0.6.0', os: 'linux', stage: 0, reason: 'missing', harnesses: ['claude-code', 'codex'], picked: 'claude-code', used: false, minutes: 0 };
 const TODAY = new Date().toISOString().slice(0, 10);
 const daysAgo = n => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
 
@@ -39,13 +40,14 @@ const daysAgo = n => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10)
 let env = mkEnv();
 assert.equal((await post(env, '/endpoint/ping', PING)).status, 204);
 // the same install again the same day: still one active install; the stage only goes up, the pick follows the latest report
-assert.equal((await post(env, '/endpoint/ping', { ...PING, stage: 2, reason: null, harnesses: ['claude-code'], picked: 'codex', used: true })).status, 204);
+assert.equal((await post(env, '/endpoint/ping', { ...PING, stage: 2, reason: null, harnesses: ['claude-code'], picked: 'codex', used: true, minutes: 12 })).status, 204);
+assert.equal((await post(env, '/endpoint/ping', { ...PING, id: ID(1), used: true, minutes: 1500 })).status, 400, 'over a day of minutes is refused');
 assert.equal((await post(env, '/endpoint/ping', { ...PING, stage: 1, reason: null, harnesses: [] })).status, 204);
 assert.equal((await post(env, '/endpoint/ping', { ...PING, id: ID(2), os: 'win', stage: 1, reason: null, harnesses: ['codex'], picked: null })).status, 204);
 let stats = await (await call(env, '/endpoint/stats', { headers: auth })).json();
 assert.equal(stats.installs, 2);
 assert.deepEqual(stats.funnel, { installed: 2, helper: 2, command: 1 }, 'highest stage per install');
-assert.deepEqual(stats.daily, [{ day: TODAY, n: 2, used: 1 }], 'distinct installs per day; used stays set once any report that day had it');
+assert.deepEqual(stats.daily, [{ day: TODAY, n: 2, used: 1, minutes: 12 }], 'distinct installs per day; used stays set once any report that day had it');
 assert.deepEqual(stats.rolling, { mau: 2, aau7: 1, aau30: 1 }, 'AAU: installs with a command, not just a report');
 assert.equal(stats.months[0].n, 2); assert.ok(!('years' in stats) && !('aau' in stats.rolling));
 assert.deepEqual(stats.byOs.map(x => [x.name, x.n]).sort(), [['linux', 1], ['win', 1]]);
@@ -56,7 +58,7 @@ assert.equal(stats.feedback.total, 0);
 for (const bad of [
   { ...PING, extra: 1 }, { ...PING, url: 'https://x' }, { ...PING, v: '1.2' }, { ...PING, os: 'beos' }, { ...PING, stage: 3 }, { ...PING, stage: '1' },
   { ...PING, reason: 'oops: C:\\Users\\me' }, { ...PING, harnesses: ['Claude Code 1.2.3'] }, { ...PING, harnesses: ['codex', 'codex'] }, { ...PING, picked: 'gemini' }, { ...PING, picked: undefined },
-  { ...PING, id: undefined }, { ...PING, used: undefined }, { ...PING, used: 'yes' }, { ...PING, used: 1 }, { ...PING, id: 'not-a-uuid' }, { ...PING, id: 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA' }, { ...PING, id: '00000000-0000-1000-8000-000000000003' }, { ...PING, id: '00000000-0000-4000-c000-000000000003' },
+  { ...PING, id: undefined }, { ...PING, used: undefined }, { ...PING, used: 'yes' }, { ...PING, used: 1 }, { ...PING, minutes: undefined }, { ...PING, minutes: -1 }, { ...PING, minutes: 1441 }, { ...PING, minutes: 1.5 }, { ...PING, minutes: '5' }, { ...PING, minutes: null }, { ...PING, id: 'not-a-uuid' }, { ...PING, id: 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA' }, { ...PING, id: '00000000-0000-1000-8000-000000000003' }, { ...PING, id: '00000000-0000-4000-c000-000000000003' },
   { ...PING, id: ID(3) + ' ' }, { ...PING, id: 5 }, [], 'text', null, { v: 'x'.repeat(600) },
 ]) assert.equal((await post(env, '/endpoint/ping', bad)).status, 400, JSON.stringify(bad).slice(0, 70));
 assert.equal((await post(env, '/endpoint/ping', '{not json')).status, 400);
@@ -70,23 +72,32 @@ assert.ok(!db.prepare('PRAGMA table_info(feedback)').all().some(c => c.name === 
 // metrics from first_day / activity: rolling windows, calendar months, stuck age, retention
 env = mkEnv();
 const put = (id, first, last, stage, reason, os = 'linux', v = '0.6.0') => env.DB.db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?,?,NULL)').run(ID(id), first, last, v, os, stage, reason);
-const act = (id, d, used = 0) => env.DB.db.prepare('INSERT INTO activity (day, id, used) VALUES (?,?,?)').run(d, ID(id), used);
+const act = (id, d, used = 0, minutes = 0) => env.DB.db.prepare('INSERT INTO activity (day, id, used, minutes) VALUES (?,?,?,?)').run(d, ID(id), used, minutes);
 put(10, daysAgo(40), daysAgo(40), 0, 'missing'); act(10, daysAgo(40));                                   // stuck, 40 days old, gone
-put(11, daysAgo(40), daysAgo(1), 2, null, 'mac'); for (const d of [40, 39, 33, 10, 1]) act(11, daysAgo(d), d === 39 || d === 10 || d === 1 ? 1 : 0); // kept on day 1 and 7
+put(11, daysAgo(40), daysAgo(1), 2, null, 'mac'); for (const d of [40, 39, 33, 10, 1]) act(11, daysAgo(d), d === 39 || d === 10 || d === 1 ? 1 : 0, { 39: 20, 10: 40, 1: 3 }[d] || 0); // kept on day 1 and 7
 put(12, daysAgo(0), daysAgo(0), 0, 'noanswer'); act(12, daysAgo(0));                                      // stuck, day 0
 put(13, daysAgo(200), daysAgo(100), 1, null, 'win', '0.5.9'); act(13, daysAgo(200)); act(13, daysAgo(100));  // only in the 365-day window
-put(14, daysAgo(2), daysAgo(0), 1, null); act(14, daysAgo(2)); act(14, daysAgo(0), 1);
+put(14, daysAgo(2), daysAgo(0), 1, null); act(14, daysAgo(2)); act(14, daysAgo(0), 1, 150);
 stats = await (await call(env, '/endpoint/stats', { headers: auth })).json();
 assert.equal(stats.installs, 5);
 assert.deepEqual(stats.funnel, { installed: 5, helper: 3, command: 1 });
 assert.equal(stats.rolling.mau, 3, 'ids active in the last 30 days: 11, 12, 14');
 assert.deepEqual([stats.rolling.aau7, stats.rolling.aau30], [2, 2], 'ids with a command in the last 7 / 30 days: 11 and 14');
 assert.equal(stats.daily.find(d => d.day === TODAY).used, 1);
+assert.deepEqual(stats.minutes.buckets.map(b => [b.label, b.n]), [['under 5', 1], ['5-29', 0], ['30-119', 1], ['120+', 1]], 'user-days by minutes, last 30 days');
+assert.deepEqual(stats.minutes.last7, { days: 2, avg: 76.5, median: 76.5 });
+assert.deepEqual(stats.minutes.last30, { days: 3, avg: 64.3, median: 40 }, 'avg and median per user-day');
+assert.equal(stats.daily.find(d => d.day === TODAY).minutes, 150);
 assert.equal(stats.daily.find(d => d.day === TODAY).n, 2);
 assert.deepEqual(stats.stuck.map(s => [s.reason, s.age, s.n]).sort(), [['missing', '7+', 1], ['noanswer', '0', 1]]);
 assert.deepEqual(stats.retention.map(r => [r.day, r.cohort, r.kept, r.keptUsed]), [[1, 4, 1, 1], [7, 3, 1, 0], [30, 3, 1, 1]], 'retention: cohort and active-again counts');
 assert.deepEqual(stats.byVersion.map(v => [v.name, v.n]), [['0.6.0', 3]], 'versions of installs active in the last 30 days');
 assert.equal(stats.firsts.reduce((a, x) => a + x.n, 0), 4, 'installs by first day, last 90 days');
+// several reports the same day add up (counting minutes, not commands), capped at a day
+env = mkEnv();
+for (const minutes of [10, 20, 1430]) await post(env, '/endpoint/ping', { ...PING, used: true, minutes });
+assert.equal(env.DB.db.prepare('SELECT minutes, used FROM activity').get().minutes, 1440);
+assert.equal(env.DB.db.prepare('SELECT COUNT(*) AS n FROM activity').get().n, 1);
 // hourly ceiling: further reports are dropped without an error
 env = mkEnv();
 const hour = new Date().toISOString().slice(0, 13);
@@ -198,7 +209,7 @@ function addon({ granted = true, store = {}, os = 'linux', fail = false, version
   return { sent, store, state, uninstall, listeners, tick: () => timers.find(t => t[1] === 20000)[0](), settle: () => new Promise(r => setImmediate(r)) };
 }
 const wait = async a => { await a.settle(); await a.settle(); await new Promise(r => setTimeout(r, 20)); };
-const ALLOWED = ['harnesses', 'id', 'os', 'picked', 'reason', 'stage', 'used', 'v'];
+const ALLOWED = ['harnesses', 'id', 'minutes', 'os', 'picked', 'reason', 'stage', 'used', 'v'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 let a = addon();
 a.listeners.installed({ reason: 'install' });
@@ -209,18 +220,23 @@ assert.equal(a.sent[0].init.credentials, 'omit'); assert.equal(a.sent[0].init.re
 let body = JSON.parse(a.sent[0].init.body);
 assert.deepEqual(Object.keys(body).sort(), ALLOWED, 'only the allowed fields');
 assert.match(body.id, UUID); assert.equal(a.store.statsId, body.id, 'the ID is kept locally');
-assert.deepEqual({ ...body, id: 0 }, { id: 0, v: '0.6.0', os: 'linux', stage: 0, reason: 'unknown', harnesses: [], picked: null, used: false });
+assert.deepEqual({ ...body, id: 0 }, { id: 0, v: '0.6.0', os: 'linux', stage: 0, reason: 'unknown', harnesses: [], picked: null, used: false, minutes: 0 });
 assert.ok(!/https?:|token|port|localhost|tab/i.test(a.sent[0].init.body), 'nothing about browsing, token or ports');
 a.tick(); await wait(a);
 assert.equal(a.sent.length, 1, 'at most one report per day');
 const id = body.id;
 // a later day: same ID, new stage, harness kinds once
-a.store.statsStage = 2; a.store.statsLast = '2000-01-01'; a.store.statsHarnesses = ['codex', 'bogus', 'claude-code']; a.store.statsPicked = 'codex'; a.store.statsUsed = true;
+a.store.statsStage = 2; a.store.statsLast = '2000-01-01'; a.store.statsHarnesses = ['codex', 'bogus', 'claude-code']; a.store.statsPicked = 'codex'; a.store.statsUsed = true; a.store.statsMinutes = 7;
 a.tick(); await wait(a);
 body = JSON.parse(a.sent[1].init.body);
-assert.deepEqual(body, { id, v: '0.6.0', os: 'linux', stage: 2, reason: null, harnesses: ['claude-code', 'codex'], picked: 'codex', used: true });
+assert.deepEqual(body, { id, v: '0.6.0', os: 'linux', stage: 2, reason: null, harnesses: ['claude-code', 'codex'], picked: 'codex', used: true, minutes: 7 });
 assert.equal(a.store.statsUsed, false, 'cleared after a successful report');
+assert.equal(a.store.statsMinutes, 0, 'minutes reset after a successful report');
 assert.equal(JSON.stringify(a.store.statsHarnesses), '[]', 'reported kinds are cleared');
+a.store.statsLast = '2000-01-01'; a.store.statsMinutes = 99999; a.tick(); await wait(a);
+assert.equal(JSON.parse(a.sent.at(-1).init.body).minutes, 1440, 'capped at a day');
+a = addon({ fail: true, store: { statsMinutes: 5 } }); a.tick(); await wait(a);
+assert.equal(a.store.statsMinutes, 5, 'minutes are kept when the report failed');
 // permission off: nothing is sent, the ID stays, turning it back on keeps the same ID
 a = addon({ granted: false });
 a.listeners.installed({ reason: 'install' }); a.tick(); await wait(a);
