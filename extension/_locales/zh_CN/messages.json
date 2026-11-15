@@ -158,6 +158,12 @@
   "needInstall": {
     "message": "安装辅助程序"
   },
+  "needReinstall": {
+    "message": "重新安装辅助程序"
+  },
+  "linuxSandbox": {
+    "message": "Flatpak 版 Firefox 无法启动辅助程序：请使用 mozilla.org 或你所在发行版提供的 Firefox。Snap 版 Firefox 会先询问：请允许，然后重启 Firefox。"
+  },
   "needUpdate": {
     "message": "更新辅助程序"
   },
@@ -1082,7 +1088,7 @@
     "message": "可能有其他程序正在占用端口。请在“设置 → 令牌和端口”中更改。"
   },
   "hintNotRunning": {
-    "message": "Firefox 无法连接到辅助程序。请点击“重试”，或打开设置查看详情。"
+    "message": "辅助程序没有启动。请点击“重试”。仍然无法解决？请再次运行安装命令。"
   },
   "nowEmpty": {
     "message": "暂无记录。请让你的 AI 在 Firefox 中做点什么。"

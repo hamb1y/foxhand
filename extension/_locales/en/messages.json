@@ -158,6 +158,12 @@
   "needInstall": {
     "message": "Install the helper app"
   },
+  "needReinstall": {
+    "message": "Reinstall the helper app"
+  },
+  "linuxSandbox": {
+    "message": "Flatpak Firefox can’t start the helper: use Firefox from mozilla.org or your distro. Snap Firefox asks first: allow it, then restart Firefox."
+  },
   "needUpdate": {
     "message": "Update the helper app"
   },
@@ -1082,7 +1088,7 @@
     "message": "Another program may be using the port. Change it in Settings → Token and port."
   },
   "hintNotRunning": {
-    "message": "Firefox can’t reach the helper app. Press Retry, or open Settings for details."
+    "message": "The helper didn’t start. Press Retry. Still stuck? Run the install command again."
   },
   "nowEmpty": {
     "message": "Nothing yet. Ask your AI to do something in Firefox."

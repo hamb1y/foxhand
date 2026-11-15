@@ -39,30 +39,32 @@ if [ "$os" = darwin ] && [ "$arch" = x64 ] && [ "$(sysctl -n sysctl.proc_transla
 fi
 
 name="foxhand-host-$os-$arch"
+# Every failure ends with one line that says why.
+fail() { echo "Not installed: $1" >&2; exit 1; }
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT INT TERM
 
 fetch() {
   if command -v curl >/dev/null 2>&1; then curl -fL --progress-bar -o "$2" "$1"
   elif command -v wget >/dev/null 2>&1; then wget -q -O "$2" "$1"
-  else echo "Need curl or wget." >&2; exit 1; fi
+  else fail "need curl or wget."; fi
 }
 
 echo "Downloading $name ..."
-fetch "$BASE/$name" "$tmp/$name"
+fetch "$BASE/$name" "$tmp/$name" || fail "couldn't download $name from $BASE. Check your connection and run this again."
 
 # Refuse to run anything we can't verify.
 if ! fetch "$BASE/SHA256SUMS" "$tmp/SHA256SUMS" 2>/dev/null; then
-  echo "Couldn't download SHA256SUMS to verify $name. Not installing." >&2; exit 1
+  fail "couldn't download SHA256SUMS to verify $name."
 fi
 want="$(awk -v n="$name" '$2 == n || $2 == "*" n { print tolower($1); exit }' "$tmp/SHA256SUMS")"
 if [ -z "$want" ]; then
-  echo "SHA256SUMS has no entry for $name. Not installing." >&2; exit 1
+  fail "SHA256SUMS has no entry for $name."
 fi
 if command -v sha256sum >/dev/null 2>&1; then got="$(sha256sum "$tmp/$name" | cut -d' ' -f1)"
 else got="$(shasum -a 256 "$tmp/$name" | cut -d' ' -f1)"; fi
 if [ "$want" != "$got" ]; then
-  echo "Checksum mismatch for $name — download does not match its checksum manifest. Not installing." >&2; exit 1
+  fail "checksum mismatch for $name. The download does not match its checksum manifest."
 fi
 
 chmod +x "$tmp/$name"
@@ -73,13 +75,5 @@ if [ "$os" = darwin ]; then
   # doesn't verify here, sign it again ad hoc (codesign comes with macOS).
   codesign --verify "$tmp/$name" 2>/dev/null || codesign --force --sign - "$tmp/$name" 2>/dev/null || true
 fi
+# The helper prints the last line itself: "Installed. ..." or "Not installed: why".
 "$tmp/$name" install
-
-if [ "$os" = linux ]; then
-  if [ -d "$HOME/.var/app/org.mozilla.firefox" ] || [ -d "$HOME/snap/firefox" ]; then
-    echo
-    echo "Note: a Flatpak or Snap Firefox was found. Sandboxed Firefox builds may not be allowed to start"
-    echo "helper apps. If Foxhand stays on \"Helper app not installed\", use Firefox from mozilla.org"
-    echo "or your distro's regular (non-sandboxed) package."
-  fi
-fi

@@ -12,6 +12,7 @@
 - New homepage and a shorter privacy policy.
 - AMO submissions now include the source code.
 - Usage counts, once a day, only while Firefox's "technical and interaction data" permission is on: version, OS, setup progress and active minutes under a random install ID. One switch in Settings.
+- Setup: a helper that won't start now shows the install command again, Linux gets a line about Flatpak and Snap Firefox, and the installer ends with "Installed" or "Not installed: why".
 - "Report a problem" links open a pre-filled GitHub issue. A no-account feedback form and an uninstall page on foxhand.pages.dev.
 
 ## 0.5.9

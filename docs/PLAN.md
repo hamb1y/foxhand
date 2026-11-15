@@ -39,10 +39,11 @@ Today: add the addon, paste a line in a terminal, paste a config into the harnes
 
 Quick, no decisions needed:
 - [x] Setup page shows only the line for this OS, with one Copy button (already did)
-- [ ] Detect Flatpak/Snap Firefox in the addon and say what to do, instead of "not installed" forever
-- [ ] Every stuck state names the fix in one line
-- [ ] Installer prints one clear last line: worked, or why not
-- [ ] Windows: say what to do about the SmartScreen warning
+- [x] Flatpak/Snap: the addon can't see how Firefox was packaged, so every Linux user without a helper gets one line; the helper's installer detects both and says so
+- [ ] Check the Snap line on a real Snap Firefox (it is from Mozilla's docs)
+- [x] Every stuck state names the fix in one line; a helper that won't start shows the install command again
+- [x] Installer prints one clear last line: "Installed." or "Not installed: why"
+- [x] Windows: say what to do about the SmartScreen warning (was already there)
 
 Bigger:
 - [ ] **One-click connect.** Once the helper is up, the setup page has a "Connect Claude Code" button and the helper writes the harness config itself. Removes the second paste. NEEDS OK: the helper would edit other tools' config files.

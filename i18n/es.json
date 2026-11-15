@@ -39,6 +39,8 @@
   "stNotRunning": "La app auxiliar no está en ejecución",
 
   "needInstall": "Instala la app auxiliar",
+  "needReinstall": "Vuelve a instalar la app auxiliar",
+  "linuxSandbox": "Firefox de Flatpak no puede iniciar la app auxiliar: usa Firefox desde mozilla.org o el de tu distribución. Firefox de Snap pregunta primero: permítelo y luego reinicia Firefox.",
   "needUpdate": "Actualiza la app auxiliar",
   "needUpdateIntro": "Tu app auxiliar (v$1) es demasiado antigua para este complemento (v$2). Vuelve a ejecutar esto:",
   "softUpdate": "Hay una actualización de la app auxiliar",
@@ -238,7 +240,7 @@
   "hintAddonOld": "Este complemento es más antiguo que la app auxiliar. Actualiza Foxhand desde la página de Complementos de Firefox.",
   "hintStarting": "Esto tarda unos segundos.",
   "hintPort": "Es posible que otro programa esté usando el puerto. Cámbialo en Configuración → Token y puerto.",
-  "hintNotRunning": "Firefox no puede contactar la app auxiliar. Pulsa Reintentar o abre Configuración para ver los detalles.",
+  "hintNotRunning": "La app auxiliar no se inició. Pulsa Reintentar. ¿Sigue fallando? Vuelve a ejecutar el comando de instalación.",
   "nowEmpty": "Nada todavía. Pídele a tu IA que haga algo en Firefox.",
   "on": "Activado",
   "off": "Desactivado",

@@ -24,10 +24,10 @@ var t = F.t, ago = F.ago;
 F.localize();
 
 function renderSteps(st: Snap, need: { intro: string }): void {
-  var key = JSON.stringify(st.platform) + need.intro;
+  var key = JSON.stringify(st.platform) + need.intro + !!st.hostMissing;
   if (stepsFor === key) return;
   stepsFor = key;
-  F.renderSetup(setupEl, st.platform, need.intro);
+  F.renderSetup(setupEl, st.platform, need.intro, !st.hostMissing);
 }
 
 /* While the helper is missing, re-check every few seconds so the popup goes

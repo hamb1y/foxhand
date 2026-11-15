@@ -158,6 +158,12 @@
   "needInstall": {
     "message": "Instala la app auxiliar"
   },
+  "needReinstall": {
+    "message": "Vuelve a instalar la app auxiliar"
+  },
+  "linuxSandbox": {
+    "message": "Firefox de Flatpak no puede iniciar la app auxiliar: usa Firefox desde mozilla.org o el de tu distribución. Firefox de Snap pregunta primero: permítelo y luego reinicia Firefox."
+  },
   "needUpdate": {
     "message": "Actualiza la app auxiliar"
   },
@@ -1082,7 +1088,7 @@
     "message": "Es posible que otro programa esté usando el puerto. Cámbialo en Configuración → Token y puerto."
   },
   "hintNotRunning": {
-    "message": "Firefox no puede contactar la app auxiliar. Pulsa Reintentar o abre Configuración para ver los detalles."
+    "message": "La app auxiliar no se inició. Pulsa Reintentar. ¿Sigue fallando? Vuelve a ejecutar el comando de instalación."
   },
   "nowEmpty": {
     "message": "Nada todavía. Pídele a tu IA que haga algo en Firefox."

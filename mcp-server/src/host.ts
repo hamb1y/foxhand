@@ -538,9 +538,16 @@ function install(extensionId: string): void {
   for (const w of written) console.error(`  manifest: ${w}`);
   for (const l of legacy) console.error(`  removed old firefox-mcp registration: ${l}`);
   if (replaced) console.error(`  updated the old WebMCP Controller helper so Firefox switches over: ${replaced}`);
-  console.error(`\nDone. The Foxhand toolbar icon turns green within a few seconds`);
-  console.error(`(open its popup to make it instant), then use "Copy MCP config" there.`);
-  console.error(`If Firefox was already running an older helper, it switches to this one automatically.\n`);
+  if (platform() === "linux") {
+    const home = os.homedir();
+    if (fs.existsSync(path.join(home, ".var", "app", "org.mozilla.firefox"))) {
+      console.error(`\nFlatpak Firefox found. It can't start helper apps: use Firefox from mozilla.org or your distro.`);
+    }
+    if (fs.existsSync(path.join(home, "snap", "firefox"))) {
+      console.error(`\nSnap Firefox found. It asks before starting the helper: allow it, then restart Firefox.`);
+    }
+  }
+  console.error(`\nInstalled. Go back to Firefox: the Foxhand icon turns green within a few seconds.\n`);
 }
 
 function uninstall(): void {
@@ -635,7 +642,7 @@ async function main(): Promise<void> {
         process.exitCode = cmd === "help" || cmd === "--help" || cmd === "-h" ? 0 : 2;
     }
   } catch (e) {
-    console.error(`\nERROR: ${(e as Error).message ?? e}`);
+    console.error(`\n${cmd && cmd !== "install" ? "ERROR" : "Not installed"}: ${(e as Error).message ?? e}`);
     process.exitCode = 1;
   }
   if (!cmd) await pauseIfDoubleClicked();

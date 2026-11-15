@@ -39,6 +39,8 @@
   "stNotRunning": "L’assistant ne fonctionne pas",
 
   "needInstall": "Installer l’application d’assistance",
+  "needReinstall": "Réinstaller l’application d’assistance",
+  "linuxSandbox": "Firefox Flatpak ne peut pas lancer l’application d’assistance : utilisez Firefox depuis mozilla.org ou celui de votre distribution. Firefox Snap demande d’abord une autorisation : accordez-la, puis redémarrez Firefox.",
   "needUpdate": "Mettre à jour l’application d’assistance",
   "needUpdateIntro": "Votre assistant (v$1) est trop ancien pour cette extension (v$2). Exécutez de nouveau ceci :",
   "softUpdate": "Mise à jour de l’assistant disponible",
@@ -238,7 +240,7 @@
   "hintAddonOld": "Cette extension est plus ancienne que l’application d’assistance. Mettez à jour Foxhand depuis la page des extensions de Firefox.",
   "hintStarting": "Cela prend quelques secondes.",
   "hintPort": "Un autre programme utilise peut-être le port. Modifiez-le dans Paramètres → Jeton et port.",
-  "hintNotRunning": "Firefox ne peut pas joindre l’application d’assistance. Appuyez sur Réessayer, ou ouvrez les Paramètres pour plus de détails.",
+  "hintNotRunning": "L’application d’assistance n’a pas démarré. Appuyez sur Réessayer. Toujours bloqué ? Exécutez de nouveau la commande d’installation.",
   "nowEmpty": "Rien pour l’instant. Demandez à votre IA de faire quelque chose dans Firefox.",
   "on": "Activé",
   "off": "Désactivé",

@@ -39,6 +39,8 @@
   "stNotRunning": "Hilfs-App läuft nicht",
 
   "needInstall": "Hilfs-App installieren",
+  "needReinstall": "Hilfs-App neu installieren",
+  "linuxSandbox": "Firefox aus Flatpak kann die Hilfs-App nicht starten: Verwenden Sie Firefox von mozilla.org oder aus Ihrer Distribution. Snap-Firefox fragt zuerst nach: Erlauben Sie es, und starten Sie Firefox dann neu.",
   "needUpdate": "Hilfs-App aktualisieren",
   "needUpdateIntro": "Ihre Hilfs-App (v$1) ist zu alt für dieses Add-on (v$2). Führen Sie Folgendes erneut aus:",
   "softUpdate": "Update der Hilfs-App verfügbar",
@@ -238,7 +240,7 @@
   "hintAddonOld": "Dieses Add-on ist älter als die Hilfs-App. Aktualisieren Sie Foxhand über Firefox’ Add-ons-Seite.",
   "hintStarting": "Das dauert ein paar Sekunden.",
   "hintPort": "Vielleicht belegt ein anderes Programm den Port. Ändern Sie ihn unter Einstellungen → Token und Port.",
-  "hintNotRunning": "Firefox kann die Hilfs-App nicht erreichen. Drücken Sie auf Erneut versuchen oder öffnen Sie die Einstellungen für Details.",
+  "hintNotRunning": "Die Hilfs-App wurde nicht gestartet. Drücken Sie auf Erneut versuchen. Hilft das nicht, führen Sie den Installationsbefehl erneut aus.",
   "nowEmpty": "Noch nichts. Bitten Sie Ihre KI, etwas in Firefox zu tun.",
   "on": "An",
   "off": "Aus",

@@ -158,6 +158,12 @@
   "needInstall": {
     "message": "Installer l’application d’assistance"
   },
+  "needReinstall": {
+    "message": "Réinstaller l’application d’assistance"
+  },
+  "linuxSandbox": {
+    "message": "Firefox Flatpak ne peut pas lancer l’application d’assistance : utilisez Firefox depuis mozilla.org ou celui de votre distribution. Firefox Snap demande d’abord une autorisation : accordez-la, puis redémarrez Firefox."
+  },
   "needUpdate": {
     "message": "Mettre à jour l’application d’assistance"
   },
@@ -1082,7 +1088,7 @@
     "message": "Un autre programme utilise peut-être le port. Modifiez-le dans Paramètres → Jeton et port."
   },
   "hintNotRunning": {
-    "message": "Firefox ne peut pas joindre l’application d’assistance. Appuyez sur Réessayer, ou ouvrez les Paramètres pour plus de détails."
+    "message": "L’application d’assistance n’a pas démarré. Appuyez sur Réessayer. Toujours bloqué ? Exécutez de nouveau la commande d’installation."
   },
   "nowEmpty": {
     "message": "Rien pour l’instant. Demandez à votre IA de faire quelque chose dans Firefox."

@@ -125,7 +125,11 @@ function renderSetup(container: HTMLElement, platform: Platform, intro?: string,
   row.appendChild(btn);
   row.appendChild(dl);
   var parts: HTMLElement[] = [el('div', '', s.open), pre, row, el('div', 'sub', s.manual)];
-  if (!installed) parts.push(el('div', 'sub live', t('updatesItself')));
+  if (!installed) {
+    // The add-on can't see how Firefox was packaged, so every Linux user without a helper gets the line.
+    if (platform && platform.os === 'linux') parts.push(el('div', 'sub', t('linuxSandbox')));
+    parts.push(el('div', 'sub live', t('updatesItself')));
+  }
   parts.forEach(function (x) { container.appendChild(x); });
   return s;
 }
@@ -245,6 +249,8 @@ function setupNeed(st: St): { title: string; intro: string; soft?: boolean } | n
   if (st.hostMissing) return { title: t('needInstall'), intro: '' };
   if (c.state === 'helper-old') return { title: t('needUpdate'), intro: t('needUpdateIntro', [c.helper, c.addon]) };
   if (c.state === 'helper-update') return { title: t('softUpdate'), intro: t('softUpdateIntro', [c.helper, c.addon]), soft: true };
+  // Installed but it won't start or keeps stopping (lastError is empty while it restarts for an update).
+  if (!st.listening && !st.starting && !st.connected && st.lastError && c.state !== 'addon-old') return { title: t('needReinstall'), intro: '' };
   return null;
 }
 

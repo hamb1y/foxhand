@@ -39,6 +39,8 @@
   "stNotRunning": "Helper not running",
 
   "needInstall": "Install the helper app",
+  "needReinstall": "Reinstall the helper app",
+  "linuxSandbox": "Flatpak Firefox can’t start the helper: use Firefox from mozilla.org or your distro. Snap Firefox asks first: allow it, then restart Firefox.",
   "needUpdate": "Update the helper app",
   "needUpdateIntro": "Your helper app (v$1) is too old for this add-on (v$2). Run this again:",
   "softUpdate": "Helper update available",
@@ -238,7 +240,7 @@
   "hintAddonOld": "This add-on is older than the helper app. Update Foxhand from Firefox’s Add-ons page.",
   "hintStarting": "This takes a few seconds.",
   "hintPort": "Another program may be using the port. Change it in Settings → Token and port.",
-  "hintNotRunning": "Firefox can’t reach the helper app. Press Retry, or open Settings for details.",
+  "hintNotRunning": "The helper didn’t start. Press Retry. Still stuck? Run the install command again.",
   "nowEmpty": "Nothing yet. Ask your AI to do something in Firefox.",
   "on": "On",
   "off": "Off",

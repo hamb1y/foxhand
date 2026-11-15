@@ -21,7 +21,7 @@
     try {
       $sums = (Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS").Content
     } catch {
-      throw "Couldn't download SHA256SUMS to verify $name. Not installing."
+      throw "couldn't download SHA256SUMS to verify $name."
     }
     if ($sums -is [byte[]]) { $sums = [Text.Encoding]::UTF8.GetString($sums) }
     $want = $null
@@ -29,12 +29,16 @@
       $f = $l.Trim() -split '\s+', 2
       if ($f.Count -eq 2 -and ($f[1] -eq $name -or $f[1] -eq "*$name")) { $want = $f[0].ToLower(); break }
     }
-    if (-not $want) { throw "SHA256SUMS has no entry for $name. Not installing." }
+    if (-not $want) { throw "SHA256SUMS has no entry for $name." }
     $got = (Get-FileHash -Algorithm SHA256 $exe).Hash.ToLower()
-    if ($want -ne $got) { throw "Checksum mismatch for $name - download does not match its checksum manifest. Not installing." }
+    if ($want -ne $got) { throw "checksum mismatch for $name. The download does not match its checksum manifest." }
 
     & $exe install
-    if ($LASTEXITCODE) { throw "Install failed (exit $LASTEXITCODE)." }
+    if ($LASTEXITCODE) { throw "the helper's install step failed (exit $LASTEXITCODE)." }
+  } catch {
+    # Every failure ends with one line that says why.
+    Write-Host "Not installed: $($_.Exception.Message)" -ForegroundColor Red
+    $global:LASTEXITCODE = 1 # so a script or CI that ran this still sees the failure
   } finally {
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
   }
