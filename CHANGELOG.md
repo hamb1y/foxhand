@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0
+
+- The add-on is now written in TypeScript and built with esbuild. It shares its protocol types with the helper.
+- Pause now also stops tab and download events from reaching the AI.
+- Password fields are masked in snapshots, page text and typing results.
+- Typing or uploading into a cross-origin frame by name is refused; use the frame element's ref from the snapshot.
+- Regex searches run in a worker and stop after 250 ms.
+- Long lists of tabs, bookmarks, history and sessions come back in pages.
+- Fixes: removing a missing storage key, HTML pages with .pdf in the title, cookies under first-party isolation, CORS preflight, reload timers.
+- New homepage and a shorter privacy policy.
+- AMO submissions now include the source code.
+
 ## 0.5.9
 
 - Make connection status and the next action clearer in the toolbar popup, with Pause AI first and a link to safety settings.

@@ -178,6 +178,7 @@ function runHost(): void {
         console.error("[foxhand] refusing hostConfig without a token of at least 16 chars");
         return;
       }
+      bridge.setPaused(c.paused === true);
       http.apply({
         port,
         bind,

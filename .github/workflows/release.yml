@@ -72,7 +72,7 @@ jobs:
       # The same checks as CI: never publish what CI would reject.
       - run: npm run build
       - run: npm run typecheck
-      - run: npx --no-install web-ext lint -s extension
+      - run: npx --no-install web-ext lint -s build/extension
       - run: node test/e2e.mjs
       - run: MISSING=1 node test/e2e.mjs
       - run: node test/host.mjs

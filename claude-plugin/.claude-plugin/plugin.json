@@ -1,7 +1,7 @@
 {
   "name": "foxhand",
   "displayName": "Foxhand",
-  "version": "0.5.9",
+  "version": "0.6.0",
   "description": "Let Claude drive the Firefox you already use: your profile, open tabs and logins. Needs the Foxhand add-on and its helper.",
   "author": {
     "name": "hamb1y",

@@ -4,7 +4,7 @@ Status: design, not implemented. Needs the owner's OK before any code.
 
 ## What exists today (0.5.9)
 
-There is no per-site or per-tab scoping. Checked in `extension/background.js`
+There is no per-site or per-tab scoping. Checked in `extension/src/background.ts`
 and `mcp-server/src/tools/`:
 
 - `resolveTab` returns any tab by id, or the active tab.
@@ -141,7 +141,7 @@ to share.
 
 ## Size of the change
 
-- `extension/background.js`: the predicate, the handlers in the table, the
+- `extension/src/background.ts`: the predicate, the handlers in the table, the
   event filter, pending requests.
 - `extension/popup.*`, `options.*`, the setup page: the controls above.
 - `shared/src/protocol.ts`, one line in the helper's instructions.

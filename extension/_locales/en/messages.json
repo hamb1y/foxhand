@@ -358,7 +358,7 @@
     "message": "Listen on"
   },
   "bindNote": {
-    "message": "127.0.0.1 = this computer only. 0.0.0.0 = your whole network, protected only by the token."
+    "message": "127.0.0.1 = this computer only. 0.0.0.0 = your whole network. HTTP is unencrypted: others on the network may read the token and browser data."
   },
   "save": {
     "message": "Save"

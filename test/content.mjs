@@ -1,4 +1,4 @@
-// Content-script regression tests: loads the REAL extension/content/ax.js into
+// Content-script regression tests: loads the BUILT extension (build/extension/content/ax.js) into
 // pages in a real Firefox (Playwright) and drives it with the same messages
 // background.js sends.
 //   npx playwright install firefox   (once)
@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { firefox } from "playwright";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const AX = fs.readFileSync(path.join(root, "extension/content/ax.js"), "utf8");
+const AX = fs.readFileSync(path.join(root, "build/extension/content/ax.js"), "utf8");
 // Stand-in for the WebExtension runtime: window.__send(msg) acts like tabs.sendMessage.
 const SHIM = `window.browser = { runtime: { onMessage: { addListener(f) { window.__send = (m) => f(m, {}, undefined); } } } };` + I18N_SHIM;
 
@@ -367,6 +367,30 @@ await load(`<button>Go</button>`);
 await ev(`window.__said = []; window.__clicks = 0; window.__fxmcpCursor = { moveTo: async (el, n) => { window.__said.push(n); }, say: (n) => window.__said.push(n), click: () => window.__clicks++ };`);
 r = await run({ kind: "act-click", selector: "#missing", cursor: {} });
 check("a failed click shows failure, not a click", !!r.error && (await ev("window.__clicks")) === 0 && (await ev("window.__said.at(-1)")) === "That didn’t work", JSON.stringify(await ev("window.__said")));
+
+// ---- audit regressions: secrets, waits, frame fallthrough and role-only scroll ----
+await load(`<label>Password <input id=p type=password value="autofilled-secret"></label><button onclick="p.type='text'">Show password</button>`);
+await snap();
+await run({ kind: "act-click", name: "Show password", changes: false });
+r = await snap();
+check("password reveal does not expose a remembered password in snapshots", !JSON.stringify(r).includes('autofilled-secret'), r.text);
+await load(`<input id=p autocomplete=current-password value="autocomplete-secret">`);
+r = await snap();
+check("autocomplete password fields are masked even with type=text", !JSON.stringify(r).includes('autocomplete-secret'), r.text);
+await load(`<p id=changing>changing</p>`);
+await ev(`window.churn = setInterval(() => changing.textContent = String(Date.now()), 30)`);
+r = await run({ kind: "act-wait", timeoutMs: 180 });
+check("page_wait reports an unsettled timeout truthfully", r.found === false && r.settled === false, JSON.stringify(r));
+await ev(`clearInterval(window.churn)`);
+r = await run({ kind: "act-wait", timeoutMs: 1000 });
+check("page_wait still reports quiet pages as settled", r.found === true && r.settled === true, JSON.stringify(r));
+await load(`<iframe sandbox srcdoc="<input aria-label='Password'>"></iframe><div id=late></div>`);
+await ev(`browser.runtime.getFrameId = () => 31; setTimeout(() => { late.innerHTML = '<input aria-label="Password">'; }, 200)`);
+r = await run({ kind: "act-type", name: "Password", text: "top-only", frameProbe: true, waitMs: 1000, changes: false });
+check("top-page wait finishes before name targets fall into frames", r.typed && await ev(`document.querySelector('#late input').value`) === 'top-only', JSON.stringify(r));
+await load(`<div role=region aria-label=Box style="height:100px;overflow:auto"><div style="height:1000px">Tall content</div></div>`);
+r = await run({ kind: "act-scroll", role: "region", direction: "down", pixels: 100 });
+check("role-only scroll targets the requested container", await ev(`document.querySelector('[role=region]').scrollTop`) === 100, JSON.stringify(r));
 
 await browser.close();
 console.log(failures ? `\n${failures} failed` : "\nall passed");

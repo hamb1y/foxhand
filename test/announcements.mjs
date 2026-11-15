@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { firefox } from 'playwright';
 
-const code = fs.readFileSync(new URL('../extension/announcements.js', import.meta.url), 'utf8');
+const code = fs.readFileSync(new URL('../build/extension/announcements.js', import.meta.url), 'utf8');
 const PAGE = 'moz-extension://test/announcement.html';
 const item = { id: 'first', html: '<h2>Hello</h2>' };
 function harness(store = {}) {
@@ -106,7 +106,7 @@ try {
       return msg.type === 'announcement-get' ? { id: 'test', html } : { ok: true };
     } } };
   }, { html: hostile });
-  await page.goto(new URL('../extension/announcement.html', import.meta.url).href);
+  await page.goto(new URL('../build/extension/announcement.html', import.meta.url).href);
   await page.waitForFunction(() => window.messages.some(m => m.type === 'announcement-shown'));
   assert.equal(await page.locator('#announcement').isVisible(), true);
   assert.equal(await page.locator('#announcement h2').textContent(), 'Hello');
@@ -126,8 +126,8 @@ try {
       window.messages.push(msg); return { id: 'empty', html: '<script>alert(1)</script>' };
     } } };
   });
-  await empty.goto(new URL('../extension/announcement.html', import.meta.url).href);
+  await empty.goto(new URL('../build/extension/announcement.html', import.meta.url).href);
   await empty.waitForFunction(() => window.didClose);
-  assert.equal(await empty.evaluate(() => window.messages.some(m => m.type === 'announcement-shown')), false);
-  console.log('ok  Firefox renders safe formatting/links, strips active HTML, and acknowledges only useful content');
+  assert.equal(await empty.evaluate(() => window.messages.some(m => m.type === 'announcement-shown')), true);
+  console.log('ok  Firefox renders safe formatting/links, strips active HTML, and consumes empty sanitized content without repeatedly reopening');
 } finally { await browser.close(); }

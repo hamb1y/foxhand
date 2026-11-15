@@ -17,7 +17,7 @@ your own machine.
 
 [**Install the add-on from addons.mozilla.org**](https://addons.mozilla.org/en-US/firefox/addon/foxhand/)
 · [Website](https://foxhand.pages.dev/)
-· [What's new in 0.5.9](CHANGELOG.md)
+· [What's new in 0.6.0](CHANGELOG.md)
 
 <img src="site/shots/cursor.webp" alt="A Wikipedia article on the red panda. The AI cursor rests on the title with an orange bubble that reads: Reading up on the red panda, the animal Firefox is named after.">
 
@@ -102,7 +102,7 @@ Check the connection from a shell:
 
 ```bash
 curl http://localhost:8901/health
-# {"ok":true,"extensionConnected":true,"version":"0.5.9"}
+# {"ok":true,"extensionConnected":true,"version":"0.6.0"}
 ```
 
 ## Architecture
@@ -188,7 +188,8 @@ npm install
 npm run install-host   # registers a Node-based helper with Firefox
 ```
 
-Then load `extension/manifest.json` as a temporary add-on at
+Then `npm run build` (it also builds the add-on from `extension/src` into `build/extension`)
+and load `build/extension/manifest.json` as a temporary add-on at
 `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…**.
 
 ## Harness inside WSL, Firefox on Windows
@@ -217,8 +218,8 @@ clicking or typing into. A bubble beside it says what it is doing.
   then clicks with a ripple. The bubble describes the action, such as "Clicking
   “Sign in”", in the browser's language. Typed passwords are never echoed.
 - **`thought`:** the agent can explain its reasoning, for example `"Opening
-  the pricing page to compare plans"`. The note shows right away and stays on
-  the next page action (read or act) within 30 seconds, then the cursor goes
+  the pricing page to compare plans"`. The note shows right away. It does not carry into another HTTP request, so
+  another client cannot inherit it. The cursor then goes
   back to describing actions itself.
 - The cursor is drawn in a closed shadow root with `pointer-events: none`. It
   never blocks real input or appears in `page_html` or `page_snapshot`, and it
@@ -329,7 +330,7 @@ to 1000 keys. `area: "local"` and `"session"` read and write the page's own
 | Tool | What it does |
 |---|---|
 | `extension_status` | Whether the add-on is connected, plus profile details. |
-| `thought` | Show a note in the AI cursor bubble. It stays on the next page action. |
+| `thought` | Show a note immediately in the AI cursor bubble. |
 | `event_wait` | Wait for an event such as `tab.updated`, `tab.removed`, `tab.activated` or `download.done`. Pass the result's `seq` as `afterSeq` to catch events between calls. |
 
 </details>
@@ -345,9 +346,11 @@ to 1000 keys. `area: "local"` and `"session"` read and write the page's own
 - **Cancellation.** Closing the HTTP request, or sending
   `notifications/cancelled`, stops the command in Firefox too.
 - **Confirm guard.** `tab_close`, `window_close`, `bookmark_remove` and
-  `cookie_remove` refuse to run without `confirm:true`.
-- **No password access.** No tool reads saved logins or the Firefox password
-  manager.
+  `cookie_remove` refuse to run without `confirm:true` from the AI. This is an
+  accident guard, not a user approval prompt.
+- **No password-manager access.** No tool opens Firefox’s saved-login manager.
+  Page snapshots mask recognized password fields even after a reveal toggle,
+  but page content, HTML, cookies and screenshots can still contain secrets.
 - **No browser chrome in screenshots.** `page_screenshot` captures page content
   only, not the toolbar or other browser UI.
 - **Prompt injection is real.** A web page can try to instruct the agent.
@@ -414,7 +417,7 @@ node test/e2e.mjs dist/host/foxhand-host-linux-x64        # same, against a comp
 node test/live.mjs                       # real Firefox + this add-on + the helper, all 45 tools over MCP
 node test/live.mjs --real                # ... plus a few real websites
 node scripts/i18n.mjs --check            # every translation complete and generated
-npx web-ext@8 lint -s extension
+npx web-ext@8 lint -s build/extension   # after npm run build
 node scripts/site-shots.mjs              # retake the website's screenshots (site/shots/) from a real run
 ```
 
@@ -428,7 +431,7 @@ the one-line installers (`.github/workflows/platforms.yml`).
 
 **Translations.** `i18n/<locale>.json` holds each language's strings
 (`$1` for values). `node scripts/i18n.mjs` writes `extension/_locales`;
-the generated files are committed, so the add-on still has no build step.
+the generated files are committed, and the build copies them into `build/extension`.
 Messages meant for the AI stay in English.
 
 The add-on and helper share one version number (`package.json`,
@@ -474,13 +477,17 @@ Add-on packaging: `bash scripts/pack-extension.sh` writes
 
 ## Building from source
 
-The add-on has no build step. The JavaScript, CSS and HTML in `extension/` ship
-unmodified: nothing is transpiled, bundled or minified. Packaging copies those
-files into a zip.
+The add-on's scripts are TypeScript (`extension/src/`). `scripts/build-extension.mjs`
+bundles each entry point with esbuild into one readable, unminified classic script
+(no runtime, no loader) in `build/extension/`, next to the HTML, CSS, icons, fonts,
+cursors, manifest and `_locales` copied unchanged from `extension/`. Packaging
+zips that directory. The source archive attached to each release (and uploaded to
+AMO) holds the TypeScript and the build scripts.
 
 **Requirements**
 
 - Linux, macOS, or Windows with Git Bash or WSL
+- Node.js 22 and npm (`npm ci` installs esbuild and TypeScript)
 - `bash` and `python3` 3.8 or newer (standard library only)
 - `unzip` is optional; the script lists the zip contents without it
 
@@ -489,8 +496,9 @@ files into a zip.
 ```bash
 git clone https://github.com/hamb1y/foxhand.git
 cd foxhand
-git checkout v0.5.9
-bash scripts/pack-extension.sh      # writes foxhand.zip
+git checkout v0.6.0
+npm ci
+bash scripts/pack-extension.sh      # builds build/extension, writes foxhand.zip
 ```
 
 The zip contains the 27 files listed in `scripts/pack-extension.sh`, with
@@ -525,3 +533,10 @@ If Foxhand is useful to you, please [star the repository](https://github.com/ham
 ## License
 
 [Mozilla Public License 2.0](LICENSE).
+
+Unified Cloudflare hosting preparation, local checks, and the manual deployment
+path are documented in [cloudflare/README.md](cloudflare/README.md). Existing
+installation and announcement URLs remain supported.
+
+Local security/bug remediation and remaining design decisions are recorded in
+[the audit remediation notes](docs/audit-remediation.md).

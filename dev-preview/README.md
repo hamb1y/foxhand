@@ -34,7 +34,7 @@ node test/options.mjs
 node test/announcements.mjs
 node scripts/i18n.mjs --check
 node test/cloudflare.mjs
-npx --no-install web-ext lint -s extension
+npx --no-install web-ext lint -s build/extension
 node dev-preview/verify.mjs
 node dev-preview/capture.mjs
 git diff --check

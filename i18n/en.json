@@ -97,7 +97,7 @@
   "newTokenNote": "A new token locks out every AI using the old one until you copy the config again.",
   "port": "Port",
   "listenOn": "Listen on",
-  "bindNote": "127.0.0.1 = this computer only. 0.0.0.0 = your whole network, protected only by the token.",
+  "bindNote": "127.0.0.1 = this computer only. 0.0.0.0 = your whole network. HTTP is unencrypted: others on the network may read the token and browser data.",
   "save": "Save",
   "resetDefaults": "Reset to defaults",
   "reinstall": "Reinstall, update or uninstall",

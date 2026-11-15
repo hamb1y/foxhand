@@ -68,7 +68,7 @@ function req(port, { method = "POST", path: p = "/mcp", headers = {}, body, addr
         const data = t.match(/^data: (.*)$/m);
         let json;
         try { json = JSON.parse(data ? data[1] : t); } catch { json = undefined; }
-        resolve({ status: res.statusCode, text: t, json });
+        resolve({ status: res.statusCode, text: t, json, headers: res.headers });
       });
     });
     r.on("error", reject);
@@ -111,6 +111,14 @@ check("GET /mcp still needs the token", r.status === 401, String(r.status));
 
 r = await call(PORT, "tab_query");
 check("tab_query works", r.status === 200 && /example\.com/.test(resultText(r)), resultText(r));
+
+// HTTP auth schemes are case-insensitive; allowed web clients need explicit CORS.
+r = await req(PORT, { headers: { authorization: "bearer " + TOKEN }, body: { jsonrpc: "2.0", id: 1, method: "ping" } });
+check("lowercase bearer authentication is accepted", r.status === 200, String(r.status));
+r = await req(PORT, { method: "OPTIONS", headers: { origin: "http://localhost:3000", authorization: "", "access-control-request-method": "POST", "access-control-request-headers": "authorization,content-type" } });
+check("allowed-origin preflight is answered without a token", r.status === 204 && r.headers['access-control-allow-origin'] === 'http://localhost:3000', JSON.stringify(r.headers));
+r = await req(PORT, { method: "OPTIONS", headers: { origin: "https://evil.example", authorization: "" } });
+check("foreign-origin preflight remains forbidden", r.status === 403 && !r.headers['access-control-allow-origin'], String(r.status));
 
 // DNS rebinding / cross-site guards.
 r = await req(PORT, { headers: { host: "evil.example:" + PORT }, body: { jsonrpc: "2.0", id: 1, method: "tools/list" } });

@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-export const MESSAGES = JSON.parse(fs.readFileSync(path.join(root, "extension/_locales/en/messages.json"), "utf8"));
+export const MESSAGES = JSON.parse(fs.readFileSync(path.join(root, "build/extension/_locales/en/messages.json"), "utf8"));
 
 /** browser.i18n.getMessage, as Firefox resolves it: named placeholders, then $$ -> $. */
 export function getMessage(key, subs) {

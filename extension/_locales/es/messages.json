@@ -358,7 +358,7 @@
     "message": "Escuchar en"
   },
   "bindNote": {
-    "message": "127.0.0.1 = solo esta computadora. 0.0.0.0 = toda tu red, protegida solo por el token."
+    "message": "127.0.0.1 = solo esta computadora. 0.0.0.0 = toda tu red. HTTP no está cifrado: otros en la red pueden leer el token y los datos del navegador."
   },
   "save": {
     "message": "Guardar"

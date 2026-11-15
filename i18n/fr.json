@@ -97,7 +97,7 @@
   "newTokenNote": "Un nouveau jeton bloque toutes les IA qui utilisent l’ancien jusqu’à ce que vous copiiez de nouveau la configuration.",
   "port": "Port",
   "listenOn": "Écouter sur",
-  "bindNote": "127.0.0.1 = cet ordinateur uniquement. 0.0.0.0 = tout votre réseau, protégé uniquement par le jeton.",
+  "bindNote": "127.0.0.1 = cet ordinateur uniquement. 0.0.0.0 = tout votre réseau. HTTP n’est pas chiffré : les autres personnes du réseau peuvent lire le jeton et les données du navigateur.",
   "save": "Enregistrer",
   "resetDefaults": "Rétablir les valeurs par défaut",
   "reinstall": "Réinstaller, mettre à jour ou désinstaller",

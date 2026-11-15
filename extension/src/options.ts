@@ -1,49 +1,53 @@
 /* Foxhand — settings page logic (plain classic script). */
+import type { Status, UiMessage } from './messages';
 (function () {
 'use strict';
 
-var B = (typeof browser !== 'undefined') ? browser : chrome;
+/* What this page reads from a status snapshot or a settings reply. */
+type Reply = Status & { error?: string; field?: 'port' | 'bind' };
+
+var B = ((typeof browser !== 'undefined') ? browser : chrome) as typeof browser;
 var F = window.FxMcp;
 var t = F.t;
 F.localize();
 
-var $ = function (id) { return document.getElementById(id); };
-var tokenEl = $('token'), portEl = $('port'), bindEl = $('bind'), saveEl = $('save'), formErr = $('formErr');
+var $ = function <T extends HTMLElement = HTMLElement>(id: string): T { return document.getElementById(id) as T; };
+var tokenEl = $<HTMLInputElement>('token'), portEl = $<HTMLInputElement>('port'), bindEl = $<HTMLInputElement>('bind'), saveEl = $<HTMLButtonElement>('save'), formErr = $('formErr');
 var cfgEl = $('cfg');
-var kindEls = Array.prototype.slice.call(document.querySelectorAll('input[name=kind]'));
-var inWslEl = $('inWsl');
-var toggles = { allowWsl: $('allowWsl'), showCursor: $('showCursor'), confirmDestructive: $('confirmDestructive') };
-var pending = {};      // toggles with a save in flight: don't let a poll flip them back
-var last = null;
+var kindEls = Array.prototype.slice.call(document.querySelectorAll('input[name=kind]')) as HTMLInputElement[];
+var inWslEl = $<HTMLInputElement>('inWsl');
+var toggles = { allowWsl: $<HTMLInputElement>('allowWsl'), showCursor: $<HTMLInputElement>('showCursor'), confirmDestructive: $<HTMLInputElement>('confirmDestructive') };
+var pending: Record<string, boolean> = {};      // toggles with a save in flight: don't let a poll flip them back
+var last: Reply | null = null;
 var setupFor = '';
 
-function send(msg) { return Promise.resolve(B.runtime.sendMessage(msg)); }
+function send(msg: UiMessage): Promise<Reply> { return Promise.resolve(B.runtime.sendMessage(msg)); }
 
 /* Only touch the DOM when something changed, so polling never resets selections or focus. */
-function setText(el, text) { if (el.textContent !== text) el.textContent = text; }
-function setHidden(el, hidden) { if (el.hidden !== hidden) el.hidden = hidden; }
+function setText(el: HTMLElement, text: string) { if (el.textContent !== text) el.textContent = text; }
+function setHidden(el: HTMLElement, hidden: boolean) { if (el.hidden !== hidden) el.hidden = hidden; }
 
 var toastTimer = 0;
-function toast(text, isErr) {
+function toast(text: string, isErr?: boolean) {
   var t = $('toast');
   t.textContent = text;
   t.className = 'show' + (isErr ? ' err' : '');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(function () { t.className = isErr ? 'err' : ''; }, isErr ? 4000 : 1600);
 }
-function errText(e) { return (e && e.message) || String(e); }
+function errText(e: unknown): string { return ((e as Error) && (e as Error).message) || String(e); }
 
 /* ---- which AI, and where it runs ---- */
 function kind() {
   var el = kindEls.filter(function (x) { return x.checked; })[0];
   return el ? el.value : 'json';
 }
-function pickKind(value) {
+function pickKind(value: string) {
   kindEls.forEach(function (x) { x.checked = x.value === value; });
 }
 function where() { return inWslEl.checked ? 'wsl' : 'local'; }
 
-function since(ts) {
+function since(ts: number) {
   var m = Math.max(0, Math.round((Date.now() - ts) / 60000));
   if (m < 1) return t('justNow');
   if (m < 60) return t('minutesShort', m);
@@ -53,7 +57,7 @@ function since(ts) {
 
 /* ---- rendering ---- */
 var pausing = false;
-function renderStatus(st) {
+function renderStatus(st: Reply) {
   var sum = F.summarize(st);
   $('dot').className = 'dot ' + sum.cls;
   setText($('stateTxt'), sum.text);
@@ -70,12 +74,12 @@ function renderStatus(st) {
   }
 }
 
-function renderInstall(st) {
+function renderInstall(st: Reply) {
   var need = F.setupNeed(st);
   var s = F.hostSetup(st.platform);
   var installed = st.host && st.host.version;
   setText($('installTitle'), need ? need.title : t('helperApp'));
-  setText($('helperInfo'), (installed ? t('helperInstalledOn', [st.host.version, s.os]) : t('helperFor', s.os)) +
+  setText($('helperInfo'), (installed ? t('helperInstalledOn', [st.host!.version, s.os]) : t('helperFor', s.os)) +
     (st.host && st.host.extraUrls && st.host.extraUrls.length ? ' · ' + t('alsoWsl', st.host.extraUrls.join(', ')) : ''));
   setText($('uninstallCmd'), s.uninstall);
   // Missing or too old: steps up front. An optional update sits further down. Otherwise tucked away.
@@ -99,7 +103,7 @@ function renderInstall(st) {
 }
 var lastProbe = 0;
 
-function renderConnect(st) {
+function renderConnect(st: Reply) {
   var k = kind();
   var win = F.canWsl(st) && k !== 'claude-app'; // the Claude app runs on Windows itself
   setHidden($('whereRow'), !win);
@@ -130,15 +134,15 @@ function dirty() {
   return !!last && (portEl.value.trim() !== String(last.port) || bindEl.value.trim() !== last.bind);
 }
 
-function renderSettings(st) {
-  Object.keys(toggles).forEach(function (k) {
+function renderSettings(st: Reply) {
+  (Object.keys(toggles) as Array<keyof typeof toggles>).forEach(function (k) {
     if (!pending[k] && typeof st[k] === 'boolean') toggles[k].checked = st[k];
   });
   if (tokenEl.value !== (st.token || '')) tokenEl.value = st.token || '';
   // Keep what the user is typing; otherwise follow the saved values.
   var editing = document.activeElement === portEl || document.activeElement === bindEl;
   if (!editing && !saveEl.dataset.dirty) {
-    if (portEl.value !== String(st.port)) portEl.value = st.port;
+    if (portEl.value !== String(st.port)) portEl.value = st.port as unknown as string;
     if (bindEl.value !== st.bind) bindEl.value = st.bind;
   }
   updateSave();
@@ -151,19 +155,19 @@ function updateSave() {
 }
 
 var eventsKey = '';
-function clock(ms) {
+function clock(ms: number) {
   var d = new Date(ms), now = new Date();
   return d.toDateString() === now.toDateString()
     ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
-function span(cls, text) {
+function span(cls: string, text: string) {
   var el = document.createElement('span');
   el.className = cls;
   el.textContent = text;
   return el;
 }
-function renderActivity(st) {
+function renderActivity(st: Reply) {
   var evs = st.events || [];
   var key = JSON.stringify(evs);
   if (key !== eventsKey) {
@@ -188,7 +192,7 @@ function renderActivity(st) {
       tm.textContent = clock(e.at);
       var tx = span(e.level === 'bad' ? 'bad' : '', e.text);
       if (e.site) tx.appendChild(span('site', ' · ' + e.site));
-      if (e.count > 1) tx.appendChild(span('count', ' ×' + e.count));
+      if (e.count! > 1) tx.appendChild(span('count', ' ×' + e.count));
       li.appendChild(tm);
       li.appendChild(tx);
       ul.appendChild(li);
@@ -199,7 +203,7 @@ function renderActivity(st) {
   setHidden($('logLine'), !lf);
 }
 
-function render(st) {
+function render(st: Reply | null | undefined) {
   if (!st) {
     $('dot').className = 'dot off';
     setText($('stateTxt'), t('noAnswer'));
@@ -239,10 +243,10 @@ $('pause').addEventListener('click', function () {
   });
 });
 
-function copyFrom(text, btn) {
+function copyFrom(text: string, btn: HTMLElement) {
   F.copy(text, btn).catch(function (e) { toast(errText(e), true); });
 }
-$('copyCfg').addEventListener('click', function () { copyFrom(cfgEl.textContent, this); });
+$('copyCfg').addEventListener('click', function () { copyFrom(cfgEl.textContent!, this); });
 $('copyToken').addEventListener('click', function () { copyFrom(tokenEl.value, this); });
 
 $('reveal').addEventListener('click', function () {
@@ -270,9 +274,9 @@ inWslEl.addEventListener('change', function () {
 });
 
 /* Toggles apply right away. */
-Object.keys(toggles).forEach(function (k) {
+(Object.keys(toggles) as Array<keyof typeof toggles>).forEach(function (k) {
   toggles[k].addEventListener('change', function () {
-    var msg = { type: 'set-config' };
+    var msg: { type: 'set-config'; allowWsl?: boolean; showCursor?: boolean; confirmDestructive?: boolean } = { type: 'set-config' };
     msg[k] = toggles[k].checked;
     pending[k] = true;
     send(msg).then(function (res) {
@@ -317,7 +321,7 @@ $('regen').addEventListener('click', function () {
 
 $('reset').addEventListener('click', function () {
   if (!last) return;
-  portEl.value = last.defaults.port;
+  portEl.value = last.defaults.port as unknown as string;
   bindEl.value = last.defaults.bind;
   portEl.removeAttribute('aria-invalid');
   bindEl.removeAttribute('aria-invalid');
@@ -339,7 +343,7 @@ $('form').addEventListener('submit', function (ev) {
       return;
     }
     delete saveEl.dataset.dirty;
-    portEl.value = res.port;
+    portEl.value = res.port as unknown as string;
     bindEl.value = res.bind;
     render(res);
     toast(t('savedPort'));
@@ -351,21 +355,21 @@ $('form').addEventListener('submit', function (ev) {
 
 /* Highlight the section in view in the side/top navigation. */
 (function () {
-  var links = Array.prototype.slice.call(document.querySelectorAll('#toc a'));
-  function mark(id) { links.forEach(function (a) { a.setAttribute('aria-current', String(a.getAttribute('href') === '#' + id)); }); }
+  var links = Array.prototype.slice.call(document.querySelectorAll('#toc a')) as HTMLAnchorElement[];
+  function mark(id: string) { links.forEach(function (a) { a.setAttribute('aria-current', String(a.getAttribute('href') === '#' + id)); }); }
   mark('status');
   if (!window.IntersectionObserver) return;
-  var visible = {};
+  var visible: Record<string, number | undefined> = {};
   var io = new IntersectionObserver(function (entries) {
     entries.forEach(function (e) { visible[e.target.id] = e.isIntersecting ? e.boundingClientRect.top : undefined; });
-    var best = null;
+    var best: string | null = null;
     Object.keys(visible).forEach(function (id) {
-      if (visible[id] !== undefined && (best === null || visible[id] < visible[best])) best = id;
+      if (visible[id] !== undefined && (best === null || visible[id] < visible[best]!)) best = id;
     });
     if (best) mark(best);
   }, { rootMargin: '-10% 0px -70% 0px' });
   links.forEach(function (a) {
-    var sec = document.getElementById(a.getAttribute('href').slice(1));
+    var sec = document.getElementById(a.getAttribute('href')!.slice(1));
     if (sec) io.observe(sec);
   });
   // Opening a section from the popup (options.html#safety) lands on it.

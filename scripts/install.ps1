@@ -31,7 +31,7 @@
     }
     if (-not $want) { throw "SHA256SUMS has no entry for $name. Not installing." }
     $got = (Get-FileHash -Algorithm SHA256 $exe).Hash.ToLower()
-    if ($want -ne $got) { throw "Checksum mismatch for $name - download corrupted or tampered with. Not installing." }
+    if ($want -ne $got) { throw "Checksum mismatch for $name - download does not match its checksum manifest. Not installing." }
 
     & $exe install
     if ($LASTEXITCODE) { throw "Install failed (exit $LASTEXITCODE)." }

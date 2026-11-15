@@ -5,11 +5,13 @@ GitHub: `hamb1y/foxhand`. Site: https://foxhand.pages.dev/ (from `site/`).
 
 ## Layout
 
-- `extension/`: the WebExtension (MV2, plain JS, no build step).
-  - `background.js` holds every bridge method in `handlers[method](p, ctx)`.
+- `extension/`: the WebExtension (MV2). The scripts are TypeScript in `extension/src/`; `manifest.json`, the HTML/CSS, `icons/`, `fonts/`, `cursors/` and the generated `_locales/` stay in `extension/`.
+  - `npm run build` bundles each `src/` entry point (esbuild, IIFE, unminified) into a classic script and copies the static files, giving a loadable add-on in `build/extension/` (gitignored). Tests, `web-ext lint`, `pack-extension.sh` and the AMO upload use that directory, not `extension/`.
+  - `src/background.ts` holds every bridge method in `handlers[method](p, ctx)`. It imports `BridgeMethod`, `PROTOCOL` etc. from `shared/src/protocol.ts`.
   - `CAPABILITIES` lists the methods the add-on advertises in `hello`.
   - `LABELS` holds the activity-log labels.
-  - `content/ax.js` is the content script that does the page work. It reads and acts on pages through `{kind: ...}` messages (`ax-snapshot`, `page-text`, `act-click`, ...).
+  - `src/content/ax.ts` is the content script that does the page work. It reads and acts on pages through `{kind: ...}` messages (`ax-snapshot`, `page-text`, `act-click`, ...).
+  - `src/messages.ts` has the types of those messages (`ContentMessage`, `UiMessage`, `Status`); change a message on both sides and the typecheck tells you if they disagree.
   - `_locales/` is generated. Don't edit it by hand.
 - `mcp-server/`: TypeScript (zod, `@modelcontextprotocol/sdk`). It runs as the native messaging host and as the HTTP MCP server.
   - `src/tools/*.ts` registers the MCP tools.
@@ -17,16 +19,16 @@ GitHub: `hamb1y/foxhand`. Site: https://foxhand.pages.dev/ (from `site/`).
   - `src/bridge/` is the native-messaging bridge plus the cursor "thought" state.
 - `shared/`: `protocol.ts` (the `BridgeMethod` union and `BRIDGE_ERRORS`). `version.ts` is generated.
 - `i18n/<locale>.json`: the source of every UI string (en, de, es, fr, zh_CN).
-- `test/`: `e2e.mjs`, `host.mjs` (helper), `content.mjs` (ax.js in Playwright Firefox), `options.mjs`, `live.mjs` (real Firefox and add-on).
+- `test/`: `e2e.mjs`, `host.mjs` (helper), `content.mjs` (built ax.js in Playwright Firefox), `options.mjs`, `live.mjs` (real Firefox and add-on).
 - `scripts/`: version, i18n, packing, release, AMO signing and installers.
 - `site/`: the GitHub Pages site. `docs/`: AMO listing text and notes.
 
-How a tool call flows: MCP tool, then `callBridge(bridge, "method", params)`, then native messaging (the host→extension limit is 1MB), then `handlers[method]` in background.js, then (for page work) `actOn`/`sendToTab`, then ax.js.
+How a tool call flows: MCP tool, then `callBridge(bridge, "method", params)`, then native messaging (the host→extension limit is 1MB), then `handlers[method]` in background.ts, then (for page work) `actOn`/`sendToTab`, then ax.ts.
 
 When you add a bridge method, add it to:
 
 - `BridgeMethod` in `shared/src/protocol.ts`
-- the handler and `CAPABILITIES` in background.js
+- the handler and `CAPABILITIES` in `extension/src/background.ts`
 - a `LABELS` entry
 - the i18n `lbl*Now`/`lbl*Past` keys
 
@@ -36,10 +38,10 @@ The confirm guard for destructive tools lives on the MCP side (`requireConfirm`)
 
 ```sh
 npm ci
-npm run build && npm run typecheck
+npm run build && npm run typecheck   # build includes the add-on (build/extension); typecheck covers extension/src too
 node test/e2e.mjs && MISSING=1 node test/e2e.mjs && node test/host.mjs && node test/content.mjs && node test/options.mjs
 node test/live.mjs                    # needs Firefox; CI runs it
-npx -y web-ext@8 lint -s extension
+npx -y web-ext@8 lint -s build/extension   # lint the built add-on
 node scripts/i18n.mjs                 # regenerate extension/_locales from i18n/
 node scripts/i18n.mjs --check         # fails on missing/stale translations
 node scripts/set-version.mjs X.Y.Z    # bump the version everywhere (--check verifies)
@@ -64,6 +66,7 @@ CI (`.github/workflows/ci.yml`) runs all of the above. Run it locally before you
   3. publishes the GitHub release (which creates the tag),
   4. submits the add-on to AMO (`scripts/amo-sign.sh`, `AMO_CHANNEL=listed`).
 - If the AMO step fails after the GitHub release is out, fix the cause and run the "AMO submit" workflow (`gh workflow run amo-submit.yml -R hamb1y/foxhand`). AMO refuses a version it already has, so it can't double-submit.
+- The add-on is built, so AMO gets the source too: `scripts/amo-sign.sh` uploads `git archive HEAD` with `--upload-source-code` (refuses a dirty tree), and the reviewer build steps are in `docs/amo-listing.md` ("Notes to reviewer", also under the 3000 limit).
 - AMO release notes are capped at 3000 characters; `scripts/amo-notes.mjs` shortens a longer CHANGELOG section and links the GitHub release.
 - The AMO secrets are already set as repo secrets (`gh secret set ... -R hamb1y/foxhand`). Never look for API keys locally.
 - The AMO listing text (name, summaries, descriptions in every language, privacy policy) comes from `docs/amo-listing.md`. The "AMO listing" workflow (`gh workflow run amo-listing.yml -R hamb1y/foxhand`, needs the owner's OK) pushes it with `scripts/amo-listing.mjs`. `node scripts/amo-listing.mjs --dry-run` shows what it would send.

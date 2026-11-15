@@ -358,7 +358,7 @@
     "message": "Écouter sur"
   },
   "bindNote": {
-    "message": "127.0.0.1 = cet ordinateur uniquement. 0.0.0.0 = tout votre réseau, protégé uniquement par le jeton."
+    "message": "127.0.0.1 = cet ordinateur uniquement. 0.0.0.0 = tout votre réseau. HTTP n’est pas chiffré : les autres personnes du réseau peuvent lire le jeton et les données du navigateur."
   },
   "save": {
     "message": "Enregistrer"

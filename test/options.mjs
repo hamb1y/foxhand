@@ -1,4 +1,4 @@
-// Settings page regression tests: loads the REAL extension/options.html in a real
+// Settings page regression tests: loads the BUILT build/extension/options.html in a real
 // Firefox (Playwright) against a fake background that keeps state like background.js.
 //   npx playwright install firefox   (once)
 //   node test/options.mjs
@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { firefox } from "playwright";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const PAGE = "file://" + path.join(root, "extension/options.html");
+const PAGE = "file://" + path.join(root, "build/extension/options.html");
 
 let failures = 0;
 const check = (name, ok, extra = "") => {

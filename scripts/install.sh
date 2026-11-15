@@ -62,7 +62,7 @@ fi
 if command -v sha256sum >/dev/null 2>&1; then got="$(sha256sum "$tmp/$name" | cut -d' ' -f1)"
 else got="$(shasum -a 256 "$tmp/$name" | cut -d' ' -f1)"; fi
 if [ "$want" != "$got" ]; then
-  echo "Checksum mismatch for $name — download corrupted or tampered with. Not installing." >&2; exit 1
+  echo "Checksum mismatch for $name — download does not match its checksum manifest. Not installing." >&2; exit 1
 fi
 
 chmod +x "$tmp/$name"

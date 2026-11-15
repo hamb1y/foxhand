@@ -8,7 +8,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ExtensionBridge } from "../bridge/bridge.js";
 import type { ServerConfig } from "../config.js";
-import { callBridge, confirmField, refusal, requireConfirm, tabIdField, text } from "./helpers.js";
+import { callBridge, paginationFields, confirmField, refusal, requireConfirm, tabIdField, text } from "./helpers.js";
 
 const cookieUrlField = z
   .string()
@@ -33,10 +33,11 @@ export function registerBrowserTools(
     {
       description: "Find bookmarks whose title or URL contains the text (empty: all). Each has an id for bookmark_remove.",
       inputSchema: {
+        ...paginationFields,
         query: z.string().optional().describe("Text to look for"),
       },
     },
-    async (args) => text(await callBridge(bridge, "bookmarks.search", { query: args.query ?? "" })),
+    async (args) => text(await callBridge(bridge, "bookmarks.search", { query: args.query ?? "", offset: args.offset, limit: args.limit })),
   );
 
   server.registerTool(
@@ -74,6 +75,7 @@ export function registerBrowserTools(
     {
       description: "Search browsing history by title/URL text (empty: most recent). Searches all of it unless startTime is given.",
       inputSchema: {
+        ...paginationFields,
         query: z.string().optional().describe("Text to look for"),
         maxResults: z.number().int().positive().max(1000).optional().describe("Max results (default 20)"),
         startTime: z.number().int().positive().optional().describe("Only visits after this time (ms since 1970)"),
@@ -84,6 +86,8 @@ export function registerBrowserTools(
         await callBridge(bridge, "history.search", {
           query: args.query ?? "",
           maxResults: args.maxResults ?? 20,
+          offset: args.offset,
+          limit: args.limit,
           startTime: args.startTime,
         }),
       ),
@@ -240,10 +244,11 @@ export function registerBrowserTools(
     {
       description: "Recently closed tabs and windows, newest first, with the sessionId session_restore needs.",
       inputSchema: {
+        offset: paginationFields.offset,
         limit: z.number().int().positive().max(25).optional().describe("Max entries (default 10)"),
       },
     },
-    async (args) => text(await callBridge(bridge, "sessions.recentlyClosed", { limit: args.limit ?? 10 })),
+    async (args) => text(await callBridge(bridge, "sessions.recentlyClosed", { limit: args.limit ?? 10, offset: args.offset })),
   );
 
   server.registerTool(

@@ -235,7 +235,7 @@ async function start() {
   }, 90000, 'Firefox remote debugging port');
   // Leave page dialogs alone, like a real user who hasn't answered yet (BiDi dismisses them by default).
   await bidi.send('session.new', { capabilities: { alwaysMatch: { unhandledPromptBehavior: { default: 'ignore' } } } });
-  await bidi.send('webExtension.install', { extensionData: { type: 'path', path: path.join(root, 'extension') } });
+  await bidi.send('webExtension.install', { extensionData: { type: 'path', path: path.join(root, 'build', 'extension') } });
   // An extension page can talk to the background like the popup does.
   const ctx = (await bidi.send('browsingContext.create', { type: 'tab' })).context;
   await bidi.send('browsingContext.navigate', { context: ctx, url: `moz-extension://${UUID}/popup.html`, wait: 'complete' });
@@ -600,7 +600,9 @@ async function pages() {
   t = await tool('page_click', { tabId, name: 'Reject' });
   ok('page_click by name finds a button inside a cross-origin frame', (await title(tabId)) === 'xo:rejected' && /frame/i.test(t.text), t.text);
   t = await tool('page_type', { tabId, name: 'Frame email', text: 'a@b.c' });
-  ok('page_type by name inside a cross-origin frame', (await title(tabId)) === 'xo:typed:a@b.c', t.text);
+  ok('page_type by name inside a cross-origin frame is refused and asks for a ref', t.isError && /FRAME_TARGET_REQUIRED/.test(t.text) && (await title(tabId)) === 'xo:rejected', t.text);
+  t = await tool('page_type', { tabId, ref: refOf((await tool('page_snapshot', { tabId })).text, 'textbox "Frame email"'), text: 'a@b.c' });
+  ok('page_type by ref inside a cross-origin frame', (await title(tabId)) === 'xo:typed:a@b.c', t.text);
   t = await tool('page_click', { tabId, x: 320, y: 220 });
   ok('page_click at a point over a cross-origin frame clicks inside it', /^xo:point:/.test(await title(tabId)), `${t.text} ${await title(tabId)}`);
   t = await tool('page_text', { tabId });

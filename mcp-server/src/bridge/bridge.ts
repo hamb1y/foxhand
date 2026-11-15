@@ -68,6 +68,7 @@ export class ExtensionBridge {
   /** Set when the connected add-on can't be driven (e.g. protocol mismatch). */
   private refusal: { code: string; message: string } | null = null;
   private eventSeq = 0;
+  private paused = false;
 
   /** command id -> pending resolver */
   private pending = new Map<string, Pending>();
@@ -143,6 +144,11 @@ export class ExtensionBridge {
       clearTimeout(w.timer);
       w.reject(new BridgeError(code, message));
     }
+  }
+
+  setPaused(paused: boolean): void {
+    this.paused = paused;
+    if (paused) this.endEvents("The user paused AI control in Foxhand. Resume it in the add-on before waiting for events.", "PAUSED");
   }
 
   /** Feed one parsed message from the extension (response or event). */
@@ -265,6 +271,7 @@ export class ExtensionBridge {
   // --------------------------------------------------------------- event ---
 
   private dispatchEvent(evt: BridgeEvent): void {
+    if (this.paused) return;
     const record: BridgeEventRecord = { ...evt, seq: ++this.eventSeq, receivedAt: Date.now() };
     this.recentEvents.push(record);
     if (this.recentEvents.length > 200) this.recentEvents.splice(0, this.recentEvents.length - 200);
@@ -306,6 +313,7 @@ export class ExtensionBridge {
     if (!this.socket) {
       return Promise.reject(new BridgeError("NOT_CONNECTED", "extension not connected"));
     }
+    if (this.paused) return Promise.reject(new BridgeError("PAUSED", "The user paused AI control in Foxhand."));
     if (this.refusal) return Promise.reject(new BridgeError(this.refusal.code, this.refusal.message));
     if (signal?.aborted) return Promise.reject(new BridgeError("CANCELLED", "wait was cancelled"));
     if (opts.afterSeq !== undefined) {

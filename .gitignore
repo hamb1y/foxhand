@@ -4,6 +4,7 @@ node_modules/
 .env
 *.log
 dist/
+build/
 *.tsbuildinfo
 web-ext-artifacts/
 extension/.amo-upload-uuid

@@ -97,7 +97,7 @@
   "newTokenNote": "Un token nuevo deja fuera a todas las IA que usan el anterior hasta que vuelvas a copiar la configuración.",
   "port": "Puerto",
   "listenOn": "Escuchar en",
-  "bindNote": "127.0.0.1 = solo esta computadora. 0.0.0.0 = toda tu red, protegida solo por el token.",
+  "bindNote": "127.0.0.1 = solo esta computadora. 0.0.0.0 = toda tu red. HTTP no está cifrado: otros en la red pueden leer el token y los datos del navegador.",
   "save": "Guardar",
   "resetDefaults": "Restablecer valores predeterminados",
   "reinstall": "Reinstalar, actualizar o desinstalar",

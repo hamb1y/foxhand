@@ -97,7 +97,7 @@
   "newTokenNote": "Ein neues Token sperrt jede KI mit dem alten Token aus, bis Sie die Konfiguration erneut kopieren.",
   "port": "Port",
   "listenOn": "Lauschen auf",
-  "bindNote": "127.0.0.1 = nur dieser Computer. 0.0.0.0 = Ihr ganzes Netzwerk, nur durch das Token geschützt.",
+  "bindNote": "127.0.0.1 = nur dieser Computer. 0.0.0.0 = Ihr ganzes Netzwerk. HTTP ist unverschlüsselt: Andere im Netzwerk können das Token und Browserdaten lesen.",
   "save": "Speichern",
   "resetDefaults": "Auf Standardwerte zurücksetzen",
   "reinstall": "Neu installieren, aktualisieren oder deinstallieren",

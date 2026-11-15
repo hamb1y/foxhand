@@ -8,7 +8,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ExtensionBridge } from "../bridge/bridge.js";
 import type { ServerConfig } from "../config.js";
-import { callBridge, confirmField, refusal, requireConfirm, tabIdField, text } from "./helpers.js";
+import { callBridge, paginationFields, confirmField, refusal, requireConfirm, tabIdField, text } from "./helpers.js";
 
 const waitForLoadField = z
   .boolean()
@@ -40,6 +40,7 @@ export function registerTabTools(
         "List or find tabs. query \"*\" (or nothing) lists every tab; other text matches URL or title, case-insensitively. " +
         "Each tab has id, url, title, windowId and active/pinned/audible flags. Usually your first call.",
       inputSchema: {
+        ...paginationFields,
         query: z.string().optional().describe("\"*\" for all tabs, or text to look for in the URL or title"),
         urlPattern: z
           .string()

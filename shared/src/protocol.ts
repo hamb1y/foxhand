@@ -33,7 +33,7 @@ export interface HelloMessage {
     version: string;
     /** Wire protocol the add-on speaks. Absent = 1. */
     protocol?: number;
-    token: string;
+    token?: string; // legacy hello field; authentication belongs in hostConfig
     profile: string; // e.g. "default-release"
     firefoxVersion: string;
     capabilities: string[];
@@ -233,6 +233,8 @@ export interface HostConfigMessage {
     bind: string;
     /** Require confirm:true for destructive tools. Default true. */
     confirmDestructive?: boolean;
+    /** Pause command and event access; older extensions omit this. */
+    paused?: boolean;
     /** Windows only: also listen on the WSL virtual adapter so a harness inside WSL can connect. */
     allowWsl?: boolean;
   };
@@ -284,7 +286,7 @@ export function isHostConfig(m: unknown): m is HostConfigMessage {
 export const NATIVE_HOST_NAME = "webmcp_controller";
 
 export const CMD_TIMEOUT_MS = 30_000;
-/** Breaking wire-protocol version; keep in sync with PROTOCOL in extension/background.js. */
+/** Breaking wire-protocol version. The add-on (extension/src/background.ts) imports it from here. */
 export const PROTOCOL = 1;
 export { VERSION } from "./version.js";
 
