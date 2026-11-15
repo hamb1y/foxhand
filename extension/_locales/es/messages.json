@@ -1102,6 +1102,27 @@
   "secSafety": {
     "message": "Seguridad y comentarios"
   },
+  "reportProblem": {
+    "message": "Informar de un problema"
+  },
+  "statsToggle": {
+    "message": "Enviar recuentos de uso anónimos"
+  },
+  "statsNote": {
+    "message": "Una vez al día: versión del complemento, sistema operativo y progreso de la configuración. Sin datos de navegación."
+  },
+  "statsRefused": {
+    "message": "Firefox no lo activó."
+  },
+  "feedbackRow": {
+    "message": "Enviar comentarios"
+  },
+  "feedbackNote": {
+    "message": "No necesitas una cuenta de GitHub."
+  },
+  "feedbackOpen": {
+    "message": "Abrir"
+  },
   "advanced": {
     "message": "Avanzado"
   },

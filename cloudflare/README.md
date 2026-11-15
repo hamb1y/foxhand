@@ -128,3 +128,16 @@ the AMO listing update, a successful Pages release deployment and the six public
 installer jobs. Keep historical endpoints and GitHub Release assets indefinitely
 for installed versions, old links and rollback. Binary delivery remains on GitHub;
 a separate storage migration is not required for the domain transition.
+
+## Usage counts, feedback and /stats
+
+Routes: `POST /endpoint/ping` (the add-on's daily report), `POST /endpoint/feedback`, `/stats` and `GET /endpoint/stats` (token-protected), plus a counter on `/download/<version>/<asset>`. Counts live in D1, one row per random install ID that never leaves the database (binding `DB`, schema in `cloudflare/migrations/`). Without `STATS_TOKEN` the stats routes return 404; to open the numbers to everyone set `STATS_PUBLIC = true` in `worker.mjs`. Without a `DB` binding the Worker still works; reports get 503 and downloads are just not counted.
+
+The D1 database `foxhand-stats` is bound as `DB` in `wrangler.jsonc`. One-time setup by the owner (nothing here has been run):
+
+```sh
+npx wrangler@4.159.0 d1 migrations apply foxhand-stats --remote
+npx wrangler@4.159.0 pages secret put STATS_TOKEN --project-name foxhand   # a long random string
+```
+
+Then deploy as usual. The D1 binding `DB` comes from `wrangler.jsonc`; if Pages ignores it, add it in the dashboard (Settings, Bindings, D1, variable `DB`). Tests: `node test/stats.mjs`.

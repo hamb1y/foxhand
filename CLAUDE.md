@@ -12,6 +12,7 @@ GitHub: `hamb1y/foxhand`. Site: https://foxhand.pages.dev/ (from `site/`).
   - `LABELS` holds the activity-log labels.
   - `src/content/ax.ts` is the content script that does the page work. It reads and acts on pages through `{kind: ...}` messages (`ax-snapshot`, `page-text`, `act-click`, ...).
   - `src/messages.ts` has the types of those messages (`ContentMessage`, `UiMessage`, `Status`); change a message on both sides and the typecheck tells you if they disagree.
+  - `src/stats.ts` sends the once-a-day anonymous report and sets the uninstall URL. It checks Firefox's `technicalAndInteraction` data permission at send time. `background.ts` only writes setup progress (`statsStage`, `statsReason`, `statsUsed` when an AI command ran) to storage.
   - `_locales/` is generated. Don't edit it by hand.
 - `mcp-server/`: TypeScript (zod, `@modelcontextprotocol/sdk`). It runs as the native messaging host and as the HTTP MCP server.
   - `src/tools/*.ts` registers the MCP tools.
@@ -22,6 +23,7 @@ GitHub: `hamb1y/foxhand`. Site: https://foxhand.pages.dev/ (from `site/`).
 - `test/`: `e2e.mjs`, `host.mjs` (helper), `content.mjs` (built ax.js in Playwright Firefox), `options.mjs`, `live.mjs` (real Firefox and add-on).
 - `scripts/`: version, i18n, packing, release, AMO signing and installers.
 - `site/`: the GitHub Pages site. `docs/`: AMO listing text and notes.
+- `cloudflare/`: `worker.mjs` (redirects, the report endpoint, feedback, token-protected `/stats`), `migrations/` (D1 schema), `pages/` (scripts of the stats and feedback pages). `test/stats.mjs` tests it with SQLite.
 
 How a tool call flows: MCP tool, then `callBridge(bridge, "method", params)`, then native messaging (the host→extension limit is 1MB), then `handlers[method]` in background.ts, then (for page work) `actOn`/`sendToTab`, then ax.ts.
 

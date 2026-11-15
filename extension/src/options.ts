@@ -63,6 +63,7 @@ function renderStatus(st: Reply) {
   setText($('stateTxt'), sum.text);
   setText($('stateHint'), F.hint(st));
   setText($('stateErr'), st.listening ? '' : ((st.host && st.host.error) || (st.hostMissing ? '' : st.lastError) || ''));
+  F.reportProblem($<HTMLAnchorElement>('report'), st, $('stateErr').textContent || '');
   setText($('factHelper'), st.host && st.host.version ? 'v' + st.host.version : st.hostMissing ? t('notInstalled') : '—');
   setText($('factUp'), st.listening && st.connectedAt ? since(st.connectedAt) + ' · ' + t('nCommands', st.commands || 0) : '—');
   setText($('factAddr'), st.listening ? F.mcpUrl(st).replace(/^http:\/\//, '').replace(/\/mcp$/, '') : '—');
@@ -260,6 +261,7 @@ inWslEl.checked = F.configWhere() === 'wsl';
 kindEls.forEach(function (el) {
   el.addEventListener('change', function () {
     F.configKind(el.value);
+    send({ type: 'picked-harness', kind: el.value }).catch(function () {});
     if (last) renderConnect(last);
   });
 });
@@ -353,6 +355,36 @@ $('form').addEventListener('submit', function (ev) {
   });
 });
 
+/* ---- anonymous usage counts: this switch is Firefox's own data permission, not a copy of it ---- */
+var USAGE = 'technicalAndInteraction' as const;
+var usageEl = $<HTMLInputElement>('usageCounts');
+var usagePending = false;
+function usagePermission(): Promise<boolean> {
+  if (!B.permissions) return Promise.reject(new Error('no permissions API'));
+  return Promise.resolve(B.permissions.getAll()).then(function (all) { return !!all.data_collection && all.data_collection.indexOf(USAGE) >= 0; });
+}
+function refreshUsage(): void {
+  if (usagePending) return;
+  usagePermission().then(function (on) { usageEl.checked = on; }).catch(function () { setHidden($('statsRow'), true); });
+}
+usageEl.addEventListener('change', function () {
+  var want = usageEl.checked;
+  usagePending = true;
+  // request() must run straight from this click; Firefox shows its own prompt if it needs one.
+  var done = want ? B.permissions.request({ data_collection: [USAGE] }) : B.permissions.remove({ data_collection: [USAGE] });
+  Promise.resolve(done).then(function (ok) {
+    usagePending = false;
+    if (want && !ok) toast(t('statsRefused'), true); else toast(t('saved'));
+    refreshUsage();
+  }).catch(function (e) {
+    usagePending = false;
+    toast(t('couldntSave', errText(e)), true);
+    refreshUsage();
+  });
+});
+if (B.permissions && B.permissions.onAdded) B.permissions.onAdded.addListener(refreshUsage);
+if (B.permissions && B.permissions.onRemoved) B.permissions.onRemoved.addListener(refreshUsage);
+
 /* Highlight the section in view in the side/top navigation. */
 (function () {
   var links = Array.prototype.slice.call(document.querySelectorAll('#toc a')) as HTMLAnchorElement[];
@@ -389,5 +421,7 @@ F.pauseShortcut().then(function (k) {
 });
 
 refresh();
+refreshUsage();
 setInterval(refresh, 1500);
+setInterval(refreshUsage, 1500);
 })();

@@ -34,5 +34,6 @@ jobs:
       - run: node test/content.mjs
       - run: node test/options.mjs
       - run: node test/announcements.mjs
+      - run: node test/stats.mjs
       # Real Firefox (preinstalled on the runner) + the add-on + the helper from this checkout.
       - run: node test/live.mjs

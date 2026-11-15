@@ -1102,6 +1102,27 @@
   "secSafety": {
     "message": "Sicherheit und Rückmeldung"
   },
+  "reportProblem": {
+    "message": "Problem melden"
+  },
+  "statsToggle": {
+    "message": "Anonyme Nutzungszahlen senden"
+  },
+  "statsNote": {
+    "message": "Einmal am Tag: Add-on-Version, Betriebssystem und Einrichtungsstand. Keine Daten zum Surfen."
+  },
+  "statsRefused": {
+    "message": "Firefox hat es nicht aktiviert."
+  },
+  "feedbackRow": {
+    "message": "Feedback senden"
+  },
+  "feedbackNote": {
+    "message": "Ein GitHub-Konto ist nicht nötig."
+  },
+  "feedbackOpen": {
+    "message": "Öffnen"
+  },
   "advanced": {
     "message": "Erweitert"
   },

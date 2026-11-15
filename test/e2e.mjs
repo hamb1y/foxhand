@@ -126,12 +126,20 @@ const tool = (name, args = {}) => mcp("tools/call", { name, arguments: args });
 const text = (r) => r.body?.result?.content?.[0]?.text ?? JSON.stringify(r.body);
 
 const init = await mcp("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "e2e", version: "0" } });
+await sleep(300);
+check("the client's kind is kept as a category, not its name", JSON.stringify(store.statsHarnesses) === '["other"]', JSON.stringify(store.statsHarnesses));
+await ask({ type: "picked-harness", kind: "claude-app" });
+await ask({ type: "picked-harness", kind: "<script>" });
+check("the setup-page pick is stored as a category; junk is ignored", store.statsPicked === "claude-desktop", String(store.statsPicked));
 check("server instructions mention the cursor", /cursor/i.test(init.body?.result?.instructions || ""));
 const list = await mcp("tools/list", {});
 const tools = list.body.result.tools;
 const click = tools.find((t) => t.name === "page_click");
 check("page tools have no thought param", !!click && !click.inputSchema?.properties?.thought);
 check("thought tool exists", tools.some((t) => t.name === "thought"));
+check("no AI command yet: not marked as used", store.statsUsed === undefined);
+await tool("tab_query", { query: "*" });
+check("an AI command marks the install as used for the daily report", store.statsUsed === true);
 for (const gone of ["tabs_list", "tab_move", "tab_duplicate", "tab_unpin", "cursor_note", "snapshot_ax", "act_click"]) {
   check(`${gone} is gone`, !tools.some((t) => t.name === gone));
 }

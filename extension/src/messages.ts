@@ -4,9 +4,9 @@
  *   background -> content : ContentMessage ({kind: ...}), answered with a ContentEnvelope
  *   pages -> background   : UiMessage ({type: ...}), answered with a Status (or a SetConfigError)
  */
-import type { BRIDGE_ERRORS, BridgeMethod, HostStatusMessage } from '../../shared/src/protocol';
+import type { BRIDGE_ERRORS, BridgeMethod, Harness, HostStatusMessage } from '../../shared/src/protocol';
 
-export type { BridgeMethod };
+export type { BridgeMethod, Harness };
 
 /** Every error code the helper protocol knows. */
 export type BridgeErrorCode = (typeof BRIDGE_ERRORS)[keyof typeof BRIDGE_ERRORS];
@@ -105,6 +105,7 @@ export type UiMessage =
   | { type: 'set-paused'; paused: boolean }
   | { type: 'announcement-get' }
   | { type: 'announcement-shown'; id: string }
+  | { type: 'picked-harness'; kind: string }
   | {
       type: 'set-config';
       port?: number | string;
@@ -113,6 +114,29 @@ export type UiMessage =
       confirmDestructive?: boolean;
       showCursor?: boolean;
     };
+
+/* ------------------------------------------------------- anonymous usage counts */
+
+/** Why the helper is not working, as a category only (never the error text). */
+export type HelperReason = 'missing' | 'old' | 'noanswer' | 'port' | 'stopped' | 'unknown';
+
+/** The whole of what the add-on reports, at most once a day. The Worker rejects anything else. */
+export interface PingPayload {
+  /** Random install ID (UUID v4). Tied to nothing; the panel and the stats JSON never show it. */
+  id: string;
+  v: string;
+  os: 'win' | 'mac' | 'linux' | 'other';
+  /** Furthest setup stage: 0 installed, 1 helper connected, 2 first AI command. */
+  stage: 0 | 1 | 2;
+  /** Why the helper is not working, while stage is 0. */
+  reason: HelperReason | null;
+  /** Kinds of AI client that connected since the last report (fixed list, never names). */
+  harnesses: Harness[];
+  /** The kind picked on the setup page. */
+  picked: Harness | null;
+  /** An AI command ran since the last report (AAU, actual active users). */
+  used: boolean;
+}
 
 /** The helper's last hostStatus message. */
 export type HostStatus = HostStatusMessage['hostStatus'];

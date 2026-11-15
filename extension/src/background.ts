@@ -1,5 +1,5 @@
-import type { BridgeErrorCode, HostStatus, BridgeMethod, BridgeParams, CodedError, ContentEnvelope, ErrLike, ErrObj, ContentMessage, SetConfigError, Status, UiMessage } from './messages';
-import { PROTOCOL } from '../../shared/src/protocol';
+import type { BridgeErrorCode, HelperReason, HostStatus, BridgeMethod, BridgeParams, CodedError, ContentEnvelope, ErrLike, ErrObj, ContentMessage, SetConfigError, Status, UiMessage } from './messages';
+import { PROTOCOL, HARNESSES } from '../../shared/src/protocol';
 /* Foxhand (formerly WebMCP Controller) — background page.
  * Plain classic script (no modules). Firefox launches the companion helper
  * (native messaging host "webmcp_controller") on connectNative(); the helper
@@ -86,6 +86,13 @@ function note(text: string, level?: string, site?: string): void {
 }
 var inflight = new Map<string, AbortController>();  // command id -> AbortController, for { cancel: id }
 var cmdCount = 0;
+/* Setup progress for the anonymous usage counts (stats.ts reads it from storage): the furthest stage
+ * reached (1 helper serving, 2 first AI command) and, while the helper isn't working, a category. */
+var fNoAnswer = false;     // the helper launched but never spoke
+var fStopped = false;      // the helper stopped with an error
+var clientSeqSeen = -1;   // helper's connection counter, to notice a new MCP client only once
+var stageSeen = 0;
+var reasonSeen = '';
 var platform = { os: '', arch: '' };
 
 /* ---------------------------------------------------------------- helpers */
@@ -1670,6 +1677,8 @@ async function onCommand(cmd: { id: string; method: BridgeMethod; params: Bridge
   if (!handler) throw be('UNKNOWN_METHOD', 'Unknown method: ' + cmd.method);
   var params = (cmd.params && typeof cmd.params === 'object') ? cmd.params : {};
   cmdCount += 1;
+  trackSetup(2);
+  call(B.storage.local, 'set', { statsUsed: true }).catch(function () {}); // an AI command ran (for the daily report)
   var label = labelsFor(cmd.method);
   var cur: NowEntry = now = { text: label[0], past: label[1], site: '', tabId: null, at: Date.now(), done: false };
   if (TAB_METHODS.test(cmd.method)) {
@@ -1720,6 +1729,7 @@ async function handleIncoming(msg: IncomingMessage): Promise<void> {
   if (msg.hostStatus && typeof msg.hostStatus === 'object') {
     var prev = hostStatus;
     hostStatus = msg.hostStatus;
+    trackClient(hostStatus);
     if (!prev) note(t('evHelperRunning', hostStatus.version || '?'));
     if (hostStatus.error && (!prev || prev.error !== hostStatus.error)) note(hostStatus.error, 'bad');
     else if (hostStatus.listening && (!prev || !prev.listening || prev.url !== hostStatus.url)) note(t('evListening', hostStatus.url), 'ok');
@@ -1863,11 +1873,13 @@ function connect() {
   port = p;
   connectedAt = 0;
   hostStatus = null;
+  clientSeqSeen = -1;
   lastError = '';
   clearStartTimer();
   startTimer = setTimeout(function () {
     startTimer = null;
     if (p !== port || connectedAt) return;
+    fNoAnswer = true;
     note(t('evNoAnswer', START_TIMEOUT_MS / 1000), 'bad');
     port = null;
     try { p.disconnect(); } catch (e) {}
@@ -1881,6 +1893,8 @@ function connect() {
     if (hostMissing || !connectedAt) {
       // First message proves the helper really launched.
       hostMissing = false;
+      fNoAnswer = false;
+      fStopped = false;
       backoffIdx = 0;
       connectedAt = Date.now();
     }
@@ -1905,6 +1919,7 @@ function connect() {
       lastError = t('stNoHelper');
     } else {
       hostMissing = false;
+      fStopped = true;
       lastError = err ? t('errStoppedWhy', err) : t('errStopped');
       note(wasUp ? lastError : t('evStoppedStarting', lastError), 'bad');
     }
@@ -1936,11 +1951,50 @@ function isListening() {
   return !!(isConnected() && hostStatus && hostStatus.listening && isCompatible());
 }
 
+/* A category for "the helper isn't working", or '' while it is, or while it is still starting. */
+function helperReason(): HelperReason | '' {
+  if (isListening()) return '';
+  var c = compat().state;
+  if (hostMissing) return 'missing';
+  if (c === 'helper-old' || c === 'addon-old') return 'old';
+  if (fNoAnswer) return 'noanswer';
+  if (isConnected() && hostStatus && hostStatus.error) return 'port';
+  if (fStopped) return 'stopped';
+  return port && !connectedAt ? '' : 'unknown';
+}
+
+/* An MCP client connected to the helper: keep its category (a fixed list entry) for the next report. */
+function trackClient(hs: { client?: string; clientSeq?: number }): void {
+  var seq = typeof hs.clientSeq === 'number' ? hs.clientSeq : 0;
+  var first = clientSeqSeen < 0;
+  var changed = seq !== clientSeqSeen;
+  clientSeqSeen = seq;
+  // The first status after (re)connecting only sets the baseline: that client may have been counted already.
+  if (first || !changed || !hs.client || (HARNESSES as readonly string[]).indexOf(hs.client) < 0) return;
+  var kind = hs.client;
+  call(B.storage.local, 'get', ['statsHarnesses']).then(function (got: Record<string, unknown>) {
+    var list = Array.isArray(got.statsHarnesses) ? (got.statsHarnesses as unknown[]).filter(function (x) { return typeof x === 'string'; }) : [];
+    if (list.indexOf(kind) < 0) { list.push(kind); return call(B.storage.local, 'set', { statsHarnesses: list }); }
+    return undefined;
+  }).catch(function () {});
+}
+
+/* Remember setup progress (a number and a category, nothing else) for stats.ts. */
+function trackSetup(stage?: number): void {
+  var data: Record<string, unknown> = {};
+  var reached = stage || (isListening() ? 1 : 0);
+  if (reached > stageSeen) { stageSeen = reached; data.statsStage = reached; }
+  var why = stageSeen < 1 ? helperReason() : '';
+  if (why && why !== reasonSeen) { reasonSeen = why; data.statsReason = why; }
+  if (Object.keys(data).length) { try { call(B.storage.local, 'set', data).catch(function () {}); } catch (e) {} }
+}
+
 /* What the status snapshot reports as the current action (the background's "now"). */
 interface NowState { text: string; past: string; site: string; tabId: number | null; at: number; done: boolean; }
 
 /* Toolbar badge: orange dot while the AI is acting, "II" when paused, "!" when not serving, "↑" for a helper update. */
 function updateBadge() {
+  trackSetup();
   var ba = B.browserAction;
   if (!ba) return;
   var on = isListening();
@@ -2111,6 +2165,9 @@ function applyConfig() {
   else reconnectNow();
 }
 
+/* The setup page's chips, as categories (Gemini CLI is deprecated: it falls under "other"). */
+var PICKED: Record<string, string> = { claude: 'claude-code', codex: 'codex', gemini: 'other', opencode: 'opencode', 'claude-app': 'claude-desktop', json: 'other' };
+
 /* Only our own extension pages may reconfigure the bridge — never content scripts. Checked by the
  * sender's URL, not by sender.tab: the settings page opens in a tab too. */
 function fromOwnPage(sender: browser.runtime.MessageSender | undefined): boolean {
@@ -2215,6 +2272,11 @@ if (B.runtime && B.runtime.onMessage) {
         await sleep(200);
         return statusSnapshot();
       });
+    }
+    if (type === 'picked-harness') {
+      var kind = PICKED[(msg as Extract<UiMessage, { type: 'picked-harness' }>).kind];
+      if (kind) call(B.storage.local, 'set', { statsPicked: kind }).catch(function () {});
+      return Promise.resolve({ ok: true });
     }
     if (type === 'set-paused') return setPaused((msg as SetPausedRequest).paused === true);
     return undefined;

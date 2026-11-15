@@ -28,7 +28,7 @@ try { picked = localStorage.getItem('fxmcp.kind') || ''; } catch (e) {}
 var start = picked ? F.configKind() : 'claude';
 kindEls.forEach(function (x) { x.checked = x.value === start; });
 kindEls.forEach(function (x) {
-  x.addEventListener('change', function () { F.configKind(x.value); if (last) renderConnect(last); });
+  x.addEventListener('change', function () { F.configKind(x.value); send({ type: 'picked-harness', kind: x.value }).catch(function () {}); if (last) renderConnect(last); });
 });
 
 function stepState(id: string, cls: string) {
@@ -47,6 +47,7 @@ function renderHelper(st: Status) {
   $('s1state').className = 'state' + (ok ? ' ok' : '');
   ($('s1state').firstChild as HTMLElement).className = 'dot ' + (ok ? 'on' : st.hostMissing ? 'warn' : 'wait');
   setText($('s1text'), ok ? t('ob1Done', st.host && st.host.version ? st.host.version : '') : F.summarize(st).text);
+  F.reportProblem($('report') as HTMLAnchorElement, st, st.lastError || (st.host && st.host.error) || '');
   if (st.hostMissing && Date.now() - lastProbe > 3000) {
     lastProbe = Date.now();
     send({ type: 'probe' }).catch(function () {});

@@ -6,7 +6,7 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import { createServer, type Server } from "node:http";
 import os from "node:os";
-import { VERSION } from "@webmcp-controller/shared";
+import { VERSION, harnessOf } from "@webmcp-controller/shared";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { ServerConfig } from "./config.js";
@@ -25,6 +25,9 @@ export interface HttpState {
   bind: string;
   error: string;
   requests: number;
+  /** Category of the last MCP client to initialize, and a counter (see harnessOf). */
+  client: string;
+  clientSeq: number;
 }
 
 /** IPv4 addresses of the Windows "vEthernet (WSL...)" adapter(s); what WSL's default gateway points at. */
@@ -112,6 +115,8 @@ export class McpHttp {
     bind: "",
     error: "",
     requests: 0,
+    client: "",
+    clientSeq: 0,
   };
 
   onChange: ((s: HttpState) => void) | null = null;
@@ -399,6 +404,15 @@ export class McpHttp {
 
     const handle = async (req: Request, res: Response, body?: unknown): Promise<void> => {
       this.state.requests += 1;
+      // Which kind of client is this? Only a fixed category is kept, never the name itself.
+      for (const m of Array.isArray(body) ? body : [body]) {
+        const msg = m as { method?: unknown; params?: { clientInfo?: { name?: unknown } } } | null;
+        if (msg && typeof msg === "object" && msg.method === "initialize") {
+          this.state.client = harnessOf(msg.params?.clientInfo?.name);
+          this.state.clientSeq += 1;
+          this.emit();
+        }
+      }
       // notifications/cancelled: abort the matching in-flight request, if unambiguous.
       for (const m of Array.isArray(body) ? body : [body]) {
         const msg = m as { jsonrpc?: unknown; id?: unknown; method?: unknown; params?: unknown } | null;

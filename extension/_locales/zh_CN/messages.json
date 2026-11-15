@@ -1102,6 +1102,27 @@
   "secSafety": {
     "message": "安全与反馈"
   },
+  "reportProblem": {
+    "message": "报告问题"
+  },
+  "statsToggle": {
+    "message": "发送匿名使用次数"
+  },
+  "statsNote": {
+    "message": "每天一次：附加组件版本、操作系统和设置进度。不包含浏览数据。"
+  },
+  "statsRefused": {
+    "message": "Firefox 没有开启此功能。"
+  },
+  "feedbackRow": {
+    "message": "发送反馈"
+  },
+  "feedbackNote": {
+    "message": "无需 GitHub 账号。"
+  },
+  "feedbackOpen": {
+    "message": "打开"
+  },
   "advanced": {
     "message": "高级"
   },

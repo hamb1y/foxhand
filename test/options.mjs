@@ -33,7 +33,12 @@ function fakeBackground(initial) {
   const st = structuredClone(initial);
   window.__sent = [];
   window.__st = st;
-  window.browser = { runtime: { sendMessage: async (m) => {
+  const granted = new Set(); window.__granted = granted;
+  window.browser = { permissions: {
+    getAll: async () => ({ permissions: [], origins: [], data_collection: [...granted] }),
+    request: async (p) => { (p.data_collection || []).forEach((x) => granted.add(x)); return true; },
+    remove: async (p) => { (p.data_collection || []).forEach((x) => granted.delete(x)); return true; },
+  }, runtime: { sendMessage: async (m) => {
     window.__sent.push(m);
     const snap = () => structuredClone(st);
     if (m.type === "set-config") {
@@ -87,6 +92,16 @@ check("command carries the token", cmd.includes("Bearer " + "a".repeat(64)));
 check("installed helper is tucked away", !(await visible(page, "#install")) && !(await visible(page, "#setupLaterBody pre")));
 check("status facts filled in", (await text(page, "#factHelper")) === "v0.3.7" && (await text(page, "#factAddr")) === "127.0.0.1:8901" && /3 commands/.test(await text(page, "#factUp")));
 check("WSL option offered on Windows", await visible(page, "#whereRow"));
+check("usage-counts switch mirrors the permission (off)", !(await page.locator("#usageCounts").isChecked()));
+await page.locator("#usageCounts").check();
+await page.waitForTimeout(200);
+check("switching it on requests the data permission", (await page.evaluate(() => [...window.__granted])).join() === "technicalAndInteraction");
+await page.evaluate(() => window.__granted.clear());
+await page.waitForTimeout(1700);
+check("the switch follows a change made in about:addons", !(await page.locator("#usageCounts").isChecked()));
+await page.locator("#usageCounts").check(); await page.waitForTimeout(200);
+await page.locator("#usageCounts").uncheck(); await page.waitForTimeout(200);
+check("switching it off removes the permission", (await page.evaluate(() => window.__granted.size)) === 0);
 check("WSL panel hidden for Windows-side AIs", !(await visible(page, "#wsl")));
 const evs = await page.locator("#events li").allTextContents();
 check("activity lists newest first, with site and count", evs.length === 3 && /Clicked “Sign in” · github\.com/.test(evs[0]) && /Listening.*×2/.test(evs[1]) && /Helper stopped/.test(evs[2]), JSON.stringify(evs));

@@ -97,6 +97,14 @@ check("rapid reconfiguration settles on the last port", st?.listening && st.port
 const stale = await Promise.all(ports.slice(0, 3).map(portOpen));
 check("earlier ports are closed", stale.every((x) => !x), stale.join(","));
 const PORT = ports[3];
+for (const [name, kind] of [["claude-code", "claude-code"], ["claude-ai (via mcp-remote 0.1.37)", "claude-desktop"], ["codex-mcp-client", "codex"], ["cursor-vscode", "cursor"], ["antigravity-client (via mcp-remote 0.8.6)", "antigravity"], ["gemini-cli-mcp-client", "other"], ["something (via mcp-remote 1.0.0)", "mcp-remote"], ["Totally Unknown 9.9", "other"]]) {
+  const before = lastStatus()?.clientSeq ?? 0;
+  await req(PORT, { body: { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name, version: "7.7.7" } } } });
+  await sleep(100);
+  const s = lastStatus();
+  check("MCP client " + JSON.stringify(name) + " is reported as " + kind, s.client === kind && s.clientSeq === before + 1, JSON.stringify({ client: s.client, seq: s.clientSeq }));
+  check("the status message carries no raw client name or version", !JSON.stringify(s).includes("7.7.7") && !JSON.stringify(s).includes("Unknown"), JSON.stringify(s));
+}
 
 check("status says when the helper started and where it logs", st.startedAt > Date.now() - 60000 && st.logFile === LOG, JSON.stringify({ startedAt: st.startedAt, logFile: st.logFile }));
 check("helper writes a log", /host .* started \(pid/.test(readLog()), readLog().slice(0, 200));

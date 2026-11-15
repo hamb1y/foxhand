@@ -75,6 +75,7 @@ function render(st: Snap | null | undefined): void {
   setText(stateEl, sum.text);
   setText($('hint'), F.hint(st));
   setText(errEl, st.listening ? '' : ((st.host && st.host.error) || (st.hostMissing ? '' : st.lastError) || ''));
+  F.reportProblem($<HTMLAnchorElement>('report'), st, errEl.textContent || '');
   var need = F.setupNeed(st);
   setupEl.hidden = !need;
   if (need) renderSteps(st, need);

@@ -12,7 +12,7 @@ const src = path.join(root, 'extension');
 const out = path.join(root, 'build', 'extension');
 
 const ENTRIES = [
-  'background', 'announcements', 'common', 'options', 'popup', 'onboarding', 'announcement', 'regex-worker',
+  'background', 'announcements', 'stats', 'common', 'options', 'popup', 'onboarding', 'announcement', 'regex-worker',
   'content/cursor', 'content/ax',
 ];
 // Same allow-list scripts/pack-extension.sh ships (README-INSTALL.md and local files stay out).

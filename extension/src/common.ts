@@ -23,6 +23,7 @@ export interface FxMcpApi {
   summarize(st: St): { cls: string; text: string };
   hint(st: St): string;
   pauseShortcut(): Promise<string>;
+  reportProblem(link: HTMLAnchorElement, st: St, shown?: string): void;
   HARNESSES: string[];
 }
 /** The parts of a status snapshot these helpers read (the pages may pass a partial one). */
@@ -276,6 +277,40 @@ function hint(st: St): string {
   return t('hintNotRunning');
 }
 
+/* ------------------------------------------------------------ report a problem */
+
+/* Keep the token, ports, addresses and home folders out of text that goes into a public issue. */
+function scrub(text: string): string {
+  return String(text || '')
+    .replace(/Bearer\s+\S+/gi, 'Bearer …')
+    .replace(/\b[0-9a-f]{24,}\b/gi, '…')
+    .replace(/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1?\]?|\b\d{1,3}(?:\.\d{1,3}){3}):\d{2,5}/gi, '$1')
+    .replace(/\bport\s*:?\s*\d{2,5}\b/gi, 'port')
+    .replace(/(?:[A-Za-z]:\\Users\\|\/Users\/|\/home\/)[^\\/\s]+/g, '~')
+    .replace(/\s+/g, ' ').trim().slice(0, 400);
+}
+
+/* A pre-filled GitHub issue: versions, system and the error text on screen. Nothing about browsing. */
+function reportUrl(st: St, shown: string): string {
+  st = st || {};
+  var osn = st.platform && st.platform.os ? ({ win: 'Windows', mac: 'macOS', linux: 'Linux' } as { [os: string]: string })[st.platform.os] || st.platform.os : 'unknown';
+  var arch = st.platform && st.platform.arch ? ' ' + st.platform.arch : '';
+  var what = scrub(shown);
+  var body = '**What happened?**\n\n\n---\nAdd-on: ' + (st.version || 'unknown') + '\nHelper: ' + ((st.host && st.host.version) || 'unknown') +
+    '\nOS: ' + osn + arch + '\nShown: ' + (what || 'nothing') + '\n';
+  return 'https://foxhand.pages.dev/go/issue?from=addon&title=' + encodeURIComponent('Problem: ' + what.slice(0, 60)) + '&body=' + encodeURIComponent(body);
+}
+
+/* Show the link only while the page is showing an error state. */
+function reportProblem(link: HTMLAnchorElement, st: St, shown?: string): void {
+  var sum = summarize(st);
+  var bad = sum.cls === 'warn' || sum.cls === 'off';
+  if (link.hidden === bad) link.hidden = !bad;
+  if (!bad) return;
+  var href = reportUrl(st, [sum.text, shown || ''].filter(Boolean).join(': '));
+  if (link.getAttribute('href') !== href) link.setAttribute('href', href);
+}
+
 /* Last harness and place picked; the popup's Copy button and onboarding use them too. */
 function pref(key: string, set: string | undefined, fallback: string, allowed: string[]): string {
   try {
@@ -315,6 +350,6 @@ window.FxMcp = {
   t: t, localize: localize, ago: ago,
   hostSetup: hostSetup, renderSetup: renderSetup, setupNeed: setupNeed, mcpUrl: mcpUrl,
   mcpConfig: mcpConfig, configHint: configHint, configKind: configKind, configWhere: configWhere, canWsl: canWsl,
-  copy: copy, summarize: summarize, hint: hint, pauseShortcut: pauseShortcut, HARNESSES: HARNESSES
+  copy: copy, summarize: summarize, hint: hint, pauseShortcut: pauseShortcut, reportProblem: reportProblem, HARNESSES: HARNESSES
 };
 })();

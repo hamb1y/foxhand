@@ -42,7 +42,8 @@
   "background": {
     "scripts": [
       "background.js",
-      "announcements.js"
+      "announcements.js",
+      "stats.js"
     ],
     "persistent": true
   },

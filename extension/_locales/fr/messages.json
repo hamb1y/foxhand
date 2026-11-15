@@ -1102,6 +1102,27 @@
   "secSafety": {
     "message": "Sécurité et retours"
   },
+  "reportProblem": {
+    "message": "Signaler un problème"
+  },
+  "statsToggle": {
+    "message": "Envoyer des statistiques d’usage anonymes"
+  },
+  "statsNote": {
+    "message": "Une fois par jour : version de l’extension, système d’exploitation et progression de la configuration. Aucune donnée de navigation."
+  },
+  "statsRefused": {
+    "message": "Firefox ne l’a pas activé."
+  },
+  "feedbackRow": {
+    "message": "Envoyer un avis"
+  },
+  "feedbackNote": {
+    "message": "Aucun compte GitHub n’est nécessaire."
+  },
+  "feedbackOpen": {
+    "message": "Ouvrir"
+  },
   "advanced": {
     "message": "Avancé"
   },
