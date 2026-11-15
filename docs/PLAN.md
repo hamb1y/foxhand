@@ -21,7 +21,7 @@ Needed first. Everything in 2 gets judged by these numbers.
 - [x] `/stats` panel: DAU, MAU, AAU, installs, funnel, helper downloads
 - [x] Uninstall page, "Report a problem" links, `/feedback` form
 - [x] Which harnesses connect, and which one was picked on the setup page
-- [ ] Usage minutes (running)
+- [x] Usage minutes
 - [x] AAU = actual active users (an AI command ran), daily / 7 / 30 days
 - [x] Review, commit
 - [ ] Connect each harness once and record its real client name (5 of the mappings are guesses)
@@ -31,14 +31,14 @@ Needed first. Everything in 2 gets judged by these numbers.
 - [x] D1 database created, migration applied, panel token set (`~/.config/foxhand/stats-token`)
 - [x] Outbound links go through `/go/<target>?from=<where>` and are counted (github, amo, issues, issue, releases, source)
 - [ ] Use `/go/...?from=hn|ph|reddit|post|npm|brew|registry` in every post and listing
-- [ ] Deploy the site so `/stats` and the report endpoint go live; check Pages picks up the D1 binding
+- [x] Site deployed 2026-11-15 from `ts-extension`, pinned to 0.5.9 downloads. `/stats`, the report endpoint, feedback pages and `/go` are live; the D1 binding works
 
 ## 2. Installed -> properly installed
 
 Today: add the addon, paste a line in a terminal, paste a config into the harness. Two pastes, a 105 MiB download, and a terminal.
 
 Quick, no decisions needed:
-- [ ] Setup page shows only the line for this OS, with one Copy button
+- [x] Setup page shows only the line for this OS, with one Copy button (already did)
 - [ ] Detect Flatpak/Snap Firefox in the addon and say what to do, instead of "not installed" forever
 - [ ] Every stuck state names the fix in one line
 - [ ] Installer prints one clear last line: worked, or why not
@@ -65,7 +65,7 @@ Code:
 
 Text:
 - [ ] Addon strings in the short style, then Haiku for de/es/fr/zh_CN
-- [ ] Gemini CLI -> Antigravity in the setup page and options
+- [x] Gemini CLI -> Antigravity in the setup page and options
 - [ ] Site copy in the short style
 - [ ] `docs/amo-listing.md`: copy in the summary and description now live on AMO, Haiku for the 4 translations
 
