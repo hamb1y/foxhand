@@ -83,3 +83,41 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: npx --yes wrangler@4.159.0 pages deploy dist/cloudflare --project-name foxhand --branch main
+
+  verify-delivery:
+    name: Verify public release
+    needs: [prepare, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Wait for public Pages, then install the helper
+        env:
+          PUBLIC_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          for attempt in {1..12}; do
+            if curl -fsS --max-time 10 https://foxhand.pages.dev/download/latest.json |
+                jq -e --arg version "$PUBLIC_VERSION" '.version == $version' >/dev/null; then
+              node test/public-install.mjs
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Public Pages did not serve Foxhand $PUBLIC_VERSION."
+          exit 1
+      - name: Install the public npm package
+        if: github.event_name == 'workflow_run'
+        env:
+          PUBLIC_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          prefix="$RUNNER_TEMP/foxhand-public-npm"
+          npm install --prefix "$prefix" "@foxhand/helper@$PUBLIC_VERSION"
+          test "$("$prefix/node_modules/.bin/foxhand-helper" --version 2>&1)" = "$PUBLIC_VERSION"
