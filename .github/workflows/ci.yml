@@ -6,7 +6,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,6 +37,7 @@ jobs:
       - run: node test/audit.mjs
       - run: node test/audit-helper.mjs
       - run: npx playwright install --with-deps firefox
+        timeout-minutes: 8
       - run: node test/content.mjs
       - run: node test/options.mjs
       - run: node test/announcements.mjs

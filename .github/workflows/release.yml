@@ -54,7 +54,8 @@ jobs:
 
   release:
     needs: [check, platforms]
-    runs-on: ubuntu-latest
+    # Use the same LTS image as CI for Playwright's OS dependencies.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -77,6 +78,7 @@ jobs:
       - run: MISSING=1 node test/e2e.mjs
       - run: node test/host.mjs
       - run: npx playwright install --with-deps firefox
+        timeout-minutes: 8
       - run: node test/content.mjs
       - run: node test/options.mjs
       - run: node test/announcements.mjs
