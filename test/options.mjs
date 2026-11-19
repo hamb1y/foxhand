@@ -125,6 +125,10 @@ await page.locator("label:has(input[name=kind][value=claude-app])").click();
   check("Claude app goes through mcp-remote", c.command === "npx" && c.args.includes("mcp-remote") && c.args.includes("http://127.0.0.1:8901/mcp") &&
     c.args.includes("Authorization:${AUTH}") && c.env.AUTH === "Bearer " + "a".repeat(64), JSON.stringify(c));
   check("no WSL choice for the Claude app", !(await visible(page, "#whereRow")) && /claude_desktop_config\.json/.test(await text(page, "#kindHint")));
+  const prompt = await page.evaluate(state => window.FxMcp.setupPrompt(state, 'claude-app', 'wsl'), READY);
+  check("Claude Desktop handoff gives the manual fallback and never includes the token",
+    prompt.includes("Developer → Edit Config") && prompt.includes("YOUR_FOXHAND_TOKEN") &&
+    prompt.includes("http://127.0.0.1:8901/mcp") && !prompt.includes("a".repeat(64)) && !prompt.includes("WINDOWS-IP"));
 }
 await page.locator("label:has(input[name=kind][value=claude])").click();
 
@@ -137,6 +141,12 @@ check("picking WSL turns WSL access on", (await sent(page)).some((m) => m.type =
   (await page.locator("#allowWsl").isChecked()));
 check("choice is remembered", (await page.evaluate(() => localStorage.getItem("fxmcp.kind") + "/" + localStorage.getItem("fxmcp.where"))) === "claude/wsl");
 check("WSL address shown once listening", /172\.17\.16\.1/.test(await text(page, "#wslState")), await text(page, "#wslState"));
+{
+  const prompt = await page.evaluate(() => window.FxMcp.setupPrompt(window.__st, 'claude', 'wsl'));
+  check("WSL handoff installs on Windows and does not remove the current MCP entry",
+    prompt.includes("AI location: WSL") && prompt.includes("npm.cmd") && !prompt.includes("brew install") &&
+    prompt.includes("claude mcp add") && !prompt.includes("claude mcp remove"));
+}
 await page.evaluate(() => { window.__st.host.wslAddress = "172.17.16.1"; });
 await page.locator("label:has(input[name=kind][value=json])").click();
 await page.waitForTimeout(1700);
@@ -152,6 +162,11 @@ await page.locator("#inWsl").uncheck();
 await page.locator("label:has(input[name=kind][value=antigravity])").click();
 cfgTxt = await text(page, "#cfg");
 check("Antigravity gets a serverUrl config", JSON.parse(cfgTxt).mcpServers.firefox.serverUrl.includes("127.0.0.1:8901") && /^Bearer /.test(JSON.parse(cfgTxt).mcpServers.firefox.headers.Authorization), cfgTxt);
+await page.locator("label:has(input[name=kind][value=opencode])").click();
+{
+  const config = JSON.parse(await text(page, "#cfg")).mcp.servers.firefox;
+  check("OpenCode config uses the V2 remote server shape", config.type === "remote" && config.oauth === false && /^Bearer /.test(config.headers.Authorization));
+}
 await page.locator("label:has(input[name=kind][value=claude])").click();
 
 // ---- toggles ----
@@ -208,6 +223,7 @@ page = await open({ ...MISSING, platform: { os: "linux", arch: "x86-64" } });
 check("missing helper puts install steps first", (await visible(page, "#install")) && await page.locator("#install").evaluate((e) => e.classList.contains("attention") && getComputedStyle(e).order === "-1"));
 check("no Pause while the helper is missing", !(await visible(page, "#pause")));
 check("install command shown", /foxhand\.pages\.dev\/download\/sh \| sh/.test(await text(page, "#setupNow")) && /updates by itself/.test(await text(page, "#setupNow")));
+check("install step explains what the whole command does", /tells Firefox where to find the helper/.test(await text(page, "#setupNow")));
 check("Linux gets the Flatpak/Snap line", /Flatpak/.test(await text(page, "#setupNow")));
 check("Retry offered", await visible(page, "#retry"));
 check("default harness is JSON", (await page.locator("input[value=json]").isChecked()) && /"mcpServers"/.test(await text(page, "#cfg")));
@@ -221,6 +237,14 @@ await page.evaluate(() => Object.defineProperty(navigator, "clipboard", { value:
 } }));
 await page.locator("#setupNow").getByRole("button", { name: "Copy command" }).click();
 check("Copy uses the selected install method", (await page.evaluate(() => window.__copied)) === (await text(page, "#setupNow pre")));
+await page.locator("#copySetupPrompt").click();
+{
+  const prompt = await page.evaluate(() => window.__copied);
+  check("Settings copies platform-specific install choices before the helper is ready",
+    prompt.includes("not ready yet") && prompt.includes("brew install") && prompt.includes("npm install") &&
+    prompt.includes("/download/sh") && prompt.includes("/download/latest/foxhand-host-linux-x64") &&
+    prompt.includes("ask before downloading") && prompt.includes("YOUR_FOXHAND_TOKEN") && !prompt.includes("a".repeat(64)));
+}
 await page.waitForTimeout(3500);
 check("keeps probing while missing", (await sent(page)).some((m) => m.type === "probe"));
 check("polling preserves install method", (await methods.getByRole("button", { name: /npm/ }).getAttribute("aria-pressed")) === "true");
@@ -231,6 +255,12 @@ page = await open({ ...MISSING, platform: { os: "mac", arch: "aarch64" } }, unde
 check("macOS onboarding offers Homebrew first", (await text(page, "#setup pre")).startsWith("brew install "));
 await page.locator("#setup").getByRole("button", { name: "curl" }).click();
 check("macOS onboarding keeps the script fallback", (await text(page, "#setup pre")).startsWith("curl "));
+await page.evaluate(() => Object.defineProperty(navigator, "clipboard", { value: {
+  writeText: async (value) => { window.__copied = value; }
+} }));
+await page.locator("#copySetupPrompt").click();
+check("Onboarding can hand off a missing Apple Silicon helper without copying the token",
+  await page.evaluate(() => window.__copied.includes("foxhand-host-darwin-arm64") && !window.__copied.includes("a".repeat(64))));
 await page.close();
 
 page = await open(MISSING, undefined, "popup");

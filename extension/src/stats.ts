@@ -19,12 +19,15 @@ interface StatsStore {
   statsLast?: unknown;       // UTC date of the last successful report
   statsStage?: unknown;      // highest setup stage reached (written by background.js)
   statsReason?: unknown;     // why the helper is not working, as a category (written by background.js)
-  statsHarnesses?: unknown;  // kinds of AI client seen since the last report (written by background.js)
+  statsHarnesses?: unknown;  // legacy unreported kinds; consumed by the first successful report after upgrade
+  statsHarnessCounts?: unknown;
+  statsHarnessesReported?: unknown;
   statsPicked?: unknown;     // kind picked on the setup page (written by background.js)
-  statsMinutes?: unknown;    // clock minutes with an AI command since the last report (written by background.js)
-  statsUsed?: unknown;       // true once an AI command ran since the last report (written by background.js)
+  statsMinutes?: unknown;    // lifetime counter of minutes with a command (written by background.js)
+  statsMinutesReported?: unknown;
+  statsUsed?: unknown;       // legacy flag before minutes became monotonic
 }
-var KEYS = ['statsId', 'statsLast', 'statsStage', 'statsReason', 'statsHarnesses', 'statsPicked', 'statsUsed', 'statsMinutes'];
+var KEYS = ['statsId', 'statsLast', 'statsStage', 'statsReason', 'statsHarnesses', 'statsHarnessCounts', 'statsHarnessesReported', 'statsPicked', 'statsUsed', 'statsMinutes', 'statsMinutesReported'];
 var REASONS: string[] = ['missing', 'old', 'noanswer', 'port', 'stopped', 'unknown'];
 var UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 var VERSION = (function () { try { return B.runtime.getManifest().version; } catch (e) { return '0.0.0'; } })();
@@ -38,11 +41,26 @@ function kinds(value: unknown): Harness[] {
   var list = Array.isArray(value) ? value : [];
   return HARNESSES.filter(function (h) { return list.indexOf(h) >= 0; });
 }
+function count(value: unknown): number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : 0;
+}
+function harnessCounts(value: unknown): Partial<Record<Harness, number>> {
+  var src = value && typeof value === 'object' ? value as Partial<Record<Harness, unknown>> : {};
+  var counts: Partial<Record<Harness, number>> = {};
+  HARNESSES.forEach(function (h) { if (count(src[h])) counts[h] = count(src[h]); });
+  return counts;
+}
 
 async function osName(): Promise<PingPayload['os']> {
   try {
     var os = (await B.runtime.getPlatformInfo()).os;
     return os === 'win' || os === 'mac' || os === 'linux' ? os : 'other';
+  } catch (e) { return 'other'; }
+}
+
+function language(): string {
+  try {
+    return /^([a-z]{2})(?:-|$)/.exec(B.i18n.getUILanguage().toLowerCase())?.[1] || 'other';
   } catch (e) { return 'other'; }
 }
 
@@ -73,8 +91,13 @@ function buildPayload(store: StatsStore, today: string, os: PingPayload['os']): 
   if (last >= today || typeof store.statsId !== 'string') return null;
   var stage = stageOf(store);
   var picked = kinds([store.statsPicked])[0] || null;
-  var minutes = typeof store.statsMinutes === 'number' && store.statsMinutes > 0 ? Math.min(1440, Math.floor(store.statsMinutes)) : 0;
-  return { id: store.statsId, v: VERSION, os: os, stage: stage, reason: stage < 1 ? reasonOf(store) : null, harnesses: kinds(store.statsHarnesses), picked: picked, used: store.statsUsed === true || minutes > 0, minutes: minutes };
+  var minutes = Math.min(1440, Math.max(0, count(store.statsMinutes) - count(store.statsMinutesReported)));
+  var current = harnessCounts(store.statsHarnessCounts);
+  var reported = harnessCounts(store.statsHarnessesReported);
+  var legacy = store.statsHarnessesReported === undefined ? kinds(store.statsHarnesses) : [];
+  var seen = HARNESSES.filter(function (h) { return legacy.includes(h) || count(current[h]) > count(reported[h]); });
+  var used = minutes > 0 || (store.statsMinutesReported === undefined && store.statsUsed === true);
+  return { id: store.statsId, v: VERSION, os: os, language: language(), stage: stage, reason: stage < 1 ? reasonOf(store) : null, harnesses: seen, picked: picked, used: used, minutes: minutes };
 }
 
 async function post(payload: PingPayload): Promise<boolean> {
@@ -98,14 +121,14 @@ async function report(): Promise<void> {
     if (!(await consent())) return;
     var today = utcDay();
     var payload = buildPayload(store, today, await osName());
-    if (!payload) return;
+    if (!payload || !(await consent())) return;
     if (!(await post(payload))) return;
-    // Clearing statsUsed here could drop a command that ran during the request; that costs at most one day.
+    // Acknowledge only the snapshot we sent. Commands and clients seen during the
+    // request stay in the counters for the next report.
     await B.storage.local.set({
       statsLast: today,
-      statsUsed: false,
-      statsMinutes: 0,
-      statsHarnesses: kinds(store.statsHarnesses).filter(function (h) { return payload!.harnesses.indexOf(h) < 0; })
+      statsMinutesReported: count(store.statsMinutes),
+      statsHarnessesReported: harnessCounts(store.statsHarnessCounts)
     });
   } catch (e) {
     // A failed report is dropped; it never disturbs the helper connection.

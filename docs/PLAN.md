@@ -22,6 +22,9 @@ Needed first. Everything in 2 gets judged by these numbers.
 - [x] Uninstall page, "Report a problem" links, `/feedback` form
 - [x] Which harnesses connect, and which one was picked on the setup page
 - [x] Usage minutes
+- [ ] Ship Firefox UI language distribution: primary language only, no region or script; keep older reports as Unknown. Apply the D1 migration before deploying the worker.
+- [ ] Release the reporting fixes: preserve setup stage across Firefox restarts, keep activity that happens during an upload, and don't double-count retried reports.
+- [ ] Compare trends with Mozilla DAU, not counts: the Foxhand panel is opt-in and posts once per UTC day, so same-day commands can appear later.
 - [x] AAU = actual active users (an AI command ran), daily / 7 / 30 days
 - [x] Review, commit
 - [ ] Connect each harness once and record its real client name (5 of the mappings are guesses)
@@ -129,13 +132,18 @@ Sections 3, 4 and 6 can ship after.
 ## Soft launch 2
 
 Before:
-- [ ] 0.6.0 out and a week of funnel numbers
-- [ ] Quick install fixes (section 2)
-- [ ] npm and brew live
-- [ ] One-click connect, if approved
-- [ ] MCP registries cleaned up, Antigravity instead of Gemini CLI
-- [ ] Site move finished (section 5)
-- [ ] 20 second real screen recording
+- [x] 0.6.1 live on AMO, GitHub, the website, npm and the Homebrew tap
+- [ ] Collect a week of opt-in funnel numbers before broadening the launch
+- [x] Quick install fixes (section 2)
+- [x] First clean install with a real user: setup took about five minutes; the user liked the extension once it was running. The confusing step was telling Firefox where to find the helper, not downloading it.
+- [ ] Retest the plain-language install step and the “Copy setup prompt” handoff with a second first-time user. The prompt can guide a local AI through choosing and installing the helper, but does not copy the access token into chat.
+- [ ] Repeat with another new user and identify the slowest setup step
+- [ ] One-click connect, if approved (not a soft-launch blocker)
+- [ ] Finish MCP listings: local stdio package needed for the official registry; Glama inspection and quality score needed for upstream PR #19501. Keep Antigravity in the setup menu.
+- [x] Site move finished (section 5)
+- [x] AMO icon and screenshots updated
+- [ ] 20-second recording of the real add-on in Firefox; the motion graphic is not a substitute
+- [x] Claude Desktop manual configuration instructions documented
 - [ ] Short security page to link in comments
 
 Order: Reddit (r/firefox, r/ClaudeAI, r/LocalLLaMA, r/mcp) and harness Discords first, fix what they hit, then Show HN, then Product Hunt. Not HN and PH in the same week.

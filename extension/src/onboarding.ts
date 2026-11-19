@@ -94,6 +94,10 @@ function render(st: (Status & { error?: string }) | null | undefined) {
 $('copyCfg').addEventListener('click', function (this: HTMLElement) {
   F.copy($('cfg').textContent as string, this).catch(function () {});
 });
+$('copySetupPrompt').addEventListener('click', function (this: HTMLElement) {
+  if (!last) return;
+  F.copy(F.setupPrompt(last, kind(), F.configWhere()), this).catch(function () {});
+});
 Array.prototype.forEach.call(document.querySelectorAll<HTMLElement>('[data-copy]'), function (b) {
   b.addEventListener('click', function () { F.copy(t(b.getAttribute('data-copy') as string), b).catch(function () {}); });
 });

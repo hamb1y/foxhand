@@ -34,6 +34,7 @@ import {
 import { ExtensionBridge } from "./bridge/bridge.js";
 import { DEFAULT_BIND, DEFAULT_PORT } from "./config.js";
 import { McpHttp, SERVER_VERSION } from "./http.js";
+import { runStdio } from "./stdio.js";
 
 /** The add-on's ID kept its pre-rename value: changing it would make AMO treat Foxhand as a new add-on. */
 const EXTENSION_ID = "webmcp-controller@hamb1y.github.io";
@@ -597,6 +598,7 @@ Usage:
   ${BIN} install [--extension-id ID]   register with Firefox (default when double-clicked)
   ${BIN} uninstall                     remove registration and files
   ${BIN} status                        show what's installed where
+  ${BIN} mcp                           run a stdio bridge to the local helper
 `);
 }
 
@@ -632,6 +634,9 @@ async function main(): Promise<void> {
         break;
       case "status":
         status();
+        break;
+      case "mcp":
+        await runStdio();
         break;
       case "--version":
       case "version":

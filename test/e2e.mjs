@@ -11,6 +11,9 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const hostCmd = process.argv.length > 2 ? process.argv.slice(2) : [process.execPath, path.join(root, "mcp-server/dist/host.js")];
@@ -27,6 +30,7 @@ const check = (name, ok, extra = "") => {
 };
 
 let store = { mcpPort: PORT }, missing = process.env.MISSING === "1", child;
+if (missing) store.statsStage = 2; // reopened after the first command, helper temporarily missing
 function connectNative(name) {
   const onMessage = ev(), onDisconnect = ev();
   const port = { onMessage, onDisconnect, error: null, postMessage() {}, disconnect() { child?.kill(); } };
@@ -103,6 +107,7 @@ if (missing) {
   await ask({ type: "probe" });
   st = await waitFor((s) => s.listening);
   check("probe picks up a freshly installed helper", st.listening, st.url);
+  check("reconnecting after Firefox restarts preserves the first-command milestone", store.statsStage === 2);
   child?.kill();
   process.exit(failures ? 1 : 0);
 }
@@ -127,7 +132,7 @@ const text = (r) => r.body?.result?.content?.[0]?.text ?? JSON.stringify(r.body)
 
 const init = await mcp("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "e2e", version: "0" } });
 await sleep(300);
-check("the client's kind is kept as a category, not its name", JSON.stringify(store.statsHarnesses) === '["other"]', JSON.stringify(store.statsHarnesses));
+check("the client's kind is kept as a category, not its name", JSON.stringify(store.statsHarnessCounts) === '{"other":1}', JSON.stringify(store.statsHarnessCounts));
 await ask({ type: "picked-harness", kind: "claude-app" });
 await ask({ type: "picked-harness", kind: "<script>" });
 check("the setup-page pick is stored as a category; junk is ignored", store.statsPicked === "claude-desktop", String(store.statsPicked));
@@ -137,11 +142,31 @@ const tools = list.body.result.tools;
 const click = tools.find((t) => t.name === "page_click");
 check("page tools have no thought param", !!click && !click.inputSchema?.properties?.thought);
 check("thought tool exists", tools.some((t) => t.name === "thought"));
-check("no AI command yet: not marked as used", store.statsUsed === undefined);
+check("no AI command yet: no minutes counted", store.statsMinutes === undefined);
 await tool("tab_query", { query: "*" });
-check("an AI command marks the install as used for the daily report", store.statsUsed === true);
+check("an AI command marks the install as used for the daily report", store.statsMinutes >= 1);
 await tool("tab_query", { query: "*" }); await tool("tab_query", { query: "*" });
 check("minutes count distinct clock minutes, not commands", store.statsMinutes >= 1 && store.statsMinutes <= 2 && typeof store.statsLastMinute === "number", JSON.stringify([store.statsMinutes, store.statsLastMinute]));
+for (const [token, url, expect] of [
+  ["", st.url, /FOXHAND_TOKEN/],
+  [st.token, "http://example.com/mcp", /localhost/],
+  ["0".repeat(64), st.url, /Could not complete/],
+  [st.token, st.url, /example\.com/],
+]) {
+  const client = new Client({ name: "e2e-stdio", version: "1" });
+  try {
+    await client.connect(new StdioClientTransport({
+      command: hostCmd[0], args: [...hostCmd.slice(1), "mcp"],
+      env: { FOXHAND_TOKEN: token, FOXHAND_URL: url }, stderr: "inherit",
+    }), { timeout: 10000 });
+    const catalog = await client.listTools();
+    check("stdio tools match the HTTP catalogue even offline", isDeepStrictEqual(catalog.tools, tools));
+    const result = await client.callTool({ name: "tab_query" });
+    check("stdio invocation gives the expected result", expect.test(result.content?.[0]?.text || ""));
+  } catch (e) {
+    check("stdio client round trip", false, String(e));
+  } finally { await client.close(); }
+}
 for (const gone of ["tabs_list", "tab_move", "tab_duplicate", "tab_unpin", "cursor_note", "snapshot_ax", "act_click"]) {
   check(`${gone} is gone`, !tools.some((t) => t.name === gone));
 }

@@ -15,6 +15,7 @@ export interface FxMcpApi {
   setupNeed(st: St): { title: string; intro: string; soft?: boolean } | null;
   mcpUrl(st: St): string;
   mcpConfig(st: St, harness: string, where?: string): string;
+  setupPrompt(st: St, harness: string, where?: string): string;
   configHint(st: St, harness: string, where?: string): string;
   configKind(set?: string): string;
   configWhere(set?: string): string;
@@ -106,13 +107,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return e;
 }
 
-/* Install instructions as DOM: install method, command + Copy, direct download link.
- * intro: optional sentence shown first (e.g. why an update is needed).
- * installed: the helper already runs, so don't promise the page will turn green. */
-function renderSetup(container: HTMLElement, platform: Platform, intro?: string, installed?: boolean): Setup {
-  var s = hostSetup(platform);
-  container.textContent = '';
-  if (intro) container.appendChild(el('div', 'intro', intro));
+function installMethods(platform: Platform, s: Setup): Array<{ name: string; cmd: string }> {
   var win = platform?.os === 'win';
   var methods = [
     { name: win ? 'PowerShell' : 'curl', cmd: s.cmd },
@@ -126,6 +121,17 @@ function renderSetup(container: HTMLElement, platform: Platform, intro?: string,
       cmd: 'brew install hamb1y/tap/foxhand-helper && foxhand-helper install'
     });
   }
+  return methods;
+}
+
+/* Install instructions as DOM: install method, command + Copy, direct download link.
+ * intro: optional sentence shown first (e.g. why an update is needed).
+ * installed: the helper already runs, so don't promise the page will turn green. */
+function renderSetup(container: HTMLElement, platform: Platform, intro?: string, installed?: boolean): Setup {
+  var s = hostSetup(platform);
+  container.textContent = '';
+  if (intro) container.appendChild(el('div', 'intro', intro));
+  var methods = installMethods(platform, s);
   var pre = el('pre', 'cmd');
   var choices = el('div', 'row install-methods');
   choices.setAttribute('role', 'group');
@@ -152,7 +158,7 @@ function renderSetup(container: HTMLElement, platform: Platform, intro?: string,
   dl.rel = 'noopener';
   row.appendChild(btn);
   row.appendChild(dl);
-  var parts: HTMLElement[] = [choices, el('div', '', s.open), pre, row, el('div', 'sub', s.manual)];
+  var parts: HTMLElement[] = [choices, el('div', '', s.open), pre, row, el('div', 'sub', t('helperRunWhole')), el('div', 'sub', s.manual)];
   if (!installed) {
     // The add-on can't see how Firefox was packaged, so every Linux user without a helper gets the line.
     if (platform && platform.os === 'linux') parts.push(el('div', 'sub', t('linuxSandbox')));
@@ -166,17 +172,17 @@ function renderSetup(container: HTMLElement, platform: Platform, intro?: string,
 
 function mcpUrl(st: St): string {
   if (st && st.url) return st.url;
-  var host = !st || st.bind === '0.0.0.0' || st.bind === '::' ? '127.0.0.1' : st.bind as string; // (typed optional, but a real Status always has it)
+  var host = !st?.bind || st.bind === '0.0.0.0' || st.bind === '::' ? '127.0.0.1' : st.bind;
   if (host.indexOf(':') >= 0) host = '[' + host + ']'; // IPv6 literal
   return 'http://' + host + ':' + ((st && st.port) || 8901) + '/mcp';
 }
 
 /* `claude mcp add` refuses a name that already exists, so the first line drops any
  * old "firefox" entry (e.g. one holding a token from before a reinstall). User scope: works in every folder. */
-function cliAdd(cli: string, url: string, auth: string, shell: string): string {
+function cliAdd(cli: string, url: string, auth: string, shell: string, replace: boolean): string {
   var quiet = shell === 'powershell' ? ' 2>$null' : ' 2>/dev/null';
   if (cli === 'claude') {
-    return 'claude mcp remove -s user firefox' + quiet + '\n' +
+    return (replace ? 'claude mcp remove -s user firefox' + quiet + '\n' : '') +
       'claude mcp add -s user -t http firefox "' + url + '" -H "Authorization: ' + auth + '"';
   }
   return cli + ' mcp remove --scope user firefox' + quiet + '\n' +
@@ -201,14 +207,14 @@ function urlFrom(st: St, where: string | undefined, inShell: boolean): string {
 }
 
 /* Config snippet for a harness. harness: one of HARNESSES ('wsl' = old name for Claude Code in WSL). */
-function mcpConfig(st: St, harness: string, where?: string): string {
+function mcpConfig(st: St, harness: string, where?: string, replace = true): string {
   if (harness === 'wsl') { harness = 'claude'; where = 'wsl'; }
   if (HARNESSES.indexOf(harness) < 0) harness = 'json';
   if (harness === 'claude-app') where = 'local'; // the Claude app runs on the computer itself
   var wsl = where === 'wsl' && canWsl(st);
   var auth = 'Bearer ' + ((st && st.token) || '');
   var cli = SHELL_HARNESSES[harness];
-  if (cli) return cliAdd(cli, urlFrom(st, where, true), auth, !wsl && st && st.platform && st.platform.os === 'win' ? 'powershell' : 'sh');
+  if (cli) return cliAdd(cli, urlFrom(st, where, true), auth, !wsl && st && st.platform && st.platform.os === 'win' ? 'powershell' : 'sh', replace);
   var url = urlFrom(st, where, false);
   if (harness === 'codex') {
     return '[mcp_servers.firefox]\nurl = ' + JSON.stringify(url) + '\nhttp_headers = { Authorization = ' + JSON.stringify(auth) + ' }';
@@ -223,9 +229,43 @@ function mcpConfig(st: St, harness: string, where?: string): string {
     return JSON.stringify({ mcpServers: { firefox: { serverUrl: url, headers: { Authorization: auth } } } }, null, 2);
   }
   if (harness === 'opencode') {
-    return JSON.stringify({ mcp: { firefox: { type: 'remote', url: url, headers: { Authorization: auth } } } }, null, 2);
+    return JSON.stringify({ mcp: { servers: { firefox: { type: 'remote', url: url, oauth: false, headers: { Authorization: auth } } } } }, null, 2);
   }
   return JSON.stringify({ mcpServers: { firefox: { type: 'http', url: url, headers: { Authorization: auth } } } }, null, 2);
+}
+
+/* Copy a handoff, not a blind install command. The agent must identify its own
+ * client and tell the user when local access or permissions are missing. */
+function setupPrompt(st: St, harness: string, where?: string): string {
+  var app = ({ claude: 'Claude Code', codex: 'Codex', antigravity: 'Antigravity', opencode: 'OpenCode', 'claude-app': 'Claude Desktop' } as Record<string, string>)[harness] || 'Other';
+  var machine = hostSetup(st?.platform);
+  var wsl = where === 'wsl' && canWsl(st) && harness !== 'claude-app';
+  var local = { ...st, token: 'YOUR_FOXHAND_TOKEN' };
+  var endpoint = urlFrom(local, wsl ? 'wsl' : 'local', false);
+  return [
+    'Help me connect this AI client to Foxhand, the Firefox add-on at https://foxhand.pages.dev/. Reply in my language.',
+    '',
+    'My Foxhand setup:',
+    '- Firefox runs on ' + machine.os + '. Selected AI: ' + app + '. AI location: ' + (wsl ? 'WSL' : 'same computer as Firefox') + '.',
+    '- Firefox helper: ' + (st?.listening ? 'Ready' : 'not ready yet') + '. MCP: ' + endpoint + ' (Streamable HTTP with a Bearer token, not OAuth).',
+    wsl ? '- Enable WSL access in Foxhand Settings. If the config says WINDOWS-IP, get the current Windows address from Foxhand Settings before connecting.' : '',
+    '- The token is intentionally omitted. Show me where to enter the token from Foxhand Settings locally. Do not ask me to paste it into chat.',
+    '',
+    'First, identify the actual AI client and check whether you have shell and file access on the computer running Firefox. If you are in hosted chat or an unrelated remote shell, do not install there; give me local steps instead.',
+    'If the helper is not ready:',
+    'Check which helper and package managers are already installed on the system running Firefox (not inside WSL if Firefox runs on Windows). Reuse an installed helper if compatible. With my confirmation, run it with the install subcommand (for example foxhand-helper install or foxhand-helper.cmd install for npm on Windows). This tells Firefox where to find it; do not download it again just for this step.',
+    'Otherwise, pick one supported path: Homebrew if it is already available, npm if Node.js 22+ and npm are available, or the official script. Tell me which path you picked and ask before downloading or running an installer. If you use the script, fetch and review it before executing it. Don’t use admin rights or change security settings. If you cannot run it here, give me the exact local command.',
+    ...installMethods(st?.platform, machine).map(function (method) { return '- ' + method.name + ': ' + method.cmd; }),
+    'For a manual binary download use ' + DOWNLOAD + machine.file + ' and verify it against ' + DOWNLOAD + 'SHA256SUMS. Downloading alone is not enough: run the helper’s install command to tell Firefox where to find it.',
+    'Keep Firefox open and check for Ready in the Foxhand popup (ask me to check if you cannot see it). If it does not pick up the helper, click Retry or reopen Firefox. Do not assume the helper is ready just because the installer finished.',
+    '',
+    'Suggested config or command for the selected AI. Use it only if it matches the client you are actually in:',
+    mcpConfig(local, harness, wsl ? 'wsl' : 'local', false),
+    '',
+    'Once the helper is ready, use the actual client’s supported MCP setup. Preserve unrelated settings. Ask before replacing an existing server or launching an installer. Do not replace a working credential with the placeholder, write it into a tracked project file, or try to bypass any restriction. If you cannot safely update the config, give me manual steps.',
+    'For Claude Desktop in particular, if you are not allowed to change your own config, do not try to bypass it. Tell me to open Claude Settings → Developer → Edit Config, merge the firefox entry into mcpServers, save claude_desktop_config.json, and fully quit and reopen Claude. This config uses Node.js and mcp-remote.',
+    'When the config and token are in place, verify that the client lists Foxhand tools and call extension_status. Otherwise explain which step is blocked and what I should do next. Do not claim the connection works unless you verified it.'
+  ].join('\n');
 }
 
 /* What to do with the snippet. */
@@ -389,7 +429,7 @@ function pauseShortcut(): Promise<string> {
 window.FxMcp = {
   t: t, localize: localize, ago: ago,
   hostSetup: hostSetup, renderSetup: renderSetup, setupNeed: setupNeed, mcpUrl: mcpUrl,
-  mcpConfig: mcpConfig, configHint: configHint, configKind: configKind, configWhere: configWhere, canWsl: canWsl,
+  mcpConfig: mcpConfig, setupPrompt: setupPrompt, configHint: configHint, configKind: configKind, configWhere: configWhere, canWsl: canWsl,
   copy: copy, summarize: summarize, hint: hint, pauseShortcut: pauseShortcut, reportProblem: reportProblem, HARNESSES: HARNESSES
 };
 })();

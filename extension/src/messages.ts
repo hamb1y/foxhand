@@ -126,6 +126,8 @@ export interface PingPayload {
   id: string;
   v: string;
   os: 'win' | 'mac' | 'linux' | 'other';
+  /** Primary Firefox UI language only, with region and script discarded. */
+  language: string;
   /** Furthest setup stage: 0 installed, 1 helper connected, 2 first AI command. */
   stage: 0 | 1 | 2;
   /** Why the helper is not working, while stage is 0. */
