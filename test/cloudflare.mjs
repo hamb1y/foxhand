@@ -19,6 +19,9 @@ assert.ok(text('download/sh').includes(String.raw`\$env:FOXHAND_BASE='$BASE'; ir
 assert.ok(!text('_headers').includes("default-src 'none'"), 'website inline code remains usable');
 assert.match(text('_headers'), /Content-Type: text\/plain/);
 assert.match(text('index.html'), /https:\/\/foxhand.pages.dev\/download\/sh/);
+assert.match(text('robots.txt'), /^Sitemap: https:\/\/foxhand\.pages\.dev\/sitemap\.xml$/m);
+assert.match(text('sitemap.xml'), /<loc>https:\/\/foxhand\.pages\.dev\/download<\/loc>/);
+assert.match(text('index.html'), /rel="canonical" href="https:\/\/foxhand\.pages\.dev\/"/);
 for (const page of ['index.html', 'download/index.html']) {
   assert.ok(text(page).includes('brew install hamb1y/tap/foxhand-helper &amp;&amp; foxhand-helper install'));
   assert.ok(text(page).includes('npm install -g @foxhand/helper &amp;&amp; foxhand-helper install'));
