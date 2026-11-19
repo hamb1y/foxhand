@@ -23,7 +23,7 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=
 const MOUNTS = [
   ['/_review/', here, { fixturePages: false }],
   ['/_ext-before/', path.join(here, 'before/extension'), { fixture: true }],
-  ['/_ext/', path.join(root, 'extension'), { fixture: true }],
+  ['/_ext/', path.join(root, 'build/extension'), { fixture: true }],
   ['/_site-before/', path.join(here, 'before/dist/cloudflare'), { prefixLinks: '/_site-before' }],
   ['/', path.join(root, 'dist/cloudflare'), {}]
 ];
@@ -48,7 +48,7 @@ export function createServer() {
     if (pathname === '/_review/fixture-data.js') {
       const mountName = ['_ext', '_ext-before'].includes(url.searchParams.get('root')) ? url.searchParams.get('root') : '_ext';
       const lang = ['en', 'de', 'es', 'fr', 'zh_CN'].includes(url.searchParams.get('lang')) ? url.searchParams.get('lang') : 'en';
-      const dir = mountName === '_ext' ? path.join(root, 'extension') : path.join(here, 'before/extension');
+      const dir = mountName === '_ext' ? path.join(root, 'build/extension') : path.join(here, 'before/extension');
       const data = {
         messages: JSON.parse(readFileSync(path.join(dir, '_locales', lang, 'messages.json'), 'utf8')),
         announcement: JSON.parse(readFileSync(path.join(root, 'popup-endpoint/public/popup.json'), 'utf8'))

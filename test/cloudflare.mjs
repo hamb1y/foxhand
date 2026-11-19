@@ -19,6 +19,11 @@ assert.ok(text('download/sh').includes(String.raw`\$env:FOXHAND_BASE='$BASE'; ir
 assert.ok(!text('_headers').includes("default-src 'none'"), 'website inline code remains usable');
 assert.match(text('_headers'), /Content-Type: text\/plain/);
 assert.match(text('index.html'), /https:\/\/foxhand.pages.dev\/download\/sh/);
+for (const page of ['index.html', 'download/index.html']) {
+  assert.ok(text(page).includes('brew install hamb1y/tap/foxhand-helper &amp;&amp; foxhand-helper install'));
+  assert.ok(text(page).includes('npm install -g @foxhand/helper &amp;&amp; foxhand-helper install'));
+  assert.ok(text(page).includes('npm.cmd install -g @foxhand/helper'));
+}
 // Link previews: the og tags must name the live site and an image the build really ships.
 assert.ok(text('index.html').includes('<meta property="og:url" content="https://foxhand.pages.dev/">'));
 assert.ok(text('index.html').includes('<meta property="og:image" content="https://foxhand.pages.dev/shots/og.jpg">'));
@@ -97,8 +102,7 @@ try {
   assert.match(text('download/index.html'), /download\/9\.8\.7\/SHA256SUMS/);
   assert.match(text('changelog.html'), /<h2>0\.5\.7<\/h2>/);
   assert.match(text('changelog.html'), /<table>/);
-  assert.match(text('privacy.html'), /Foxhand does not send browsing data/);
-  assert.match(text('privacy.html'), /https:\/\/foxhand-popup-endpoint.pages.dev\/popup.json/);
+  assert.match(text('privacy.html'), /Foxhand sends no data externally/);
   assert.ok(!text('privacy.html').includes('Notes to reviewer'));
   for (const page of ['privacy.html', 'changelog.html', 'download/index.html']) {
     assert.match(text(page), /--orange: #FF7139/);
@@ -111,13 +115,13 @@ console.log('Cloudflare: allowlisted GitHub release redirects, pinned metadata/i
 
 // Transition compatibility: actual shared extension commands and legacy output.
 const context = vm.createContext({ window: {}, browser: {}, console });
-vm.runInContext(readFileSync('extension/common.js', 'utf8'), context);
+vm.runInContext(readFileSync('build/extension/common.js', 'utf8'), context);
 for (const [os, arch] of [['win', 'x86-64'], ['mac', 'aarch64'], ['linux', 'x86-64']]) {
   const setup = context.window.FxMcp.hostSetup({ os, arch });
   assert.ok(setup.cmd.includes(`https://foxhand.pages.dev/download/${os === 'win' ? 'ps' : 'sh'}`));
 }
-assert.ok(readFileSync('extension/common.js', 'utf8').includes("var DOWNLOAD = SITE + 'download/latest/';"));
-assert.ok(readFileSync('extension/announcements.js', 'utf8').includes('https://foxhand.pages.dev/endpoint/announcement'));
+assert.ok(readFileSync('extension/src/common.ts', 'utf8').includes("var DOWNLOAD = SITE + 'download/latest/';"));
+assert.ok(readFileSync('extension/src/announcements.ts', 'utf8').includes('https://foxhand.pages.dev/endpoint/announcement'));
 assert.ok(readFileSync('test/live.mjs', 'utf8').includes("String(url) === 'https://foxhand.pages.dev/endpoint/announcement'"));
 execFileSync(process.execPath, ['scripts/build-legacy-pages.mjs']);
 assert.match(readFileSync('_site/index.html', 'utf8'), /http-equiv="refresh" content="0;url=https:\/\/foxhand.pages.dev\/"/);

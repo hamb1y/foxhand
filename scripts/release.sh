@@ -49,6 +49,13 @@ $CHANGES
 
 Helper app for the **Foxhand** add-on (formerly WebMCP Controller).
 
+**Homebrew (macOS or Linux):** \`brew install hamb1y/tap/foxhand-helper && foxhand-helper install\`
+
+**npm (Node.js 22+):** \`npm install -g @foxhand/helper && foxhand-helper install\` on macOS or Linux. On Windows PowerShell:
+\`\`\`powershell
+npm.cmd install -g @foxhand/helper; if (\$LASTEXITCODE -eq 0) { foxhand-helper.cmd install }
+\`\`\`
+
 **Windows**: open PowerShell and paste:
 \`\`\`powershell
 irm https://foxhand.pages.dev/download/ps | iex
@@ -59,8 +66,9 @@ irm https://foxhand.pages.dev/download/ps | iex
 curl -fsSL https://foxhand.pages.dev/download/sh | sh
 \`\`\`
 
-Already installed? Run the same command again to update: Firefox switches to the
-new helper by itself within a few seconds.
+Already installed? Update through your package manager or rerun the installer
+script. After \`brew upgrade\`, rerun \`foxhand-helper install\`. Restart Firefox if
+the add-on doesn't pick up the new helper.
 
 Then click **Retry** in the add-on popup. Manual: download the file for your
 system below and run it with \`install\` (Windows: double-click the .exe; macOS: run

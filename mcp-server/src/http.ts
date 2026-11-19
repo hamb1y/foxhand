@@ -6,7 +6,7 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import { createServer, type Server } from "node:http";
 import os from "node:os";
-import { VERSION } from "@webmcp-controller/shared";
+import { VERSION, harnessOf } from "@webmcp-controller/shared";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { ServerConfig } from "./config.js";
@@ -25,6 +25,9 @@ export interface HttpState {
   bind: string;
   error: string;
   requests: number;
+  /** Category of the last MCP client to initialize, and a counter (see harnessOf). */
+  client: string;
+  clientSeq: number;
 }
 
 /** IPv4 addresses of the Windows "vEthernet (WSL...)" adapter(s); what WSL's default gateway points at. */
@@ -112,6 +115,8 @@ export class McpHttp {
     bind: "",
     error: "",
     requests: 0,
+    client: "",
+    clientSeq: 0,
   };
 
   onChange: ((s: HttpState) => void) | null = null;
@@ -152,7 +157,7 @@ export class McpHttp {
       this.wanted = config;
       this.startTimer();
       await this.listen(config);
-      for (let i = 0; i < QUICK_RETRIES && !this.main && this.state.error.startsWith("Port "); i++) {
+      for (let i = 0; i < QUICK_RETRIES && !this.main && /^(Port |Address )/.test(this.state.error); i++) {
         await sleep(QUICK_RETRY_MS);
         if (seq !== this.applySeq || this.wanted !== config) return;
         await this.listen(config);
@@ -205,7 +210,7 @@ export class McpHttp {
     const want = this.wanted;
     if (!want) return;
     if (!this.main) {
-      if (this.state.error.startsWith("Port ")) await this.listen(want);
+      if (/^(Port |Address )/.test(this.state.error)) await this.listen(want);
       return;
     }
     await this.syncWsl(want);
@@ -296,7 +301,7 @@ export class McpHttp {
             err.code === "EADDRINUSE"
               ? `Port ${port} is already in use (another Firefox profile, or another app). Retrying every few seconds; pick a different port in settings if it stays busy.`
               : err.code === "EADDRNOTAVAIL"
-                ? `Address ${bind} doesn't exist on this machine.`
+                ? `Address ${bind} doesn't exist on this machine yet. Retrying every few seconds.`
                 : err.code === "EACCES"
                   ? `Not allowed to listen on ${bind}:${port}.`
                   : `Listen failed: ${err.message}`,
@@ -355,9 +360,25 @@ export class McpHttp {
       next();
     };
 
+    // Only origins already accepted by guard receive CORS permission. Preflight
+    // needs no bearer token; every actual MCP request still passes auth.
+    const cors = (req: Request, res: Response, next: NextFunction): void => {
+      if (req.headers.origin !== undefined) {
+        res.set("Access-Control-Allow-Origin", req.headers.origin);
+        res.vary("Origin");
+        res.set("Access-Control-Expose-Headers", "Mcp-Session-Id, Mcp-Protocol-Version");
+      }
+      next();
+    };
+    app.options("/mcp", guard, cors, (_req: Request, res: Response) => {
+      res.set("Access-Control-Allow-Methods", "POST, GET, DELETE, OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID");
+      res.status(204).end();
+    });
+
     const auth = (req: Request, res: Response, next: NextFunction): void => {
       const header = req.headers.authorization ?? "";
-      const presented = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
+      const presented = /^bearer /i.test(header) ? header.slice("Bearer ".length) : "";
       if (!this.config || !tokensEqual(presented, this.config.token)) {
         rpcError(res, 401, -32001, "unauthorized: missing or invalid bearer token");
         return;
@@ -383,6 +404,15 @@ export class McpHttp {
 
     const handle = async (req: Request, res: Response, body?: unknown): Promise<void> => {
       this.state.requests += 1;
+      // Which kind of client is this? Only a fixed category is kept, never the name itself.
+      for (const m of Array.isArray(body) ? body : [body]) {
+        const msg = m as { method?: unknown; params?: { clientInfo?: { name?: unknown } } } | null;
+        if (msg && typeof msg === "object" && msg.method === "initialize") {
+          this.state.client = harnessOf(msg.params?.clientInfo?.name);
+          this.state.clientSeq += 1;
+          this.emit();
+        }
+      }
       // notifications/cancelled: abort the matching in-flight request, if unambiguous.
       for (const m of Array.isArray(body) ? body : [body]) {
         const msg = m as { jsonrpc?: unknown; id?: unknown; method?: unknown; params?: unknown } | null;
@@ -429,7 +459,7 @@ export class McpHttp {
       }
     };
 
-    app.post("/mcp", guard, auth, json, (req: Request, res: Response) => void handle(req, res, req.body));
+    app.post("/mcp", guard, cors, auth, json, (req: Request, res: Response) => void handle(req, res, req.body));
     // Stateless: there are no sessions to end and nothing to push on a standalone stream. Saying so
     // (405) stops clients from holding a GET stream open; when that idle stream broke (helper
     // restart, sleep, WSL network reset), clients retried twice and then marked the server failed.
@@ -437,8 +467,8 @@ export class McpHttp {
       res.set("Allow", "POST");
       rpcError(res, 405, -32000, "method not allowed: this server is stateless; use POST");
     };
-    app.get("/mcp", guard, auth, noStream);
-    app.delete("/mcp", guard, auth, noStream);
+    app.get("/mcp", guard, cors, auth, noStream);
+    app.delete("/mcp", guard, cors, auth, noStream);
 
     // Body-parser and other errors: answer in JSON-RPC, never with a stack trace.
     app.use((err: { type?: string; status?: number }, _req: Request, res: Response, next: NextFunction) => {

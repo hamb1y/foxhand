@@ -3,7 +3,7 @@
     "message": "Foxhand"
   },
   "extDescription": {
-    "message": "Lassen Sie Ihren eigenen KI-Agenten (Claude Code, Codex, Gemini CLI oder einen beliebigen MCP-Client) dieses Firefox nutzen, mit Ihren Tabs und Anmeldungen. Läuft auf Ihrem Computer. Benötigt eine kleine Hilfs-App."
+    "message": "Lassen Sie Ihren eigenen KI-Agenten (Claude Code, Codex, Antigravity oder einen beliebigen MCP-Client) dieses Firefox nutzen, mit Ihren Tabs und Anmeldungen. Läuft auf Ihrem Computer. Benötigt eine kleine Hilfs-App."
   },
   "cmdPause": {
     "message": "KI pausieren oder fortsetzen"
@@ -158,6 +158,12 @@
   "needInstall": {
     "message": "Hilfs-App installieren"
   },
+  "needReinstall": {
+    "message": "Hilfs-App neu installieren"
+  },
+  "linuxSandbox": {
+    "message": "Firefox aus Flatpak kann die Hilfs-App nicht starten: Verwenden Sie Firefox von mozilla.org oder aus Ihrer Distribution. Snap-Firefox fragt zuerst nach: Erlauben Sie es, und starten Sie Firefox dann neu."
+  },
   "needUpdate": {
     "message": "Hilfs-App aktualisieren"
   },
@@ -262,6 +268,12 @@
   "hintOtherWsl": {
     "message": "Fügen Sie dies in die MCP-Konfigurationsdatei Ihres Clients innerhalb von WSL ein, neben die bereits vorhandenen Server."
   },
+  "hintAntigravity": {
+    "message": "Fügen Sie dies in ~/.gemini/config/mcp_config.json ein, neben die bereits vorhandenen Server."
+  },
+  "hintAntigravityWsl": {
+    "message": "Fügen Sie dies in ~/.gemini/config/mcp_config.json innerhalb von WSL ein, neben die bereits vorhandenen Server."
+  },
   "wslAddrChanges": {
     "message": "Die darin enthaltene Windows-Adresse ändert sich bei jedem Neustart von Windows: Kopieren Sie es erneut, wenn Ihre KI keine Verbindung mehr bekommt."
   },
@@ -358,7 +370,7 @@
     "message": "Lauschen auf"
   },
   "bindNote": {
-    "message": "127.0.0.1 = nur dieser Computer. 0.0.0.0 = Ihr ganzes Netzwerk, nur durch das Token geschützt."
+    "message": "127.0.0.1 = nur dieser Computer. 0.0.0.0 = Ihr ganzes Netzwerk. HTTP ist unverschlüsselt: Andere im Netzwerk können das Token und Browserdaten lesen."
   },
   "save": {
     "message": "Speichern"
@@ -1076,7 +1088,7 @@
     "message": "Vielleicht belegt ein anderes Programm den Port. Ändern Sie ihn unter Einstellungen → Token und Port."
   },
   "hintNotRunning": {
-    "message": "Firefox kann die Hilfs-App nicht erreichen. Drücken Sie auf Erneut versuchen oder öffnen Sie die Einstellungen für Details."
+    "message": "Die Hilfs-App wurde nicht gestartet. Drücken Sie auf Erneut versuchen. Hilft das nicht, führen Sie den Installationsbefehl erneut aus."
   },
   "nowEmpty": {
     "message": "Noch nichts. Bitten Sie Ihre KI, etwas in Firefox zu tun."
@@ -1101,6 +1113,27 @@
   },
   "secSafety": {
     "message": "Sicherheit und Rückmeldung"
+  },
+  "reportProblem": {
+    "message": "Problem melden"
+  },
+  "statsToggle": {
+    "message": "Anonyme Nutzungszahlen senden"
+  },
+  "statsNote": {
+    "message": "Einmal am Tag: Add-on-Version, Betriebssystem und Einrichtungsstand. Keine Daten zum Surfen."
+  },
+  "statsRefused": {
+    "message": "Firefox hat es nicht aktiviert."
+  },
+  "feedbackRow": {
+    "message": "Feedback senden"
+  },
+  "feedbackNote": {
+    "message": "Ein GitHub-Konto ist nicht nötig."
+  },
+  "feedbackOpen": {
+    "message": "Öffnen"
   },
   "advanced": {
     "message": "Erweitert"

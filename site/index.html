@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Foxhand: let your AI agent use your real Firefox</title>
-<meta name="description" content="A Firefox add-on that lets Claude Code, Codex, Gemini CLI or any MCP client use the Firefox you already use: your tabs, your logins. Runs on your computer. Formerly WebMCP Controller.">
+<meta name="description" content="A Firefox add-on that lets Claude Code, Codex, Antigravity or any MCP client use the Firefox you already use: your tabs, your logins. Runs on your computer. Formerly WebMCP Controller.">
 <meta property="og:title" content="Foxhand">
 <meta property="og:description" content="Let your AI agent use your real Firefox: your tabs, your logins. Runs on your computer.">
 <meta property="og:image" content="https://foxhand.pages.dev/shots/og.jpg">
@@ -55,7 +55,10 @@
   nav a.nav-cta:hover { color: var(--ink); filter: brightness(.93); }
   @media (max-width: 760px) { nav { gap: 16px; } nav .hide-sm { display: none; } }
 
-  header.hero { padding: 72px 0 48px; }
+  header.hero { position: relative; padding: 72px 0 48px; }
+  /* One soft wash of the accent behind the headline; nothing else on the page glows. */
+  header.hero::before { content: ''; position: absolute; z-index: -1; right: -12%; top: -140px; width: 720px; height: 560px; max-width: 100vw; background: radial-gradient(closest-side, rgba(255, 113, 57, .16), transparent); pointer-events: none; }
+  .kicker { margin: 0 0 20px; color: var(--orange); font-size: 15px; font-weight: 600; letter-spacing: .01em; }
   .hero h1 { font-size: clamp(38px, 6.4vw, 68px); line-height: 1.04; letter-spacing: -0.035em; font-weight: 600; margin: 0; max-width: 14ch; }
   .hero .lead { font-size: clamp(18px, 2.2vw, 21px); color: var(--soft); max-width: 40em; margin: 24px 0 0; }
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 36px; }
@@ -76,13 +79,50 @@
   figcaption { color: var(--muted); font-size: 14px; margin-top: 12px; }
   .shot { display: block; width: 100%; height: auto; border-radius: 16px; border: 1px solid var(--line); background: #fff; }
   .hero-shot { margin-top: 8px; }
+  .hero-shot .shot { box-shadow: 0 0 0 1px var(--line), 0 40px 120px -40px rgba(255, 113, 57, .28); }
 
   section { padding: 96px 0 0; }
   h2 { font-size: clamp(28px, 3.6vw, 40px); letter-spacing: -0.025em; line-height: 1.1; font-weight: 600; margin: 0 0 16px; }
   .sub { color: var(--soft); max-width: 40em; margin: 0; }
   .eyebrow { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; font-weight: 500; }
 
+  /* The calls behind the capture */
+  .calls { list-style: none; margin: 40px 0 0; padding: 0; counter-reset: c; border-top: 1px solid var(--line); }
+  .calls li { counter-increment: c; display: grid; grid-template-columns: 40px 190px minmax(0, 1fr); align-items: baseline; gap: 0 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .calls li::before { content: counter(c, decimal-leading-zero); color: var(--muted); font: 13px var(--mono); }
+  .calls code { background: none; padding: 0; color: var(--orange); font-size: 15px; }
+  .calls span { color: var(--soft); }
+  @media (max-width: 700px) { .calls li { grid-template-columns: 32px minmax(0, 1fr); } .calls span { grid-column: 2; margin-top: 4px; } }
+
+  /* Why your own browser */
+  .versus { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 40px; }
+  @media (max-width: 760px) { .versus { grid-template-columns: 1fr; } }
+  .versus > div { padding: 24px 26px; border: 1px solid var(--line); border-radius: 16px; }
+  .versus h3 { margin: 0 0 14px; font-size: 18px; font-weight: 600; color: var(--muted); }
+  .versus ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; color: var(--muted); }
+  .versus li { position: relative; padding-left: 22px; }
+  .versus li::before { content: ''; position: absolute; left: 2px; top: .7em; width: 10px; height: 1.5px; background: var(--line-strong); }
+  .versus .ours { border-color: var(--orange); background: var(--surface); }
+  .versus .ours h3 { color: var(--fg); }
+  .versus .ours ul { color: var(--soft); }
+  .versus .ours li::before { top: .5em; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); }
+
   /* How it works */
+  .machine { margin-top: 40px; padding: 30px 20px 20px; border: 1px dashed var(--line-strong); border-radius: 20px; position: relative; }
+  .machine-label { position: absolute; top: -11px; left: 20px; margin: 0; padding: 0 10px; background: var(--bg); color: var(--muted); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+  .machine .flow { margin: 0; grid-template-columns: minmax(0, 1fr) 88px minmax(0, 1fr) 88px minmax(0, 1fr) 88px minmax(0, 1fr); align-items: stretch; }
+  .machine .flow li + li { margin-left: 0; }
+  .machine .flow li:not(.link) { padding: 18px 16px 20px; }
+  .machine .flow li + li::before { content: none; }
+  .machine .flow li.link { border: 0; background: none; padding: 0 8px; display: flex; flex-direction: column; justify-content: center; text-align: center; }
+  .machine .flow li.link span { font-size: 12px; line-height: 1.35; color: var(--muted); }
+  .machine .flow li.link::after { content: ''; display: block; height: 1.5px; margin-top: 8px; background: var(--orange); }
+  @media (max-width: 900px) {
+    .machine .flow { grid-template-columns: 1fr; }
+    .machine .flow li + li { margin: 0; }
+    .machine .flow li.link { flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px; padding: 0 0 0 24px; min-height: 44px; text-align: left; }
+    .machine .flow li.link::after { order: -1; width: 1.5px; height: 44px; margin: 0; flex: none; }
+  }
   .flow { list-style: none; margin: 40px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; counter-reset: f; }
   .flow li { position: relative; padding: 20px 20px 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
   .flow li + li { margin-left: 28px; }
@@ -172,6 +212,9 @@
   .stop dt { font-size: 20px; }
 
   /* Name */
+  .quiet h2 { font-size: clamp(22px, 2.6vw, 28px); }
+  .quiet .name h3 { font-size: 17px; }
+  .quiet .name p { font-size: 15px; }
   .name { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; margin-top: 32px; }
   @media (max-width: 800px) { .name { grid-template-columns: 1fr; gap: 32px; } }
   .name h3 { margin: 0 0 8px; font-size: 19px; font-weight: 600; }
@@ -193,23 +236,25 @@
 <div class="topbar" id="topbar"><div class="wrap">
   <nav aria-label="Site">
     <a class="brand" href="./"><img src="icon.svg" width="32" height="32" alt=""> Foxhand</a>
+    <a class="hide-sm" href="#calls">What it does</a>
     <a class="hide-sm" href="#how">How it works</a>
     <a class="hide-sm" href="#setup">Setup</a>
     <a class="hide-sm" href="#control">Safety</a>
-    <a class="hide-sm" href="https://github.com/hamb1y/foxhand/blob/main/CHANGELOG.md">Changelog</a>
-    <a class="hide-sm" href="https://github.com/hamb1y/foxhand">GitHub</a>
-    <a class="nav-cta" href="https://addons.mozilla.org/firefox/addon/foxhand/">Add to Firefox</a>
+    <a class="hide-sm" href="/changelog">Changelog</a>
+    <a class="hide-sm" href="https://foxhand.pages.dev/go/github?from=site">GitHub</a>
+    <a class="nav-cta" href="https://foxhand.pages.dev/go/amo?from=site">Add to Firefox</a>
   </nav>
 </div></div>
 
 <div class="wrap" id="main">
 
   <header class="hero">
+    <p class="kicker">A Firefox add-on for AI agents</p>
     <h1>Let your AI agent use your real Firefox.</h1>
-    <p class="lead">Foxhand is a Firefox add-on that connects Claude Code, Codex, Gemini CLI or any other MCP client to the browser you already use, with your tabs and your logins. A cursor shows what it's doing, and it all runs on your own computer.</p>
+    <p class="lead">Foxhand connects Claude Code, Codex, Antigravity or any other MCP client to the browser you already use, with your tabs and your logins. A cursor on the page shows what the agent is doing, and it all runs on your own computer.</p>
     <div class="actions">
-      <a class="btn orange" href="https://addons.mozilla.org/firefox/addon/foxhand/">Add to Firefox</a>
-      <a class="btn" href="#setup">How setup works</a>
+      <a class="btn orange" href="https://foxhand.pages.dev/go/amo?from=site">Add to Firefox</a>
+      <a class="btn" href="#calls">See what it does</a>
     </div>
     <p class="meta">Free and open source (MPL-2.0) · Version 0.5.4 · <a href="#name">Formerly WebMCP Controller</a></p>
     <ul class="trust" aria-label="At a glance">
@@ -228,16 +273,62 @@
     <figcaption>A real capture: an MCP client asked Foxhand to search Wikipedia, then point at the article. The orange bubble is the AI saying what it's doing.</figcaption>
   </figure>
 
+
+  <section id="calls" aria-labelledby="calls-h">
+    <p class="eyebrow">What just happened</p>
+    <h2 id="calls-h">The tool calls behind that screenshot.</h2>
+    <p class="sub">The capture above was made by a script acting as the MCP client (<a href="https://github.com/hamb1y/foxhand/blob/main/scripts/site-shots.mjs">scripts/site-shots.mjs</a>). An AI agent connected to Foxhand makes the same kind of calls, in whatever order the job needs.</p>
+    <ol class="calls">
+      <li><code>tab_create</code><span>Opens Wikipedia in a new tab in your Firefox and waits for it to load.</span></li>
+      <li><code>page_snapshot</code><span>Reads the page the way a screen reader does. Every button, link and field comes back with a reference number.</span></li>
+      <li><code>thought</code><span>Shows a short note beside the cursor, so you can see why it's about to act.</span></li>
+      <li><code>page_type</code><span>Types “Red panda” into the search box with real key presses, then submits.</span></li>
+      <li><code>page_info</code><span>Checks the tab's title until the article has loaded.</span></li>
+      <li><code>page_snapshot</code><span>Reads the new page, because the old reference numbers no longer apply.</span></li>
+      <li><code>page_hover</code><span>Moves the cursor to the article's heading. That is the moment in the screenshot.</span></li>
+    </ol>
+  </section>
+
+  <section id="why" aria-labelledby="why-h">
+    <p class="eyebrow">Why your own browser</p>
+    <h2 id="why-h">The agent works where you're already signed in.</h2>
+    <p class="sub">Most browser automation starts a separate, empty browser. Foxhand hands the agent the Firefox you already have open.</p>
+    <div class="versus">
+      <div>
+        <h3>A separate automation browser</h3>
+        <ul>
+          <li>Starts signed out of everything</li>
+          <li>Has none of your tabs, bookmarks or history</li>
+          <li>Often runs where you can't see it</li>
+        </ul>
+      </div>
+      <div class="ours">
+        <h3>Your Firefox, with Foxhand</h3>
+        <ul>
+          <li>Signed in wherever you already are</li>
+          <li>Works with your open tabs, bookmarks, history and downloads</li>
+          <li>A cursor on the page shows each action as it happens</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <section id="how" aria-labelledby="how-h">
     <p class="eyebrow">How it works</p>
     <h2 id="how-h">Four pieces, all on your computer.</h2>
     <p class="sub">Firefox add-ons can't open network ports, so Foxhand is a pair: the add-on works inside Firefox, and a small helper app speaks MCP to your AI tool.</p>
-    <ol class="flow">
-      <li><b>Your AI tool</b><span>Claude Code, Codex, Gemini CLI or any MCP client.</span></li>
-      <li><b>Foxhand helper</b><span>Serves MCP at <code>localhost:8901</code>. Every request needs your token.</span></li>
-      <li><b>Foxhand add-on</b><span>Receives commands from the helper and acts inside Firefox.</span></li>
-      <li><b>Your Firefox</b><span>Your tabs, your logins, your pages. The AI sees what you see.</span></li>
-    </ol>
+    <div class="machine">
+      <p class="machine-label">Your computer</p>
+      <ol class="flow">
+        <li><b>Your AI tool</b><span>Claude Code, Codex, Antigravity or any MCP client.</span></li>
+        <li class="link"><span>MCP over HTTP, with your token</span></li>
+        <li><b>Foxhand helper</b><span>A small app that serves MCP at <code>localhost:8901</code>.</span></li>
+        <li class="link"><span>Firefox native messaging</span></li>
+        <li><b>Foxhand add-on</b><span>Receives each command and carries it out inside Firefox.</span></li>
+        <li class="link"><span>Firefox add-on APIs</span></li>
+        <li><b>Your Firefox</b><span>Your tabs, your logins, your pages.</span></li>
+      </ol>
+    </div>
     <p class="flow-note">The helper listens on <code>localhost</code> only. Nothing leaves your computer unless the AI tool you connect sends it somewhere.</p>
   </section>
 
@@ -249,20 +340,38 @@
       <ol class="steps">
         <li>
           <h3>Add Foxhand to Firefox</h3>
-          <p>From <a href="https://addons.mozilla.org/firefox/addon/foxhand/">addons.mozilla.org</a>. Firefox 142 or newer, on Windows, macOS or Linux.</p>
+          <p>From <a href="https://foxhand.pages.dev/go/amo?from=site">addons.mozilla.org</a>. Firefox 142 or newer, on Windows, macOS or Linux.</p>
           <p class="check">The setup page opens, and a fox icon appears in your toolbar.</p>
         </li>
         <li>
           <h3>Install the helper app</h3>
-          <p>Add-ons can't open network ports, so a small helper serves MCP for Foxhand, on this computer only. Paste one line, no admin rights needed:</p>
-          <div class="tabs" role="tablist" aria-label="Your system" data-group="os">
-            <button role="tab" aria-selected="true" data-tab="unix">macOS and Linux</button>
-            <button role="tab" aria-selected="false" data-tab="win">Windows</button>
+          <p>Add-ons can't open network ports, so a small helper serves MCP for Foxhand on this computer. Choose one install method for the system running Firefox:</p>
+          <div class="tabs" role="tablist" aria-label="Install method" data-group="install">
+            <button role="tab" aria-selected="true" data-tab="unix">Shell script</button>
+            <button role="tab" aria-selected="false" data-tab="win">PowerShell</button>
+            <button role="tab" aria-selected="false" data-tab="brew">Homebrew</button>
+            <button role="tab" aria-selected="false" data-tab="npm">npm</button>
           </div>
-          <div class="cmd" data-panel="os:unix"><pre>curl -fsSL https://hamb1y.github.io/foxhand/sh | sh</pre><button class="copy" type="button">Copy</button></div>
-          <div class="cmd" data-panel="os:win" hidden><pre>irm https://hamb1y.github.io/foxhand/ps | iex</pre><button class="copy" type="button">Copy</button></div>
-          <p class="note" data-panel="os:unix">In Terminal. The script checks the download against the release's SHA-256 sums. <a href="https://github.com/hamb1y/foxhand/blob/main/scripts/install.sh">Read it first</a>.</p>
-          <p class="note" data-panel="os:win" hidden>In PowerShell. The script checks the download against the release's SHA-256 sums. <a href="https://github.com/hamb1y/foxhand/blob/main/scripts/install.ps1">Read it first</a>.</p>
+          <div data-panel="install:unix">
+            <div class="cmd"><pre>curl -fsSL https://foxhand.pages.dev/download/sh | sh</pre><button class="copy" type="button">Copy</button></div>
+            <p class="note">For macOS, Linux or WSL. The script checks the release checksum. <a href="/download/sh">Read the script</a>.</p>
+          </div>
+          <div data-panel="install:win" hidden>
+            <div class="cmd"><pre>irm https://foxhand.pages.dev/download/ps | iex</pre><button class="copy" type="button">Copy</button></div>
+            <p class="note">For Windows. The script checks the release checksum. <a href="/download/ps">Read the script</a>.</p>
+          </div>
+          <div data-panel="install:brew" hidden>
+            <div class="cmd"><pre>brew install hamb1y/tap/foxhand-helper &amp;&amp; foxhand-helper install</pre><button class="copy" type="button">Copy</button></div>
+            <p class="note">For macOS or Linux with <a href="https://brew.sh/">Homebrew</a> installed. The second command registers the helper with Firefox. Run it again after <code>brew upgrade</code>.</p>
+          </div>
+          <div data-panel="install:npm" hidden>
+            <p class="note">Requires Node.js 22 or newer. Run on the same system as Firefox.</p>
+            <p class="note">macOS or Linux:</p>
+            <div class="cmd"><pre>npm install -g @foxhand/helper &amp;&amp; foxhand-helper install</pre><button class="copy" type="button">Copy</button></div>
+            <p class="note">Windows PowerShell:</p>
+            <div class="cmd"><pre>npm.cmd install -g @foxhand/helper; if ($LASTEXITCODE -eq 0) { foxhand-helper.cmd install }</pre><button class="copy" type="button">Copy</button></div>
+          </div>
+          <p class="note">If the popup doesn't pick up the helper, restart Firefox. <a href="/download">Manual downloads</a>.</p>
           <p class="check">The toolbar popup changes from “Helper app not installed” to “Ready”.</p>
         </li>
         <li>
@@ -271,7 +380,7 @@
           <div class="tabs" role="tablist" aria-label="Your AI" data-group="ai">
             <button role="tab" aria-selected="true" data-tab="claude">Claude Code</button>
             <button role="tab" aria-selected="false" data-tab="codex">Codex</button>
-            <button role="tab" aria-selected="false" data-tab="gemini">Gemini CLI</button>
+            <button role="tab" aria-selected="false" data-tab="antigravity">Antigravity</button>
             <button role="tab" aria-selected="false" data-tab="json">Other</button>
           </div>
           <div class="cmd" data-panel="ai:claude"><pre>claude mcp add -s user -t http firefox http://localhost:8901/mcp \
@@ -280,8 +389,15 @@
 [mcp_servers.firefox]
 url = "http://localhost:8901/mcp"
 http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre><button class="copy" type="button">Copy</button></div>
-          <div class="cmd" data-panel="ai:gemini" hidden><pre>gemini mcp add --scope user --transport http firefox \
-  http://localhost:8901/mcp --header "Authorization: Bearer &lt;token&gt;"</pre><button class="copy" type="button">Copy</button></div>
+          <div class="cmd" data-panel="ai:antigravity" hidden><pre>// ~/.gemini/config/mcp_config.json
+{
+  "mcpServers": {
+    "firefox": {
+      "serverUrl": "http://localhost:8901/mcp",
+      "headers": { "Authorization": "Bearer &lt;token&gt;" }
+    }
+  }
+}</pre><button class="copy" type="button">Copy</button></div>
           <div class="cmd" data-panel="ai:json" hidden><pre>{
   "mcpServers": {
     "firefox": {
@@ -315,7 +431,7 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre><button class="co
   <section aria-labelledby="tools-h">
     <p class="eyebrow">45 tools</p>
     <h2 id="tools-h">What the agent can do.</h2>
-    <p class="sub">It reads pages through an accessibility snapshot, then clicks, types and fills forms by reference or by an element's visible name, the way a screen reader sees the page. Full descriptions are in the <a href="https://github.com/hamb1y/foxhand#tools">README</a>.</p>
+    <p class="sub">It reads pages through an accessibility snapshot, then clicks, types and fills forms by reference or by an element's visible name, the way a screen reader sees the page. Full descriptions are in the <a href="https://foxhand.pages.dev/go/github?from=site">README</a>.</p>
     <ul class="toolkinds">
       <li><b>Tabs and windows <span>12</span></b><p>List, open, navigate, focus, pin, mute and close tabs and windows.</p></li>
       <li><b>Reading pages <span>6</span></b><p>Accessibility snapshot, text, HTML, screenshot, page info and find.</p></li>
@@ -354,7 +470,7 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre><button class="co
     </ul>
   </section>
 
-  <section aria-labelledby="control-h">
+  <section id="control" aria-labelledby="control-h">
     <p class="eyebrow">You stay in charge</p>
     <h2 id="control-h">It's your browser, so you can always see and stop it.</h2>
     <div class="control">
@@ -373,7 +489,7 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre><button class="co
     </div>
   </section>
 
-  <section id="name" aria-labelledby="name-h">
+  <section id="name" class="quiet" aria-labelledby="name-h">
     <p class="eyebrow">About the name</p>
     <h2 id="name-h">Foxhand used to be called WebMCP Controller.</h2>
     <div class="name">
@@ -394,16 +510,17 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre><button class="co
       <h2>Ready to try it?</h2>
       <p>Add the add-on, paste one line, and ask your agent something. About a minute.</p>
     </div>
-    <a class="btn orange" href="https://addons.mozilla.org/firefox/addon/foxhand/">Add to Firefox</a>
+    <a class="btn orange" href="https://foxhand.pages.dev/go/amo?from=site">Add to Firefox</a>
   </aside>
 </div>
 
 <footer>
   <div class="wrap">
-    <a href="https://github.com/hamb1y/foxhand">Source</a>
-    <a href="https://github.com/hamb1y/foxhand/blob/main/CHANGELOG.md">Changelog</a>
-    <a href="https://github.com/hamb1y/foxhand/releases/latest">Downloads</a>
-    <a href="https://github.com/hamb1y/foxhand/issues">Report a problem</a>
+    <a href="https://foxhand.pages.dev/go/github?from=site">Source</a>
+    <a href="/changelog">Changelog</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/download">Downloads</a>
+    <a href="https://foxhand.pages.dev/go/issues?from=site">Report a problem</a>
     <span class="small">Foxhand is an independent project, not made by or affiliated with Mozilla. Firefox is a trademark of the Mozilla Foundation.</span>
   </div>
 </footer>
@@ -439,9 +556,10 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre><button class="co
       tabs[next].focus();
     });
   });
-  // Show the Windows command first to Windows visitors.
+  // Default to the Windows installer on Windows and Homebrew on macOS.
   var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
-  if (/^win/i.test(platform)) pick('os', 'win');
+  if (/^win/i.test(platform)) pick('install', 'win');
+  else if (/^mac/i.test(platform)) pick('install', 'brew');
 
   function copyText(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);

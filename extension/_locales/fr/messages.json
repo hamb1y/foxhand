@@ -3,7 +3,7 @@
     "message": "Foxhand"
   },
   "extDescription": {
-    "message": "Laissez votre propre agent IA (Claude Code, Codex, Gemini CLI ou tout client MCP) utiliser ce Firefox, avec vos onglets et vos sessions ouvertes. Fonctionne sur votre ordinateur. Nécessite une petite application d’assistance."
+    "message": "Laissez votre propre agent IA (Claude Code, Codex, Antigravity ou tout client MCP) utiliser ce Firefox, avec vos onglets et vos sessions ouvertes. Fonctionne sur votre ordinateur. Nécessite une petite application d’assistance."
   },
   "cmdPause": {
     "message": "Mettre en pause ou reprendre l’IA"
@@ -158,6 +158,12 @@
   "needInstall": {
     "message": "Installer l’application d’assistance"
   },
+  "needReinstall": {
+    "message": "Réinstaller l’application d’assistance"
+  },
+  "linuxSandbox": {
+    "message": "Firefox Flatpak ne peut pas lancer l’application d’assistance : utilisez Firefox depuis mozilla.org ou celui de votre distribution. Firefox Snap demande d’abord une autorisation : accordez-la, puis redémarrez Firefox."
+  },
   "needUpdate": {
     "message": "Mettre à jour l’application d’assistance"
   },
@@ -262,6 +268,12 @@
   "hintOtherWsl": {
     "message": "Ajoutez ceci au fichier de configuration MCP de votre client dans WSL, à côté des serveurs déjà présents."
   },
+  "hintAntigravity": {
+    "message": "Ajoutez ceci à ~/.gemini/config/mcp_config.json, à côté des serveurs déjà présents."
+  },
+  "hintAntigravityWsl": {
+    "message": "Ajoutez ceci à ~/.gemini/config/mcp_config.json dans WSL, à côté des serveurs déjà présents."
+  },
   "wslAddrChanges": {
     "message": "L’adresse Windows qu’il contient change au redémarrage de Windows : copiez-le de nouveau si votre IA ne se connecte plus."
   },
@@ -358,7 +370,7 @@
     "message": "Écouter sur"
   },
   "bindNote": {
-    "message": "127.0.0.1 = cet ordinateur uniquement. 0.0.0.0 = tout votre réseau, protégé uniquement par le jeton."
+    "message": "127.0.0.1 = cet ordinateur uniquement. 0.0.0.0 = tout votre réseau. HTTP n’est pas chiffré : les autres personnes du réseau peuvent lire le jeton et les données du navigateur."
   },
   "save": {
     "message": "Enregistrer"
@@ -1076,7 +1088,7 @@
     "message": "Un autre programme utilise peut-être le port. Modifiez-le dans Paramètres → Jeton et port."
   },
   "hintNotRunning": {
-    "message": "Firefox ne peut pas joindre l’application d’assistance. Appuyez sur Réessayer, ou ouvrez les Paramètres pour plus de détails."
+    "message": "L’application d’assistance n’a pas démarré. Appuyez sur Réessayer. Toujours bloqué ? Exécutez de nouveau la commande d’installation."
   },
   "nowEmpty": {
     "message": "Rien pour l’instant. Demandez à votre IA de faire quelque chose dans Firefox."
@@ -1101,6 +1113,27 @@
   },
   "secSafety": {
     "message": "Sécurité et retours"
+  },
+  "reportProblem": {
+    "message": "Signaler un problème"
+  },
+  "statsToggle": {
+    "message": "Envoyer des statistiques d’usage anonymes"
+  },
+  "statsNote": {
+    "message": "Une fois par jour : version de l’extension, système d’exploitation et progression de la configuration. Aucune donnée de navigation."
+  },
+  "statsRefused": {
+    "message": "Firefox ne l’a pas activé."
+  },
+  "feedbackRow": {
+    "message": "Envoyer un avis"
+  },
+  "feedbackNote": {
+    "message": "Aucun compte GitHub n’est nécessaire."
+  },
+  "feedbackOpen": {
+    "message": "Ouvrir"
   },
   "advanced": {
     "message": "Avancé"

@@ -3,7 +3,7 @@
     "message": "Foxhand"
   },
   "extDescription": {
-    "message": "Let your own AI agent (Claude Code, Codex, Gemini CLI or any MCP client) use this Firefox, with your tabs and logins. Runs on your computer. Needs a small helper app."
+    "message": "Let your own AI agent (Claude Code, Codex, Antigravity or any MCP client) use this Firefox, with your tabs and logins. Runs on your computer. Needs a small helper app."
   },
   "cmdPause": {
     "message": "Pause or resume the AI"
@@ -158,6 +158,12 @@
   "needInstall": {
     "message": "Install the helper app"
   },
+  "needReinstall": {
+    "message": "Reinstall the helper app"
+  },
+  "linuxSandbox": {
+    "message": "Flatpak Firefox can’t start the helper: use Firefox from mozilla.org or your distro. Snap Firefox asks first: allow it, then restart Firefox."
+  },
   "needUpdate": {
     "message": "Update the helper app"
   },
@@ -262,6 +268,12 @@
   "hintOtherWsl": {
     "message": "Add this to your client’s MCP config file inside WSL, next to any servers already there."
   },
+  "hintAntigravity": {
+    "message": "Add this to ~/.gemini/config/mcp_config.json, next to any servers already there."
+  },
+  "hintAntigravityWsl": {
+    "message": "Add this to ~/.gemini/config/mcp_config.json inside WSL, next to any servers already there."
+  },
   "wslAddrChanges": {
     "message": "The Windows address in it changes when Windows restarts: copy this again if your AI stops connecting."
   },
@@ -358,7 +370,7 @@
     "message": "Listen on"
   },
   "bindNote": {
-    "message": "127.0.0.1 = this computer only. 0.0.0.0 = your whole network, protected only by the token."
+    "message": "127.0.0.1 = this computer only. 0.0.0.0 = your whole network. HTTP is unencrypted: others on the network may read the token and browser data."
   },
   "save": {
     "message": "Save"
@@ -1076,7 +1088,7 @@
     "message": "Another program may be using the port. Change it in Settings → Token and port."
   },
   "hintNotRunning": {
-    "message": "Firefox can’t reach the helper app. Press Retry, or open Settings for details."
+    "message": "The helper didn’t start. Press Retry. Still stuck? Run the install command again."
   },
   "nowEmpty": {
     "message": "Nothing yet. Ask your AI to do something in Firefox."
@@ -1101,6 +1113,27 @@
   },
   "secSafety": {
     "message": "Safety and feedback"
+  },
+  "reportProblem": {
+    "message": "Report a problem"
+  },
+  "statsToggle": {
+    "message": "Send anonymous usage counts"
+  },
+  "statsNote": {
+    "message": "Once a day: add-on version, OS and setup progress. No browsing data."
+  },
+  "statsRefused": {
+    "message": "Firefox did not turn it on."
+  },
+  "feedbackRow": {
+    "message": "Send feedback"
+  },
+  "feedbackNote": {
+    "message": "No GitHub account needed."
+  },
+  "feedbackOpen": {
+    "message": "Open"
   },
   "advanced": {
     "message": "Advanced"

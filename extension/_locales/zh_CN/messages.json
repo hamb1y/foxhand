@@ -3,7 +3,7 @@
     "message": "Foxhand"
   },
   "extDescription": {
-    "message": "让你自己的 AI 智能体（Claude Code、Codex、Gemini CLI 或任何 MCP 客户端）使用这个 Firefox，包括你的标签页和登录状态。在你的电脑上本地运行。需要安装一个小型辅助程序。"
+    "message": "让你自己的 AI 智能体（Claude Code、Codex、Antigravity 或任何 MCP 客户端）使用这个 Firefox，包括你的标签页和登录状态。在你的电脑上本地运行。需要安装一个小型辅助程序。"
   },
   "cmdPause": {
     "message": "暂停或恢复 AI"
@@ -158,6 +158,12 @@
   "needInstall": {
     "message": "安装辅助程序"
   },
+  "needReinstall": {
+    "message": "重新安装辅助程序"
+  },
+  "linuxSandbox": {
+    "message": "Flatpak 版 Firefox 无法启动辅助程序：请使用 mozilla.org 或你所在发行版提供的 Firefox。Snap 版 Firefox 会先询问：请允许，然后重启 Firefox。"
+  },
   "needUpdate": {
     "message": "更新辅助程序"
   },
@@ -262,6 +268,12 @@
   "hintOtherWsl": {
     "message": "在 WSL 中将此内容添加到客户端的 MCP 配置文件中，与已有的服务器放在一起。"
   },
+  "hintAntigravity": {
+    "message": "将此内容添加到 ~/.gemini/config/mcp_config.json 中，与已有的服务器放在一起。"
+  },
+  "hintAntigravityWsl": {
+    "message": "在 WSL 中将此内容添加到 ~/.gemini/config/mcp_config.json 中，与已有的服务器放在一起。"
+  },
   "wslAddrChanges": {
     "message": "其中的 Windows 地址会在 Windows 重启后改变：如果 AI 无法连接，请重新复制。"
   },
@@ -358,7 +370,7 @@
     "message": "监听地址"
   },
   "bindNote": {
-    "message": "127.0.0.1 = 仅限本机。0.0.0.0 = 整个网络，仅由令牌保护。"
+    "message": "127.0.0.1 = 仅限本机。0.0.0.0 = 整个网络。HTTP 未加密：网络中的其他人可能读取令牌和浏览器数据。"
   },
   "save": {
     "message": "保存"
@@ -1076,7 +1088,7 @@
     "message": "可能有其他程序正在占用端口。请在“设置 → 令牌和端口”中更改。"
   },
   "hintNotRunning": {
-    "message": "Firefox 无法连接到辅助程序。请点击“重试”，或打开设置查看详情。"
+    "message": "辅助程序没有启动。请点击“重试”。仍然无法解决？请再次运行安装命令。"
   },
   "nowEmpty": {
     "message": "暂无记录。请让你的 AI 在 Firefox 中做点什么。"
@@ -1101,6 +1113,27 @@
   },
   "secSafety": {
     "message": "安全与反馈"
+  },
+  "reportProblem": {
+    "message": "报告问题"
+  },
+  "statsToggle": {
+    "message": "发送匿名使用次数"
+  },
+  "statsNote": {
+    "message": "每天一次：附加组件版本、操作系统和设置进度。不包含浏览数据。"
+  },
+  "statsRefused": {
+    "message": "Firefox 没有开启此功能。"
+  },
+  "feedbackRow": {
+    "message": "发送反馈"
+  },
+  "feedbackNote": {
+    "message": "无需 GitHub 账号。"
+  },
+  "feedbackOpen": {
+    "message": "打开"
   },
   "advanced": {
     "message": "高级"

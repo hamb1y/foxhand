@@ -33,7 +33,7 @@ export interface HelloMessage {
     version: string;
     /** Wire protocol the add-on speaks. Absent = 1. */
     protocol?: number;
-    token: string;
+    token?: string; // legacy hello field; authentication belongs in hostConfig
     profile: string; // e.g. "default-release"
     firefoxVersion: string;
     capabilities: string[];
@@ -233,9 +233,44 @@ export interface HostConfigMessage {
     bind: string;
     /** Require confirm:true for destructive tools. Default true. */
     confirmDestructive?: boolean;
+    /** Pause command and event access; older extensions omit this. */
+    paused?: boolean;
     /** Windows only: also listen on the WSL virtual adapter so a harness inside WSL can connect. */
     allowWsl?: boolean;
   };
+}
+
+/** The fixed list of AI clients that are counted. Nothing else about a client is ever kept or sent. */
+export const HARNESSES = [
+  "claude-code", "claude-desktop", "codex", "chatgpt-desktop", "opencode", "pi", "omp", "openclaw",
+  "antigravity", "cursor", "mcp-remote", "other",
+] as const;
+export type Harness = (typeof HARNESSES)[number];
+
+/**
+ * clientInfo.name from the MCP initialize request, as a category. Seen in the wild (community reports,
+ * not vendor docs): claude-code, claude-ai (Claude Desktop), codex-mcp-client, cursor-vscode, antigravity-client.
+ * Guesses: openai-mcp, opencode, pi, omp, openclaw. mcp-remote appends " (via mcp-remote x.y.z)" to the real name.
+ * Anything unknown, including Gemini CLI, is "other".
+ */
+export function harnessOf(name: unknown): Harness {
+  if (typeof name !== "string") return "other";
+  const bare = name.toLowerCase().replace(/\s*\(via mcp-remote[^)]*\)\s*$/, "").trim();
+  const via = bare !== name.toLowerCase().trim();
+  const known = (s: string): Harness | null =>
+    s === "claude-code" ? "claude-code"
+    : s === "claude-ai" || s === "claude-desktop" ? "claude-desktop"
+    : s === "codex" || s === "codex-mcp-client" || s === "codex-cli" ? "codex"
+    : s === "openai-mcp" || s === "chatgpt" ? "chatgpt-desktop"
+    : s === "opencode" ? "opencode"
+    : s === "pi" ? "pi"
+    : s === "omp" ? "omp"
+    : s === "openclaw" ? "openclaw"
+    : s === "antigravity" || s === "antigravity-client" ? "antigravity"
+    : s === "cursor-vscode" || s === "cursor" ? "cursor"
+    : s === "mcp-remote" ? "mcp-remote"
+    : null;
+  return known(bare) ?? (via ? "mcp-remote" : "other");
 }
 
 export interface HostStatusMessage {
@@ -258,6 +293,9 @@ export interface HostStatusMessage {
     startedAt?: number;
     /** The helper's own log file, for troubleshooting ("" if it couldn't open one). */
     logFile?: string;
+    /** Category (Harness) of the MCP client that last connected, and how many connections so far. Older helpers omit both. */
+    client?: string;
+    clientSeq?: number;
   };
 }
 
@@ -284,7 +322,7 @@ export function isHostConfig(m: unknown): m is HostConfigMessage {
 export const NATIVE_HOST_NAME = "webmcp_controller";
 
 export const CMD_TIMEOUT_MS = 30_000;
-/** Breaking wire-protocol version; keep in sync with PROTOCOL in extension/background.js. */
+/** Breaking wire-protocol version. The add-on (extension/src/background.ts) imports it from here. */
 export const PROTOCOL = 1;
 export { VERSION } from "./version.js";
 

@@ -1,9 +1,10 @@
-// End-to-end: runs the REAL extension/background.js in a vm with a mocked
+// End-to-end: runs the BUILT build/extension/background.js in a vm with a mocked
 // `browser`, whose connectNative() spawns the REAL native helper; then drives
 // MCP over HTTP like a harness would.
 //   node test/e2e.mjs                       (helper = node mcp-server/dist/host.js)
 //   node test/e2e.mjs path/to/webmcp-host   (test a compiled helper)
 //   MISSING=1 node test/e2e.mjs             (helper-not-installed flow)
+import { BrowserWorker } from "./worker-shim.mjs";
 import { getMessage } from "./i18n-mock.mjs";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
@@ -13,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const hostCmd = process.argv.length > 2 ? process.argv.slice(2) : [process.execPath, path.join(root, "mcp-server/dist/host.js")];
-const manifest = JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8"));
+const manifest = JSON.parse(fs.readFileSync(path.join(root, "build/extension/manifest.json"), "utf8"));
 const EXT_ID = manifest.browser_specific_settings.gecko.id;
 const PORT = Number(process.env.PORT || 18900 + Math.floor(Math.random() * 60));
 
@@ -83,8 +84,8 @@ const browser = {
   cookies: { getAll: async (q) => { cookieQueries.push(JSON.parse(JSON.stringify(q))); return COOKIES; } },
   downloads: { onChanged: ev() }, browserAction: { setBadgeText() {}, setBadgeBackgroundColor() {}, setTitle() {} },
 };
-const ctx = vm.createContext({ browser, console: { log() {} }, setTimeout, clearTimeout, setInterval, crypto: globalThis.crypto, Promise, Uint8Array, URL, AbortController, AbortSignal });
-vm.runInContext(fs.readFileSync(path.join(root, "extension/background.js"), "utf8"), ctx);
+const ctx = vm.createContext({ Worker: BrowserWorker, browser, console: { log() {} }, setTimeout, clearTimeout, setInterval, crypto: globalThis.crypto, Promise, Uint8Array, URL, AbortController, AbortSignal });
+vm.runInContext(fs.readFileSync(path.join(root, "build/extension/background.js"), "utf8"), ctx);
 // The settings page opens in a tab, so its messages carry sender.tab like a content script's do.
 const SETTINGS = { id: EXT_ID, url: "moz-extension://test-uuid/options.html", tab: { id: 9 } };
 const askAs = (sender, m) => Promise.all(onMsg.l.map((f) => f(m, sender))).then((r) => r.find((x) => x !== undefined));
@@ -125,12 +126,22 @@ const tool = (name, args = {}) => mcp("tools/call", { name, arguments: args });
 const text = (r) => r.body?.result?.content?.[0]?.text ?? JSON.stringify(r.body);
 
 const init = await mcp("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "e2e", version: "0" } });
+await sleep(300);
+check("the client's kind is kept as a category, not its name", JSON.stringify(store.statsHarnesses) === '["other"]', JSON.stringify(store.statsHarnesses));
+await ask({ type: "picked-harness", kind: "claude-app" });
+await ask({ type: "picked-harness", kind: "<script>" });
+check("the setup-page pick is stored as a category; junk is ignored", store.statsPicked === "claude-desktop", String(store.statsPicked));
 check("server instructions mention the cursor", /cursor/i.test(init.body?.result?.instructions || ""));
 const list = await mcp("tools/list", {});
 const tools = list.body.result.tools;
 const click = tools.find((t) => t.name === "page_click");
 check("page tools have no thought param", !!click && !click.inputSchema?.properties?.thought);
 check("thought tool exists", tools.some((t) => t.name === "thought"));
+check("no AI command yet: not marked as used", store.statsUsed === undefined);
+await tool("tab_query", { query: "*" });
+check("an AI command marks the install as used for the daily report", store.statsUsed === true);
+await tool("tab_query", { query: "*" }); await tool("tab_query", { query: "*" });
+check("minutes count distinct clock minutes, not commands", store.statsMinutes >= 1 && store.statsMinutes <= 2 && typeof store.statsLastMinute === "number", JSON.stringify([store.statsMinutes, store.statsLastMinute]));
 for (const gone of ["tabs_list", "tab_move", "tab_duplicate", "tab_unpin", "cursor_note", "snapshot_ax", "act_click"]) {
   check(`${gone} is gone`, !tools.some((t) => t.name === gone));
 }
@@ -163,7 +174,7 @@ await tool("tab_query");
 sent.length = 0;
 await tool("page_click", { ref: 3 });
 let m = sent.find((x) => x.kind === "act-click");
-check("thought stays with the next page action (not used up by tab_query)", m?.cursor?.note === "Opening the pricing page", JSON.stringify(m));
+check("a thought from an earlier HTTP request cannot leak into another action", m?.cursor?.note === "", JSON.stringify(m));
 check("thought is not passed as a tool arg", m && !("thought" in m));
 
 sent.length = 0;

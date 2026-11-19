@@ -77,7 +77,7 @@ async function start() {
   ff = spawn(bin, args, { env: { ...env, MOZ_HEADLESS_WIDTH: '1100', MOZ_HEADLESS_HEIGHT: '1500' }, stdio: 'ignore' });
   await until(async () => { bidi = new Bidi(`ws://127.0.0.1:${BIDI_PORT}/session`); await bidi.open(); return true; }, 90000, 'Firefox');
   await bidi.send('session.new', { capabilities: {} });
-  await bidi.send('webExtension.install', { extensionData: { type: 'path', path: path.join(root, 'extension') } });
+  await bidi.send('webExtension.install', { extensionData: { type: 'path', path: path.join(root, 'build', 'extension') } });
   const ctx = (await bidi.send('browsingContext.create', { type: 'tab' })).context;
   await bidi.send('browsingContext.navigate', { context: ctx, url: `moz-extension://${UUID}/popup.html`, wait: 'complete' });
   await until(() => bidi.evaluate(ctx, `browser.runtime.sendMessage({ type: 'get-status' })`), 20000, 'add-on');

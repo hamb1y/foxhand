@@ -27,7 +27,7 @@ jobs:
           mkdir -p out
           cp dist/host/* out/
           cp scripts/install.sh scripts/install.ps1 out/
-          # What https://hamb1y.github.io/foxhand/ serves:
+          # The short names the site serves them under:
           cp scripts/install.sh out/sh
           cp scripts/install.ps1 out/ps
       - uses: actions/upload-artifact@v4
@@ -112,6 +112,7 @@ jobs:
           if ($v -ne $want) { throw "version $v, expected $want" }
 
       # ---- the whole thing, live ----
+      - run: npm run build:extension
       - name: Find Firefox
         id: ff
         shell: bash
@@ -125,3 +126,17 @@ jobs:
         if: steps.ff.outputs.path != ''
         shell: bash
         run: node test/live.mjs --installed --firefox "${{ steps.ff.outputs.path }}"
+      - name: Live test the npm launcher on Windows
+        if: matrix.name == 'windows-x64' && steps.ff.outputs.path != ''
+        shell: powershell
+        run: |
+          $version = (node -p "require('./package.json').version").Trim()
+          npm.cmd run pack:helper
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $prefix = Join-Path $env:RUNNER_TEMP "foxhand-npm"
+          npm.cmd install --prefix $prefix "./dist/foxhand-helper-$version.tgz"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$prefix\node_modules\.bin\foxhand-helper.cmd" install
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node test/live.mjs --installed --port 8912
+          exit $LASTEXITCODE

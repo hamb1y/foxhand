@@ -1,41 +1,46 @@
 /* Foxhand — toolbar popup logic (plain classic script). */
+import type { Status, UiMessage } from './messages';
+
 (function () {
 'use strict';
 
-var B = (typeof browser !== 'undefined') ? browser : chrome;
+var B = ((typeof browser !== 'undefined') ? browser : chrome) as typeof browser;
 var F = window.FxMcp;
 
-var $ = function (id) { return document.getElementById(id); };
+/* The reply of a popup message: a status snapshot, or {error} when a settings write was refused. */
+type Snap = Status & { error?: string };
+
+var $ = function <T extends HTMLElement = HTMLElement>(id: string): T { return document.getElementById(id) as T; };
 var dotEl = $('dot'), stateEl = $('state'), detailEl = $('detail'), errEl = $('err'), setupEl = $('setup');
-var copyBtn = $('copy'), pauseBtn = $('pause'), cursorEl = $('cursor');
-var last = null;
+var copyBtn = $('copy'), pauseBtn = $('pause'), cursorEl = $<HTMLInputElement>('cursor');
+var last: Snap | null = null;
 var stepsFor = '';
 var busy = false; // a pause/resume is in flight
 
-function send(msg) { return Promise.resolve(B.runtime.sendMessage(msg)); }
-function setText(el, text) { if (el.textContent !== text) el.textContent = text; }
+function send<T = Snap>(msg: UiMessage): Promise<T> { return Promise.resolve(B.runtime.sendMessage(msg)); }
+function setText(el: HTMLElement, text: string): void { if (el.textContent !== text) el.textContent = text; }
 
 var t = F.t, ago = F.ago;
 F.localize();
 
-function renderSteps(st, need) {
-  var key = JSON.stringify(st.platform) + need.intro;
+function renderSteps(st: Snap, need: { intro: string }): void {
+  var key = JSON.stringify(st.platform) + need.intro + !!st.hostMissing;
   if (stepsFor === key) return;
   stepsFor = key;
-  F.renderSetup(setupEl, st.platform, need.intro);
+  F.renderSetup(setupEl, st.platform, need.intro, !st.hostMissing);
 }
 
 /* While the helper is missing, re-check every few seconds so the popup goes
  * green as soon as the install command finishes. */
 var lastRetry = 0;
-function autoRetry(st) {
+function autoRetry(st: Snap): void {
   if (!st.hostMissing || Date.now() - lastRetry < 3000) return;
   lastRetry = Date.now();
   send({ type: 'probe' }).catch(function () {});
 }
 
 /* While serving, this card is either what the AI is doing or an empty state that says what to do. */
-function renderNow(st) {
+function renderNow(st: Snap): void {
   var n = st.now;
   $('now').hidden = !st.listening;
   if (!st.listening) return;
@@ -54,14 +59,14 @@ function renderNow(st) {
   setText($('nowSite'), n.site || '');
 }
 
-function renderPause(st) {
+function renderPause(st: Snap): void {
   pauseBtn.hidden = !st.listening && !st.paused;
   setText($('pauseTxt'), st.paused ? t('resumeAI') : t('pauseAI'));
   $('pauseIcon').style.display = st.paused ? 'none' : '';
   $('playIcon').style.display = st.paused ? '' : 'none';
 }
 
-function render(st) {
+function render(st: Snap | null | undefined): void {
   if (!st || st.error) return;
   last = st;
   var sum = F.summarize(st);
@@ -70,6 +75,7 @@ function render(st) {
   setText(stateEl, sum.text);
   setText($('hint'), F.hint(st));
   setText(errEl, st.listening ? '' : ((st.host && st.host.error) || (st.hostMissing ? '' : st.lastError) || ''));
+  F.reportProblem($<HTMLAnchorElement>('report'), st, errEl.textContent || '');
   var need = F.setupNeed(st);
   setupEl.hidden = !need;
   if (need) renderSteps(st, need);
@@ -85,13 +91,13 @@ function render(st) {
   if (!busy) renderPause(st);
   renderNow(st);
   if (document.activeElement !== cursorEl) cursorEl.checked = st.showCursor !== false;
-  var bits = [];
+  var bits: string[] = [];
   if (st.host && st.host.version) bits.push(t('helperV', st.host.version));
   if (st.listening) bits.push(t('upFor', ago(st.connectedAt)), t('nCommands', st.commands || 0));
   setText(detailEl, bits.join(' · '));
 }
 
-function poll() {
+function poll(): void {
   send({ type: 'get-status' })
     .then(render)
     .catch(function (e) {
@@ -121,7 +127,7 @@ $('retry').addEventListener('click', function () {
   send({ type: 'reconnect' }).then(render).catch(function () {});
 });
 
-function openSettings(ev) {
+function openSettings(ev: Event): void {
   ev.preventDefault();
   B.runtime.openOptionsPage();
   window.close();

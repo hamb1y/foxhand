@@ -167,6 +167,7 @@
   </div>
   <p id="stateHint"></p>
   <div id="stateErr"></div>
+  <a id="report" href="#" target="_blank" rel="noopener" hidden data-i18n="reportProblem">Report a problem</a>
   <dl class="facts">
     <div><dt data-i18n="factHelper">Helper</dt><dd id="factHelper">—</dd></div>
     <div><dt data-i18n="factUp">Up</dt><dd id="factUp">—</dd></div>
@@ -185,7 +186,7 @@
   <div class="chips" role="radiogroup" data-i18n-attr="aria-label:yourAI">
     <label><input type="radio" name="kind" value="claude"><span>Claude Code</span></label>
     <label><input type="radio" name="kind" value="codex"><span>Codex</span></label>
-    <label><input type="radio" name="kind" value="gemini"><span>Gemini CLI</span></label>
+    <label><input type="radio" name="kind" value="antigravity"><span>Antigravity</span></label>
     <label><input type="radio" name="kind" value="opencode"><span>opencode</span></label>
     <label><input type="radio" name="kind" value="claude-app"><span data-i18n="chipClaudeApp">Claude app</span></label>
     <label><input type="radio" name="kind" value="json"><span data-i18n="chipOther">Other</span></label>
@@ -215,8 +216,13 @@
     </div>
     <label class="toggle"><span class="tx"><b data-i18n="showCursorLong">Show the AI cursor</b><small data-i18n="showCursorNote"></small></span> <input type="checkbox" id="showCursor" class="switch"></label>
     <label class="toggle"><span class="tx"><b data-i18n="askBeforeClosing">Require confirm for closing and deleting</b><small data-i18n="guardNote"></small></span> <input type="checkbox" id="confirmDestructive" class="switch"></label>
-    <div class="static last">
+    <div class="static">
       <span class="tx"><b data-i18n="passwordsRow">Saved passwords</b><small data-i18n="passwordsNote"></small></span>
+    </div>
+    <label class="toggle" id="statsRow"><span class="tx"><b data-i18n="statsToggle">Send anonymous usage counts</b><small data-i18n="statsNote"></small></span> <input type="checkbox" id="usageCounts" class="switch"></label>
+    <div class="static last">
+      <span class="tx"><b data-i18n="feedbackRow">Send feedback</b><small data-i18n="feedbackNote"></small></span>
+      <a href="https://foxhand.pages.dev/feedback" target="_blank" rel="noopener" data-i18n="feedbackOpen">Open</a>
     </div>
   </div>
 </section>
@@ -265,7 +271,9 @@
     <summary data-i18n="reinstall">Reinstall, update or uninstall</summary>
     <div id="setupLaterBody"></div>
     <div class="sub"><span data-i18n="toUninstall">To uninstall, run</span> <code id="uninstallCmd"></code>
-      · <a href="https://github.com/hamb1y/foxhand/releases/latest" target="_blank" rel="noopener" data-i18n="allDownloads">All downloads</a>
+      <div id="uninstallBrew">Homebrew: <code>foxhand-helper uninstall &amp;&amp; brew uninstall foxhand-helper</code></div>
+      <div>npm: <code id="uninstallNpm"></code></div>
+      · <a href="https://foxhand.pages.dev/download" target="_blank" rel="noopener" data-i18n="allDownloads">All downloads</a>
       · <a href="onboarding.html" data-i18n="setupGuideLink">Setup guide</a></div>
   </details>
   </div>
@@ -273,7 +281,7 @@
 </div>
 </div>
 
-<footer>MPL 2.0 · <a href="https://github.com/hamb1y/foxhand" target="_blank" rel="noopener" data-i18n="source">Source</a>
+<footer>MPL 2.0 · <a href="https://foxhand.pages.dev/go/github?from=addon" target="_blank" rel="noopener" data-i18n="source">Source</a>
   · Cursors: <a href="https://github.com/ful1e5/Bibata_Cursor" target="_blank" rel="noopener">Bibata</a> by ful1e5, GPL-3.0
   · Font: Google Sans Flex, OFL</footer>
 </main>

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Submit the add-on to AMO (addons.mozilla.org) with web-ext sign.
-# Uploads exactly what foxhand.zip ships (scripts/pack-extension.sh).
+# Uploads exactly what foxhand.zip ships (scripts/pack-extension.sh: the BUILT add-on from
+# build/extension) plus the source it was built from (git archive of HEAD), because the
+# shipped scripts are bundled from TypeScript and AMO requires the source for review.
 #
 # Required env vars (get them from https://addons.mozilla.org/developers/addon/api/key/):
 #   AMO_JWT_ISSUER  - API key (JWT issuer)
@@ -37,6 +39,13 @@ fi
 VERSION="$(node -p "require('./extension/manifest.json').version")"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+
+# The reviewed source must be what was built: refuse a tree with uncommitted changes.
+if ! git diff --quiet HEAD -- . ; then
+  echo "[foxhand] ERROR: uncommitted changes; the source archive (git archive HEAD) would not match the build." >&2
+  exit 1
+fi
+git archive --format=zip -o "$WORK/source.zip" HEAD
 
 bash scripts/pack-extension.sh >/dev/null
 mkdir "$WORK/src"
@@ -79,6 +88,7 @@ echo "[foxhand] submitting $VERSION (channel=$CHANNEL)..."
   -s "$WORK/src" \
   -a "$WORK/artifacts" \
   --channel="$CHANNEL" \
+  --upload-source-code "$WORK/source.zip" \
   "${META[@]}" \
   --timeout 300000
 

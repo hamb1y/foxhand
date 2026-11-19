@@ -68,7 +68,7 @@ function req(port, { method = "POST", path: p = "/mcp", headers = {}, body, addr
         const data = t.match(/^data: (.*)$/m);
         let json;
         try { json = JSON.parse(data ? data[1] : t); } catch { json = undefined; }
-        resolve({ status: res.statusCode, text: t, json });
+        resolve({ status: res.statusCode, text: t, json, headers: res.headers });
       });
     });
     r.on("error", reject);
@@ -97,6 +97,14 @@ check("rapid reconfiguration settles on the last port", st?.listening && st.port
 const stale = await Promise.all(ports.slice(0, 3).map(portOpen));
 check("earlier ports are closed", stale.every((x) => !x), stale.join(","));
 const PORT = ports[3];
+for (const [name, kind] of [["claude-code", "claude-code"], ["claude-ai (via mcp-remote 0.1.37)", "claude-desktop"], ["codex-mcp-client", "codex"], ["cursor-vscode", "cursor"], ["antigravity-client (via mcp-remote 0.8.6)", "antigravity"], ["gemini-cli-mcp-client", "other"], ["something (via mcp-remote 1.0.0)", "mcp-remote"], ["Totally Unknown 9.9", "other"]]) {
+  const before = lastStatus()?.clientSeq ?? 0;
+  await req(PORT, { body: { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name, version: "7.7.7" } } } });
+  await sleep(100);
+  const s = lastStatus();
+  check("MCP client " + JSON.stringify(name) + " is reported as " + kind, s.client === kind && s.clientSeq === before + 1, JSON.stringify({ client: s.client, seq: s.clientSeq }));
+  check("the status message carries no raw client name or version", !JSON.stringify(s).includes("7.7.7") && !JSON.stringify(s).includes("Unknown"), JSON.stringify(s));
+}
 
 check("status says when the helper started and where it logs", st.startedAt > Date.now() - 60000 && st.logFile === LOG, JSON.stringify({ startedAt: st.startedAt, logFile: st.logFile }));
 check("helper writes a log", /host .* started \(pid/.test(readLog()), readLog().slice(0, 200));
@@ -111,6 +119,14 @@ check("GET /mcp still needs the token", r.status === 401, String(r.status));
 
 r = await call(PORT, "tab_query");
 check("tab_query works", r.status === 200 && /example\.com/.test(resultText(r)), resultText(r));
+
+// HTTP auth schemes are case-insensitive; allowed web clients need explicit CORS.
+r = await req(PORT, { headers: { authorization: "bearer " + TOKEN }, body: { jsonrpc: "2.0", id: 1, method: "ping" } });
+check("lowercase bearer authentication is accepted", r.status === 200, String(r.status));
+r = await req(PORT, { method: "OPTIONS", headers: { origin: "http://localhost:3000", authorization: "", "access-control-request-method": "POST", "access-control-request-headers": "authorization,content-type" } });
+check("allowed-origin preflight is answered without a token", r.status === 204 && r.headers['access-control-allow-origin'] === 'http://localhost:3000', JSON.stringify(r.headers));
+r = await req(PORT, { method: "OPTIONS", headers: { origin: "https://evil.example", authorization: "" } });
+check("foreign-origin preflight remains forbidden", r.status === 403 && !r.headers['access-control-allow-origin'], String(r.status));
 
 // DNS rebinding / cross-site guards.
 r = await req(PORT, { headers: { host: "evil.example:" + PORT }, body: { jsonrpc: "2.0", id: 1, method: "tools/list" } });

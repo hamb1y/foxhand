@@ -3,7 +3,7 @@
     "message": "Foxhand"
   },
   "extDescription": {
-    "message": "Deja que tu propio agente de IA (Claude Code, Codex, Gemini CLI o cualquier cliente MCP) use este Firefox, con tus pestañas y tus sesiones iniciadas. Funciona en tu computadora. Necesita una pequeña app auxiliar."
+    "message": "Deja que tu propio agente de IA (Claude Code, Codex, Antigravity o cualquier cliente MCP) use este Firefox, con tus pestañas y tus sesiones iniciadas. Funciona en tu computadora. Necesita una pequeña app auxiliar."
   },
   "cmdPause": {
     "message": "Pausar o reanudar la IA"
@@ -158,6 +158,12 @@
   "needInstall": {
     "message": "Instala la app auxiliar"
   },
+  "needReinstall": {
+    "message": "Vuelve a instalar la app auxiliar"
+  },
+  "linuxSandbox": {
+    "message": "Firefox de Flatpak no puede iniciar la app auxiliar: usa Firefox desde mozilla.org o el de tu distribución. Firefox de Snap pregunta primero: permítelo y luego reinicia Firefox."
+  },
   "needUpdate": {
     "message": "Actualiza la app auxiliar"
   },
@@ -262,6 +268,12 @@
   "hintOtherWsl": {
     "message": "Agrega esto al archivo de configuración MCP de tu cliente dentro de WSL, junto a los servidores que ya tenga."
   },
+  "hintAntigravity": {
+    "message": "Agrega esto a ~/.gemini/config/mcp_config.json, junto a los servidores que ya tengas."
+  },
+  "hintAntigravityWsl": {
+    "message": "Agrega esto a ~/.gemini/config/mcp_config.json dentro de WSL, junto a los servidores que ya tengas."
+  },
   "wslAddrChanges": {
     "message": "La dirección de Windows que contiene cambia cuando Windows se reinicia: vuelve a copiarlo si tu IA deja de conectarse."
   },
@@ -358,7 +370,7 @@
     "message": "Escuchar en"
   },
   "bindNote": {
-    "message": "127.0.0.1 = solo esta computadora. 0.0.0.0 = toda tu red, protegida solo por el token."
+    "message": "127.0.0.1 = solo esta computadora. 0.0.0.0 = toda tu red. HTTP no está cifrado: otros en la red pueden leer el token y los datos del navegador."
   },
   "save": {
     "message": "Guardar"
@@ -1076,7 +1088,7 @@
     "message": "Es posible que otro programa esté usando el puerto. Cámbialo en Configuración → Token y puerto."
   },
   "hintNotRunning": {
-    "message": "Firefox no puede contactar la app auxiliar. Pulsa Reintentar o abre Configuración para ver los detalles."
+    "message": "La app auxiliar no se inició. Pulsa Reintentar. ¿Sigue fallando? Vuelve a ejecutar el comando de instalación."
   },
   "nowEmpty": {
     "message": "Nada todavía. Pídele a tu IA que haga algo en Firefox."
@@ -1101,6 +1113,27 @@
   },
   "secSafety": {
     "message": "Seguridad y comentarios"
+  },
+  "reportProblem": {
+    "message": "Informar de un problema"
+  },
+  "statsToggle": {
+    "message": "Enviar recuentos de uso anónimos"
+  },
+  "statsNote": {
+    "message": "Una vez al día: versión del complemento, sistema operativo y progreso de la configuración. Sin datos de navegación."
+  },
+  "statsRefused": {
+    "message": "Firefox no lo activó."
+  },
+  "feedbackRow": {
+    "message": "Enviar comentarios"
+  },
+  "feedbackNote": {
+    "message": "No necesitas una cuenta de GitHub."
+  },
+  "feedbackOpen": {
+    "message": "Abrir"
   },
   "advanced": {
     "message": "Avanzado"

@@ -30,7 +30,13 @@ export function fmt(res: unknown, maxLen = DEFAULT_MAX_TEXT): string {
     return truncate((res as { text: string }).text, maxLen);
   }
   try {
-    return truncate(JSON.stringify(res ?? null, null, 2), maxLen);
+    const pretty = JSON.stringify(res ?? null, null, 2);
+    if (pretty.length <= maxLen) return pretty;
+    const json = JSON.stringify(res ?? null);
+    if (json.length <= maxLen) return json;
+    // A preview is a JSON string inside a valid envelope, never broken JSON.
+    // Paginated inventory tools normally stay below this budget before reaching us.
+    return JSON.stringify({ truncated: true, totalChars: json.length, preview: json.slice(0, Math.max(0, maxLen - 250)), note: "Result too large. Use limit/offset for lists, or narrow the query/region." });
   } catch {
     return truncate(String(res), maxLen);
   }
@@ -171,3 +177,9 @@ export function hasTarget(args: Record<string, unknown>): boolean {
     (args["x"] !== undefined && args["y"] !== undefined)
   );
 }
+
+/** Optional additive pagination for inventory tools. */
+export const paginationFields = {
+  offset: z.number().int().min(0).optional().describe("Skip this many matches; follow nextOffset from a paginated result"),
+  limit: z.number().int().positive().max(1000).optional().describe("Maximum matches to return; large lists are automatically paginated"),
+};

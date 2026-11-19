@@ -20,15 +20,26 @@ jobs:
       - run: node scripts/i18n.mjs --check
       - run: npm run build
       - run: npm run typecheck
+      - name: Smoke-test the npm tarball
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          npm run pack:helper
+          npm install --prefix "$RUNNER_TEMP/foxhand-npm" "./dist/foxhand-helper-$version.tgz"
+          test "$("$RUNNER_TEMP/foxhand-npm/node_modules/.bin/foxhand-helper" --version 2>&1)" = "$version"
       - run: node test/cloudflare.mjs
       - run: node scripts/build-cloudflare.mjs
-      - run: npx --no-install web-ext lint -s extension
+      - run: npx --no-install web-ext lint -s build/extension
+      - run: node test/cloudflare.mjs
+      - run: node scripts/build-cloudflare.mjs
       - run: node test/e2e.mjs
       - run: MISSING=1 node test/e2e.mjs
       - run: node test/host.mjs
+      - run: node test/audit.mjs
+      - run: node test/audit-helper.mjs
       - run: npx playwright install --with-deps firefox
       - run: node test/content.mjs
       - run: node test/options.mjs
       - run: node test/announcements.mjs
+      - run: node test/stats.mjs
       # Real Firefox (preinstalled on the runner) + the add-on + the helper from this checkout.
       - run: node test/live.mjs

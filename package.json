@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "webmcp-controller",
-  "version": "0.5.9",
+  "version": "0.6.1",
   "description": "Firefox MCP: WebExtension + native messaging host that serves MCP over HTTP to any harness",
   "type": "module",
   "workspaces": [
@@ -9,20 +9,25 @@
     "mcp-server"
   ],
   "scripts": {
-    "build": "npm run build -w @webmcp-controller/shared && npm run build -w @webmcp-controller/mcp-server",
+    "build": "npm run build -w @webmcp-controller/shared && npm run build -w @webmcp-controller/mcp-server && npm run build:extension",
+    "build:extension": "node scripts/build-extension.mjs",
     "build:shared": "npm run build -w @webmcp-controller/shared",
     "build:server": "npm run build -w @webmcp-controller/mcp-server",
-    "typecheck": "tsc --noEmit -p mcp-server/tsconfig.json",
+    "typecheck": "tsc --noEmit -p mcp-server/tsconfig.json && tsc --noEmit -p extension/tsconfig.json",
+    "build:cloudflare": "node scripts/build-cloudflare.mjs",
+    "test:cloudflare": "node test/cloudflare.mjs",
     "build:host": "bash scripts/build-host.sh",
+    "pack:helper": "node scripts/pack-helper.mjs",
     "install-host": "npm run build && node mcp-server/dist/host.js install",
     "release": "bash scripts/release.sh",
-    "test": "node test/e2e.mjs && MISSING=1 node test/e2e.mjs && node test/host.mjs && node test/content.mjs && node test/options.mjs && node test/announcements.mjs",
-    "build:cloudflare": "node scripts/build-cloudflare.mjs",
-    "test:cloudflare": "node test/cloudflare.mjs"
+    "test": "node test/e2e.mjs && MISSING=1 node test/e2e.mjs && node test/host.mjs && node test/audit.mjs && node test/audit-helper.mjs && node test/content.mjs && node test/options.mjs && node test/announcements.mjs && node test/stats.mjs"
   },
   "license": "MPL-2.0",
   "devDependencies": {
+    "@types/firefox-webext-browser": "^143.0.1",
+    "esbuild": "^0.28.2",
     "playwright": "^1.63.0",
+    "typescript": "^5.9.3",
     "web-ext": "8.10.0"
   },
   "overrides": {

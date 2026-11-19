@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.6.1
+
+- Install the helper with Homebrew on macOS and Linux, or with npm on macOS, Linux and Windows.
+- The toolbar popup, first-run setup, Settings and Downloads page show the new install options. The script installers and direct downloads are still available.
+- New releases publish the npm package automatically. The Homebrew tap tracks stable releases using their published checksums.
+
+## 0.6.0
+
+- The add-on is now written in TypeScript and built with esbuild. It shares its protocol types with the helper.
+- Pause now also stops tab and download events from reaching the AI.
+- Password fields are masked in snapshots, page text and typing results.
+- Typing or uploading into a cross-origin frame by name is refused; use the frame element's ref from the snapshot.
+- Regex searches run in a worker and stop after 250 ms.
+- Long lists of tabs, bookmarks, history and sessions come back in pages.
+- Fixes: removing a missing storage key, HTML pages with .pdf in the title, cookies under first-party isolation, CORS preflight, reload timers.
+- New homepage and a shorter privacy policy.
+- AMO submissions now include the source code.
+- Usage counts, once a day, only while Firefox's "technical and interaction data" permission is on: version, OS, setup progress and active minutes under a random install ID. One switch in Settings.
+- Setup: a helper that won't start now shows the install command again, Linux gets a line about Flatpak and Snap Firefox, and the installer ends with "Installed" or "Not installed: why".
+- "Report a problem" links open a pre-filled GitHub issue. A no-account feedback form and an uninstall page on foxhand.pages.dev.
+
 ## 0.5.9
 
 - Make connection status and the next action clearer in the toolbar popup, with Pause AI first and a link to safety settings.

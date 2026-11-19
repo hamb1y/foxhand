@@ -41,11 +41,12 @@ export function markdown(source) {
   }
   return out.join('\n');
 }
-export function documentPage(title, body, homepageStyle) {
+export function documentPage(title, body, homepageStyle, { nonce = false, script = '', robots = false } = {}) {
+  const n = nonce ? ' nonce="__NONCE__"' : '';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escape(title)} · Foxhand</title><meta name="theme-color" content="#0a0a0a"><link rel="icon" href="/icon.svg" type="image/svg+xml">
-<style>${homepageStyle.replaceAll('url(GoogleSansFlex-latin.woff2)', 'url(/GoogleSansFlex-latin.woff2)')}
+<title>${escape(title)} · Foxhand</title>${robots ? '<meta name="robots" content="noindex">' : ''}<meta name="theme-color" content="#0a0a0a"><link rel="icon" href="/icon.svg" type="image/svg+xml">
+<style${n}>${homepageStyle.replaceAll('url(GoogleSansFlex-latin.woff2)', 'url(/GoogleSansFlex-latin.woff2)')}
 nav { flex-wrap: wrap; height: auto; min-height: 72px; padding-block: 16px; gap: 16px; }
 .document { max-width: 850px; padding-top: 32px; padding-bottom: 48px; overflow-wrap: anywhere; }
 .document h1 { font-size: clamp(36px,6vw,56px); line-height: 1.1; letter-spacing: -.035em; margin: 20px 0 28px; }
@@ -55,21 +56,62 @@ nav { flex-wrap: wrap; height: auto; min-height: 72px; padding-block: 16px; gap:
 .document li { margin-bottom: 8px; }
 .document a { color: var(--orange); }
 .document .btn.orange { color: var(--ink); }
+.document form { display: grid; gap: 14px; max-width: 560px; margin: 20px 0; }
+.document textarea, .document input[type=password] { width: 100%; padding: 14px; font: 16px/1.5 var(--sans); background: var(--surface); color: var(--fg); border: 1px solid var(--line-strong); border-radius: 12px; }
+.document textarea { min-height: 160px; resize: vertical; }
+.document .hp { position: absolute; left: -9999px; }
+.document .note { color: var(--muted); font-size: 14px; }
+.document button.btn { width: fit-content; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 20px 0 8px; }
+.tile { padding: 18px 20px; border: 1px solid var(--line); border-radius: 14px; }
+.tile .k { color: var(--muted); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
+.tile .n { font-size: clamp(32px, 6vw, 40px); font-weight: 600; letter-spacing: -.03em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.tile .d { color: var(--muted); font-size: 13px; }
+.bar { display: grid; grid-template-columns: minmax(120px, 280px) 1fr 64px; gap: 12px; align-items: center; margin: 6px 0; font-size: 15px; }
+.bar i { display: block; height: 10px; background: var(--orange); border-radius: 3px; }
+.bar b { text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
+.bar span { color: var(--soft); overflow-wrap: anywhere; }
+.empty { padding: 20px; border: 1px dashed var(--line-strong); border-radius: 14px; color: var(--muted); }
+.feedback-item { padding: 14px 0; border-top: 1px solid var(--line); }
+.feedback-item p { margin: 6px 0 0; white-space: pre-wrap; color: var(--fg); }
+svg.chart { width: 100%; height: auto; display: block; }
+.axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; margin-top: 6px; }
+svg.chart rect { fill: #FF7139; }
+svg.chart line { stroke: #2a2a2a; }
 .table-scroll { overflow-x: auto; } table { width: 100%; border-collapse: collapse; font-size: 15px; }
 th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
 pre { overflow-x: auto; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 </style></head><body><div class="wrap"><nav aria-label="Main"><a class="brand" href="/"><img src="/icon.svg" width="28" height="28" alt="">Foxhand</a><a href="/download">Downloads</a><a href="/changelog">Changelog</a><a href="/privacy">Privacy</a></nav></div>
-<main class="wrap document">${body}</main><footer><div class="wrap"><a href="/">Home</a><a href="https://github.com/hamb1y/foxhand">Source</a><a href="/download">Downloads</a><a href="/privacy">Privacy</a><a href="/changelog">Changelog</a></div></footer></body></html>\n`;
+<main class="wrap document">${body}</main>${script ? `<script${n}>${script}</script>` : ''}<footer><div class="wrap"><a href="/">Home</a><a href="/go/github?from=site">Source</a><a href="/download">Downloads</a><a href="/privacy">Privacy</a><a href="/changelog">Changelog</a></div></footer></body></html>\n`;
 }
 export function downloadsPage(version) {
   const base = `/download/${version}`;
   const rows = [['macOS', 'Apple Silicon (arm64)', 'darwin-arm64'], ['macOS', 'Intel (x64)', 'darwin-x64'], ['Linux', 'arm64', 'linux-arm64'], ['Linux', 'x64', 'linux-x64'], ['Windows', 'arm64', 'windows-arm64.exe'], ['Windows', 'x64', 'windows-x64.exe']];
-  return `<h1>Downloads</h1><p>Foxhand ${escape(version)}. Install the Firefox add-on and its companion helper on the same computer.</p>
-<h2>Firefox add-on</h2><p><a class="btn orange" href="https://addons.mozilla.org/firefox/addon/foxhand/">Get Foxhand for Firefox</a></p>
-<h2>Install the helper</h2><p>The installer selects your platform, verifies the release checksum and registers the helper with Firefox. Review the script before running it.</p>
-<h3>macOS, Linux or WSL</h3><pre><code>curl -fsSL https://foxhand.pages.dev/download/sh | sh</code></pre><p><a href="/download/sh">View shell installer</a></p>
-<h3>Windows PowerShell</h3><pre><code>irm https://foxhand.pages.dev/download/ps | iex</code></pre><p><a href="/download/ps">View PowerShell installer</a></p>
+  return `<h1>Downloads</h1><p>Foxhand ${escape(version)}. Install the Firefox add-on and its companion helper on the same system.</p>
+<h2>Firefox add-on</h2><p><a class="btn orange" href="/go/amo?from=site">Get Foxhand for Firefox</a></p>
+<h2>Install the helper</h2><p>Choose one method. Restart Firefox if the popup doesn't pick up the helper.</p>
+<h3>Homebrew (macOS or Linux)</h3><pre><code>brew install hamb1y/tap/foxhand-helper &amp;&amp; foxhand-helper install</code></pre><p>Run <code>foxhand-helper install</code> again after upgrading the formula.</p>
+<h3>npm (Node.js 22+)</h3><p>macOS or Linux:</p><pre><code>npm install -g @foxhand/helper &amp;&amp; foxhand-helper install</code></pre>
+<p>Windows PowerShell:</p><pre><code>npm.cmd install -g @foxhand/helper; if ($LASTEXITCODE -eq 0) { foxhand-helper.cmd install }</code></pre>
+<h3>Installer scripts</h3><p>The scripts select your platform, verify the release checksum and register the helper with Firefox. Review them before running them.</p>
+<p>macOS, Linux or WSL:</p><pre><code>curl -fsSL https://foxhand.pages.dev/download/sh | sh</code></pre><p><a href="/download/sh">View shell installer</a></p>
+<p>Windows PowerShell:</p><pre><code>irm https://foxhand.pages.dev/download/ps | iex</code></pre><p><a href="/download/ps">View PowerShell installer</a></p>
 <h2>Direct release files</h2><p>These links redirect to the original GitHub Release assets; binaries are hosted by GitHub. Choose your computer’s architecture. Downloading a helper binary alone does not register it with Firefox; use the installer above for setup.</p>
 <div class="table-scroll"><table><thead><tr><th>Platform</th><th>Architecture</th><th>Helper binary</th></tr></thead><tbody>${rows.map(([os, arch, file]) => `<tr><td>${os}</td><td>${arch}</td><td><a href="${base}/foxhand-host-${file}">Download</a></td></tr>`).join('')}</tbody></table></div>
 <p><a href="${base}/SHA256SUMS">SHA256SUMS</a> · <a href="${base}/foxhand.zip">Release add-on archive</a> · <a href="/download/latest.json">Release metadata</a></p><p><a href="/changelog">Read the changelog</a> · <a href="/privacy">Privacy policy</a></p>`;
 }
+
+const NOTE = 'Counts only; nothing that identifies you is stored.';
+function feedbackForm(page) {
+  return '<form method="post" action="/endpoint/feedback"><input type="hidden" name="page" value="' + page + '"><input type="hidden" name="v"><input type="hidden" name="os"><input type="hidden" name="s"><input type="hidden" name="r">' +
+    '<div class="hp" aria-hidden="true"><label>Leave empty <input name="website" tabindex="-1" autocomplete="off"></label></div>' +
+    '<label for="text">Your message</label><textarea id="text" name="text" maxlength="2000" required></textarea>' +
+    '<p class="note">Plain text, 2000 characters at most. Sent with the add-on version and OS. ' + NOTE + '</p>' +
+    '<button class="btn orange" type="submit">Send</button></form><p id="thanks" hidden><strong>Thank you. Sent.</strong></p>';
+}
+export const loginBody = () => '<h1>Stats</h1><form method="post" action="/stats/login"><label for="t">Token</label><input id="t" name="token" type="password" autocomplete="current-password" required autofocus><button class="btn orange" type="submit">Open</button><p class="note" id="w" hidden>Wrong token.</p></form>';
+export const loginScript = "if (location.search.includes('wrong')) document.getElementById('w').hidden = false;";
+export const statsBody = () => '<h1>Stats</h1><p class="note" id="meta">Loading.</p><div id="out"></div>';
+export const feedbackBody = () => '<h1>Feedback</h1><p>Tell us what is wrong or missing. No account needed.</p>' + feedbackForm('feedback');
+export const uninstalledBody = () => '<h1>What went wrong?</h1><p>One question. Short answers are fine.</p>' + feedbackForm('uninstalled') +
+  '<p>Or <a id="issue" href="/go/issue?from=site">open a GitHub issue</a>.</p>';

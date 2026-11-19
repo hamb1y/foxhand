@@ -1,0 +1,19 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["firefox-webext-browser"],
+    "strict": true,
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "isolatedModules": true,
+    "noFallthroughCasesInSwitch": false
+  },
+  "include": ["src"],
+  "exclude": ["src/_check", "src/**/__chk_*"]
+}

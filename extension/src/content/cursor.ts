@@ -8,6 +8,33 @@
  *
  * Cursor shapes: Bibata Modern Ice by ful1e5, GPL-3.0 (cursors/bibata/LICENSE).
  */
+/** What this script assigns to window.__fxmcpCursor; ax.ts drives it. */
+export interface CursorApi {
+  moveTo(el: Element | CursorPoint | null | undefined, note?: string, shapeName?: string): Promise<void>;
+  say(note: string | undefined, shapeName?: string): void;
+  click(): void;
+  conceal(): boolean;
+  reveal(): void;
+  hide(): void;
+}
+
+interface CursorPoint { x: number; y: number; }
+
+interface ShapePath {
+  d: string;
+  fill?: string;
+  stroke?: string;
+  'stroke-width'?: string;
+  'fill-opacity'?: string;
+  spin?: boolean;
+}
+
+interface ShapeDef {
+  hot: [number, number];
+  spin?: boolean;
+  paths: ShapePath[];
+}
+
 (function () {
 'use strict';
 
@@ -22,7 +49,7 @@ var reduceMotion = false;
 try { reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
 
 /* Bibata Modern Ice paths (viewBox 0 0 256 256) and hotspots in drawn px. */
-var SHAPES = {
+var SHAPES: Record<string, ShapeDef> = {
   arrow: {
     hot: [6, 3],
     paths: [{ d: 'M201.163 133.54L201.149 133.528L201.134 133.515L91.6855 36.4935C86.5144 31.7659 81.4269 27.9549 76.5421 25.525C71.7671 23.1497 66.0861 21.5569 60.4133 23.1213C54.3118 24.8039 50.4875 29.4674 48.3639 34.759C46.3122 39.8715 45.4999 46.2787 45.4999 53.5383L45.4999 200.431V200.493L45.5008 200.555C45.6218 208.862 50.4279 217.843 55.9963 223.894C58.8934 227.043 62.5163 229.986 66.6704 231.742C70.9172 233.537 76.217 234.254 81.4691 231.884C85.7536 229.951 89.6754 226.055 92.8565 222.651C94.6841 220.695 96.8336 218.252 99.0355 215.749C100.71 213.847 102.414 211.91 104.03 210.126C112.189 201.122 121.346 192.286 132.161 187.407C143.013 182.511 155.809 181.375 167.963 181.146C170.959 181.089 173.85 181.087 176.65 181.085H176.663H176.686C179.447 181.083 182.164 181.081 184.662 181.019C189.231 180.906 194.643 180.609 198.777 178.88C208.711 174.723 210.972 163.838 210.753 156.445C210.521 148.596 207.57 139.272 201.163 133.54Z', fill: '#FFFFFF', stroke: '#000000', 'stroke-width': '17' }]
@@ -52,22 +79,22 @@ var SHAPES = {
   }
 };
 
-var host = null, wrap = null, glyphs = {}, shape = 'arrow', bubble = null, textEl = null;
-var pos = null;            // current tip position {x, y} in viewport px
-var target = null;         // element we're pointing at (followed on scroll)
-var gliding = null;        // running Animation
+var host: HTMLElement | null = null, wrap: HTMLDivElement = null!, glyphs: Record<string, SVGSVGElement> = {}, shape = 'arrow', bubble: HTMLDivElement = null!, textEl: HTMLSpanElement = null!;
+var pos: CursorPoint | null = null;            // current tip position {x, y} in viewport px
+var target: Element | null = null;         // element we're pointing at (followed on scroll)
+var gliding: Animation | null = null;        // running Animation
 var concealed = 0;         // screenshots in progress that asked us to hide
 var dimTimer = 0, hideTimer = 0, typeTimer = 0;
 
-function css(el, styles) { for (var k in styles) el.style.setProperty(k, styles[k]); return el; }
+function css<T extends HTMLElement | SVGElement>(el: T, styles: Record<string, string>): T { for (var k in styles) el.style.setProperty(k, styles[k]); return el; }
 
-function svgEl(tag, attrs) {
+function svgEl<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string>): SVGElementTagNameMap[K] {
   var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
   for (var k in attrs) el.setAttribute(k, attrs[k]);
   return el;
 }
 
-function buildGlyph(name) {
+function buildGlyph(name: string): SVGSVGElement {
   var s = SHAPES[name];
   var svg = svgEl('svg', { width: String(SIZE), height: String(SIZE), viewBox: '0 0 256 256' });
   css(svg, {
@@ -76,9 +103,9 @@ function buildGlyph(name) {
   });
   var spinner = s.spin ? svgEl('g', {}) : null;
   s.paths.forEach(function (p) {
-    var attrs = {};
-    for (var k in p) if (k !== 'spin') attrs[k] = p[k];
-    (p.spin ? spinner : svg).appendChild(svgEl('path', attrs));
+    var attrs: Record<string, string> = {};
+    for (var k in p) if (k !== 'spin') attrs[k] = p[k as keyof ShapePath] as string;
+    (p.spin ? spinner! : svg).appendChild(svgEl('path', attrs));
   });
   if (spinner) {
     svg.appendChild(spinner);
@@ -92,7 +119,7 @@ function buildGlyph(name) {
   return svg;
 }
 
-function build() {
+function build(): void {
   if (host && host.isConnected) return;
   host = document.createElement('fxmcp-cursor');
   css(host, {
@@ -134,7 +161,7 @@ function build() {
   (document.documentElement || document.body).appendChild(host);
 }
 
-function setShape(name) {
+function setShape(name: string): void {
   if (!SHAPES[name]) name = 'arrow';
   if (name === shape) return;
   if (glyphs[shape]) glyphs[shape].style.display = 'none';
@@ -142,7 +169,7 @@ function setShape(name) {
   if (glyphs[shape]) glyphs[shape].style.display = 'block';
 }
 
-function place(p) {
+function place(p: CursorPoint): void {
   pos = p;
   wrap.style.transform = 'translate3d(' + p.x + 'px,' + p.y + 'px,0)';
   // Keep the bubble on screen: flip left/up near the right/bottom edges.
@@ -152,12 +179,12 @@ function place(p) {
   bubble.style.top = (p.y + 30 + bh > vh - 8) ? (-bh - 10) + 'px' : '30px';
 }
 
-function pointFor(el) {
+function pointFor(el: Element): CursorPoint {
   var r = el.getBoundingClientRect();
   // An element inside a same-origin frame measures from the frame's corner: add the frames' offsets.
   var ox = 0, oy = 0;
   try {
-    for (var w = el.ownerDocument.defaultView; w && w !== window && w.frameElement; w = w.parent) {
+    for (var w: Window | null = el.ownerDocument.defaultView; w && w !== window && w.frameElement; w = w.parent) {
       var fe = w.frameElement, fr = fe.getBoundingClientRect();
       ox += fr.left + fe.clientLeft;
       oy += fr.top + fe.clientTop;
@@ -171,7 +198,7 @@ function pointFor(el) {
   };
 }
 
-function wake() {
+function wake(): void {
   build();
   clearTimeout(dimTimer);
   clearTimeout(hideTimer);
@@ -182,44 +209,44 @@ function wake() {
 }
 
 /* Show text in the bubble with a quick typewriter effect. shape: arrow|hand|text|wait. */
-function say(note, shapeName) {
+function say(note: string | undefined, shapeName?: string): void {
   wake();
   if (shapeName) setShape(shapeName);
   clearInterval(typeTimer);
   note = String(note || '').replace(/\s+/g, ' ').trim().slice(0, 160);
   if (!note) { bubble.style.opacity = '0'; return; }
   bubble.style.opacity = '1';
-  if (reduceMotion || note.length > 120) { textEl.textContent = note; place(pos); return; }
+  if (reduceMotion || note.length > 120) { textEl.textContent = note; place(pos as CursorPoint); return; }
   var i = 0;
   textEl.textContent = '';
   typeTimer = setInterval(function () {
     i = Math.min(note.length, i + 2);
     textEl.textContent = note.slice(0, i);
-    if (i >= note.length) { clearInterval(typeTimer); place(pos); }
+    if (i >= note.length) { clearInterval(typeTimer); place(pos as CursorPoint); }
   }, 16);
   textEl.textContent = note.slice(0, 1);
-  place(pos);
+  place(pos as CursorPoint);
 }
 
 /* Glide to an element (or {x,y}); resolves when the cursor has arrived. */
-function moveTo(el, note, shapeName) {
+function moveTo(el: Element | CursorPoint | null | undefined, note?: string, shapeName?: string): Promise<void> {
   wake();
   setShape(shapeName || 'arrow');
   if (note !== undefined) say(note);
-  var to = el && el.getBoundingClientRect ? pointFor(el) : el;
-  target = el && el.getBoundingClientRect ? el : null;
+  var to = el && (el as Element).getBoundingClientRect ? pointFor(el as Element) : el as CursorPoint | null | undefined;
+  target = el && (el as Element).getBoundingClientRect ? el as Element : null;
   if (!to) return Promise.resolve();
-  var from = pos;
+  var from = pos as CursorPoint;
   var dist = Math.hypot(to.x - from.x, to.y - from.y);
   var ms = reduceMotion ? 0 : Math.max(160, Math.min(520, dist * 0.6));
   if (gliding) { try { gliding.cancel(); } catch (e) {} gliding = null; }
   place(to);
   if (!ms) return Promise.resolve();
-  return new Promise(function (resolve) {
+  return new Promise<void>(function (resolve) {
     try {
       gliding = wrap.animate([
         { transform: 'translate3d(' + from.x + 'px,' + from.y + 'px,0)' },
-        { transform: 'translate3d(' + to.x + 'px,' + to.y + 'px,0)' }
+        { transform: 'translate3d(' + to!.x + 'px,' + to!.y + 'px,0)' }
       ], { duration: ms, easing: 'cubic-bezier(.22,.61,.36,1)' });
       gliding.onfinish = gliding.oncancel = function () { gliding = null; resolve(); };
     } catch (e) { resolve(); }
@@ -228,7 +255,7 @@ function moveTo(el, note, shapeName) {
 }
 
 /* Press-and-ripple at the tip. */
-function click() {
+function click(): void {
   if (!wrap || reduceMotion) return;
   try {
     glyphs[shape].animate([{ transform: 'scale(1)' }, { transform: 'scale(.85)' }, { transform: 'scale(1)' }], { duration: 220, easing: 'ease-out' });
@@ -242,13 +269,13 @@ function click() {
   } catch (e) {}
 }
 
-function follow() {
+function follow(): void {
   if (!target || gliding || !wrap || wrap.style.opacity === '0') return;
   if (!target.isConnected) { target = null; return; }
   place(pointFor(target));
 }
 var raf = 0;
-function onViewportChange() {
+function onViewportChange(): void {
   if (raf) return;
   raf = requestAnimationFrame(function () { raf = 0; follow(); });
 }

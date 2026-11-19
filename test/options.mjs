@@ -1,4 +1,4 @@
-// Settings page regression tests: loads the REAL extension/options.html in a real
+// Settings page regression tests: loads the BUILT build/extension/options.html in a real
 // Firefox (Playwright) against a fake background that keeps state like background.js.
 //   npx playwright install firefox   (once)
 //   node test/options.mjs
@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { firefox } from "playwright";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const PAGE = "file://" + path.join(root, "extension/options.html");
+const pageUrl = (view = "options") => "file://" + path.join(root, `build/extension/${view}.html`);
 
 let failures = 0;
 const check = (name, ok, extra = "") => {
@@ -33,7 +33,12 @@ function fakeBackground(initial) {
   const st = structuredClone(initial);
   window.__sent = [];
   window.__st = st;
-  window.browser = { runtime: { sendMessage: async (m) => {
+  const granted = new Set(); window.__granted = granted;
+  window.browser = { permissions: {
+    getAll: async () => ({ permissions: [], origins: [], data_collection: [...granted] }),
+    request: async (p) => { (p.data_collection || []).forEach((x) => granted.add(x)); return true; },
+    remove: async (p) => { (p.data_collection || []).forEach((x) => granted.delete(x)); return true; },
+  }, runtime: { sendMessage: async (m) => {
     window.__sent.push(m);
     const snap = () => structuredClone(st);
     if (m.type === "set-config") {
@@ -58,7 +63,7 @@ function fakeBackground(initial) {
 }
 
 const browser = await firefox.launch();
-async function open(state, kind) {
+async function open(state, kind, view) {
   const page = await browser.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -67,7 +72,7 @@ async function open(state, kind) {
   }, [state, kind]);
   await page.addInitScript(fakeBackground, state);
   await page.addInitScript({ content: I18N_SHIM });
-  await page.goto(PAGE);
+  await page.goto(pageUrl(view));
   await page.waitForTimeout(300);
   page.errors = errors;
   return page;
@@ -87,6 +92,16 @@ check("command carries the token", cmd.includes("Bearer " + "a".repeat(64)));
 check("installed helper is tucked away", !(await visible(page, "#install")) && !(await visible(page, "#setupLaterBody pre")));
 check("status facts filled in", (await text(page, "#factHelper")) === "v0.3.7" && (await text(page, "#factAddr")) === "127.0.0.1:8901" && /3 commands/.test(await text(page, "#factUp")));
 check("WSL option offered on Windows", await visible(page, "#whereRow"));
+check("usage-counts switch mirrors the permission (off)", !(await page.locator("#usageCounts").isChecked()));
+await page.locator("#usageCounts").check();
+await page.waitForTimeout(200);
+check("switching it on requests the data permission", (await page.evaluate(() => [...window.__granted])).join() === "technicalAndInteraction");
+await page.evaluate(() => window.__granted.clear());
+await page.waitForTimeout(1700);
+check("the switch follows a change made in about:addons", !(await page.locator("#usageCounts").isChecked()));
+await page.locator("#usageCounts").check(); await page.waitForTimeout(200);
+await page.locator("#usageCounts").uncheck(); await page.waitForTimeout(200);
+check("switching it off removes the permission", (await page.evaluate(() => window.__granted.size)) === 0);
 check("WSL panel hidden for Windows-side AIs", !(await visible(page, "#wsl")));
 const evs = await page.locator("#events li").allTextContents();
 check("activity lists newest first, with site and count", evs.length === 3 && /Clicked “Sign in” · github\.com/.test(evs[0]) && /Listening.*×2/.test(evs[1]) && /Helper stopped/.test(evs[2]), JSON.stringify(evs));
@@ -134,9 +149,9 @@ await page.locator("#allowWsl").uncheck();
 await page.waitForTimeout(200);
 check("WSL off is flagged", /^Off/.test(await text(page, "#wslState")));
 await page.locator("#inWsl").uncheck();
-await page.locator("label:has(input[name=kind][value=gemini])").click();
+await page.locator("label:has(input[name=kind][value=antigravity])").click();
 cfgTxt = await text(page, "#cfg");
-check("Gemini on Windows uses localhost", /^gemini mcp /.test(cfgTxt) && cfgTxt.includes("127.0.0.1:8901") && !(await visible(page, "#wsl")), cfgTxt);
+check("Antigravity gets a serverUrl config", JSON.parse(cfgTxt).mcpServers.firefox.serverUrl.includes("127.0.0.1:8901") && /^Bearer /.test(JSON.parse(cfgTxt).mcpServers.firefox.headers.Authorization), cfgTxt);
 await page.locator("label:has(input[name=kind][value=claude])").click();
 
 // ---- toggles ----
@@ -188,22 +203,54 @@ check("old WSL choice becomes Claude Code here", (await page.locator("input[valu
 await page.close();
 
 // ---- helper missing ----
-page = await open({ ...READY, platform: { os: "linux", arch: "x86-64" }, hostMissing: true, connected: false, listening: false, host: null, url: "" });
+const MISSING = { ...READY, hostMissing: true, connected: false, listening: false, host: null, url: "" };
+page = await open({ ...MISSING, platform: { os: "linux", arch: "x86-64" } });
 check("missing helper puts install steps first", (await visible(page, "#install")) && await page.locator("#install").evaluate((e) => e.classList.contains("attention") && getComputedStyle(e).order === "-1"));
 check("no Pause while the helper is missing", !(await visible(page, "#pause")));
 check("install command shown", /foxhand\.pages\.dev\/download\/sh \| sh/.test(await text(page, "#setupNow")) && /updates by itself/.test(await text(page, "#setupNow")));
+check("Linux gets the Flatpak/Snap line", /Flatpak/.test(await text(page, "#setupNow")));
 check("Retry offered", await visible(page, "#retry"));
 check("default harness is JSON", (await page.locator("input[value=json]").isChecked()) && /"mcpServers"/.test(await text(page, "#cfg")));
+const methods = page.locator("#setupNow .install-methods");
+await methods.getByRole("button", { name: "Homebrew" }).click();
+check("Homebrew installs and registers the helper", (await text(page, "#setupNow pre")) === "brew install hamb1y/tap/foxhand-helper && foxhand-helper install");
+await methods.getByRole("button", { name: /npm/ }).click();
+check("npm installs and registers the helper", (await text(page, "#setupNow pre")) === "npm install -g @foxhand/helper && foxhand-helper install");
+await page.evaluate(() => Object.defineProperty(navigator, "clipboard", { value: {
+  writeText: async (value) => { window.__copied = value; }
+} }));
+await page.locator("#setupNow").getByRole("button", { name: "Copy command" }).click();
+check("Copy uses the selected install method", (await page.evaluate(() => window.__copied)) === (await text(page, "#setupNow pre")));
 await page.waitForTimeout(3500);
 check("keeps probing while missing", (await sent(page)).some((m) => m.type === "probe"));
+check("polling preserves install method", (await methods.getByRole("button", { name: /npm/ }).getAttribute("aria-pressed")) === "true");
 check("no errors while missing", page.errors.length === 0, page.errors.join("; "));
+await page.close();
+
+page = await open({ ...MISSING, platform: { os: "mac", arch: "aarch64" } }, undefined, "onboarding");
+check("macOS onboarding offers Homebrew first", (await text(page, "#setup pre")).startsWith("brew install "));
+await page.locator("#setup").getByRole("button", { name: "curl" }).click();
+check("macOS onboarding keeps the script fallback", (await text(page, "#setup pre")).startsWith("curl "));
+await page.close();
+
+page = await open(MISSING, undefined, "popup");
+check("Windows popup keeps PowerShell as the default", (await text(page, "#setup pre")).startsWith("irm "));
+check("Windows popup does not offer Homebrew", await page.locator("#setup").getByRole("button", { name: "Homebrew" }).count() === 0);
+await page.locator("#setup").getByRole("button", { name: /npm/ }).click();
+check("Windows popup uses the cmd shims for npm", (await text(page, "#setup pre")).includes("npm.cmd install -g @foxhand/helper") && (await text(page, "#setup pre")).includes("foxhand-helper.cmd install"));
+await page.close();
+
+// ---- helper installed but it won't start ----
+page = await open({ ...READY, platform: { os: "linux", arch: "x86-64" }, connected: false, listening: false, host: null, url: "", lastError: "Helper stopped" });
+check("a helper that won't start gets the install command and its fix", (await visible(page, "#install")) && /Reinstall/.test(await text(page, "#installTitle")) && /download\/sh \| sh/.test(await text(page, "#setupNow")) && /install command again/.test(await text(page, "#stateHint")), await text(page, "#stateHint"));
+check("no Flatpak line once it is installed", !/Flatpak/.test(await text(page, "#setupNow")));
 await page.close();
 
 // ---- background ignores the page (the old sender.tab guard did this to the settings tab) ----
 page = await browser.newPage();
 await page.addInitScript(() => { window.browser = { runtime: { sendMessage: async () => undefined } }; });
 await page.addInitScript({ content: I18N_SHIM });
-await page.goto(PAGE);
+await page.goto(pageUrl());
 await page.waitForTimeout(300);
 check("a silent background is reported, not left on Loading", /didn’t answer/.test(await text(page, "#stateTxt")), await text(page, "#stateTxt"));
 await page.close();

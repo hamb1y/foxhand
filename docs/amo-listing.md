@@ -186,26 +186,17 @@ Foxhand 通过 Model Context Protocol（MCP），把你正在使用的 Firefox�
 ---
 
 ## Privacy policy
-Foxhand does not send browsing data to the developer or to third parties and contains no analytics or tracking.
+Foxhand sends no data externally.
+Your harness and model provider using Foxhand, such as Pi or Claude Code may do this however.
 
-The add-on exchanges browsing data with the companion helper app on your own computer, through Firefox native messaging. The helper makes that data available only to programs you connect to it on your computer (by default it listens on localhost and requires a secret token that the add-on generates). That data can include tab URLs and titles, page content, screenshots, bookmarks, history, downloads, cookies for a tab, and notes the AI saves in the add-on. The helper sends data only when one of those programs asks for it.
-
-Firefox's data-collection labels on this listing ("browsing activity", "website content" and so on) describe this exchange with programs on your computer, not collection by the developer.
-
-If you connect an AI tool that uses a cloud service, that tool may send what it reads to its provider under that provider's own privacy policy. That's outside this add-on's control.
-
-The current add-on requests https://foxhand.pages.dev/endpoint/announcement on startup and every four hours to check for occasional announcements. Versions 0.5.6 and 0.5.7 use the legacy https://foxhand-popup-endpoint.pages.dev/popup.json endpoint, which remains available for installed versions. Both endpoints are hosted on Cloudflare Pages. These requests include standard HTTPS connection metadata, such as your IP address, but omit credentials and referrers and do not include browsing data, saved announcement IDs, or a user identifier. Cloudflare processes requests under its own privacy policy: https://www.cloudflare.com/privacypolicy/.
-
-This policy is also available at https://foxhand.pages.dev/privacy.
-
-Settings (port, token, toggles) and the IDs of announcements already displayed are stored locally in Firefox extension storage. Uninstalling the add-on removes them.
+We collect anonymized usage analytics, using no third-parties. This data does exit your computer.
 
 ## Notes to reviewer
 The domain transition changes installer links to https://foxhand.pages.dev/download/sh and /download/ps, direct downloads to /download/latest/, and announcements to https://foxhand.pages.dev/endpoint/announcement. Versioned downloads redirect to the original GitHub Release assets and installers verify their published checksums. The legacy GitHub Pages installers and announcement feed remain available. The extension ID, native host name, announcement content and seen IDs are unchanged.
 
 Announcements contain JSON data only, with a 10-second timeout and 64 KiB limit. announcement.js recreates HTML using an allowlist and HTTPS links; scripts, handlers, styles, embeds and forms are discarded. Executable code and styling ship in the add-on. Each ID is shown once per profile; seen IDs remain local. The privacy policy discloses Cloudflare requests. The current community announcement asks for recommendations, honest reviews, GitHub stars and feedback; no rewards are offered.
 
-Foxhand was renamed from WebMCP Controller; the add-on ID is unchanged. It uses native messaging with an open-source helper. Extension JavaScript is unminified and ships directly. Locales are generated from i18n/*.json by scripts/i18n.mjs.
+Foxhand was renamed from WebMCP Controller; the add-on ID is unchanged. It uses native messaging with an open-source helper. Extension scripts are TypeScript (extension/src) bundled by esbuild, unminified and without a runtime, into build/extension. To rebuild: Node 22, "npm ci", then "bash scripts/pack-extension.sh" writes foxhand.zip with the submitted files. Locales are generated from i18n/*.json by scripts/i18n.mjs.
 
 Helper source: https://github.com/hamb1y/foxhand/tree/main/mcp-server (TypeScript, compiled to single-file binaries with `bun build --compile`). Release binaries and SHA256SUMS are at https://github.com/hamb1y/foxhand/releases/latest
 

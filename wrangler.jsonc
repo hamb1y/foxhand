@@ -1,5 +1,7 @@
 {
   "name": "foxhand",
   "pages_build_output_dir": "./dist/cloudflare",
-  "compatibility_date": "2026-11-10"
+  "compatibility_date": "2026-11-10",
+  // Binding for the stats database; database_id is filled in by the owner after `wrangler d1 create foxhand-stats`.
+  "d1_databases": [{ "binding": "DB", "database_name": "foxhand-stats", "database_id": "333a64e5-eada-461b-8708-2a4638364347", "migrations_dir": "cloudflare/migrations" }]
 }

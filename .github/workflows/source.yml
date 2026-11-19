@@ -36,8 +36,10 @@ jobs:
           # Requirements:
           #   - Linux, macOS, or Windows with Git Bash or WSL
           #   - bash and python3 3.8 or newer (standard library only)
-          #   - For the native helper only (WITH_HELPER=1): Node.js 22 and npm,
-          #     plus Bun for the single-file binaries
+          #   - Node.js 22 and npm: the add-on's TypeScript (extension/src) is bundled
+          #     with esbuild into build/extension, which is then zipped
+          #   - For the native helper only (WITH_HELPER=1): Bun for the single-file
+          #     binaries
           #
           # Usage:
           #   bash build.sh              writes foxhand.zip (the add-on)
@@ -46,13 +48,12 @@ jobs:
           cd "$(dirname "$0")"
 
           command -v python3 >/dev/null 2>&1 || { echo "build.sh: python3 is required" >&2; exit 1; }
-          echo "build.sh: python3 $(python3 -V 2>&1 | cut -d' ' -f2)"
+          command -v node >/dev/null 2>&1 || { echo "build.sh: Node.js 22 is required" >&2; exit 1; }
+          echo "build.sh: python3 $(python3 -V 2>&1 | cut -d' ' -f2), node $(node -v), npm $(npm -v)"
+          npm ci
           bash scripts/pack-extension.sh
 
           if [ "${WITH_HELPER:-0}" = "1" ]; then
-            command -v node >/dev/null 2>&1 || { echo "build.sh: Node.js 22 is required for WITH_HELPER=1" >&2; exit 1; }
-            echo "build.sh: node $(node -v), npm $(npm -v)"
-            npm ci
             npm run build
             npm run build:host
           fi
