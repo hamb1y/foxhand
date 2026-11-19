@@ -5,7 +5,7 @@ name: Platforms
 # live test: real Firefox + this add-on + the installed helper, over MCP.
 on:
   push:
-    branches: [main, 'release/**']
+    branches: ['release/**']
   pull_request:
   workflow_dispatch:
   workflow_call:

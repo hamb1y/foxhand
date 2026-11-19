@@ -46,15 +46,19 @@ jobs:
             echo "go=true" >> "$GITHUB_OUTPUT"
           fi
 
-  # Install and drive the helper on every platform before anything is published.
+  # Run the standard CI suite and platform matrix in parallel, once per release.
+  ci:
+    needs: check
+    if: github.ref_type == 'branch' || needs.check.outputs.go == 'true'
+    uses: ./.github/workflows/ci.yml
+
   platforms:
     needs: check
     if: needs.check.outputs.go == 'true'
     uses: ./.github/workflows/platforms.yml
 
   release:
-    needs: [check, platforms]
-    # Use the same LTS image as CI for Playwright's OS dependencies.
+    needs: [check, ci, platforms]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -64,30 +68,17 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - uses: oven-sh/setup-bun@v2
       - run: npm ci
-      - run: node scripts/set-version.mjs --check "${TAG#v}"
-        env:
-          TAG: ${{ needs.check.outputs.tag }}
-      - run: node scripts/i18n.mjs --check
-      # The same checks as CI: never publish what CI would reject.
-      - run: npm run build
-      - run: npm run typecheck
-      - run: npx --no-install web-ext lint -s build/extension
-      - run: node test/e2e.mjs
-      - run: MISSING=1 node test/e2e.mjs
-      - run: node test/host.mjs
-      - run: npx playwright install --with-deps firefox
-        timeout-minutes: 8
-      - run: node test/content.mjs
-      - run: node test/options.mjs
-      - run: node test/announcements.mjs
-      - run: node test/live.mjs
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release-hosts
       - run: npm run release
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           TARGET: ${{ github.sha }}
+          TESTED_HOST_DIR: release-hosts
 
   # Configure @foxhand/helper on npm to trust hamb1y/foxhand's release.yml
   # with direct publish enabled. This job deliberately has no npm token.

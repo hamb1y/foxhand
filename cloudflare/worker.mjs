@@ -292,6 +292,9 @@ export default {
       try { return await stats(request, env, url); } catch { return error(500, 'Failed'); }
     }
     if (!['GET', 'HEAD'].includes(request.method)) return error(405, 'Method not allowed');
+    if (/^\/google[0-9a-f]+\.html$/.test(url.pathname)) {
+      return env.ASSETS.fetch(new Request(new URL(url.pathname + '.txt', url), request));
+    }
     if (url.pathname.startsWith('/go/')) return go(request, env, ctx, url);
     // Legacy aliases on the new hostname, too. The old Pages projects remain untouched.
     const aliases = { '/sh': '/download/sh', '/ps': '/download/ps', '/popup.json': '/endpoint/announcement' };

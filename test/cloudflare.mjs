@@ -11,6 +11,9 @@ import vm from 'node:vm';
 execFileSync(process.execPath, ['scripts/build-cloudflare.mjs']);
 const text = file => readFileSync(`dist/cloudflare/${file}`, 'utf8');
 const latest = JSON.parse(text('download/latest.json'));
+const googleFile = 'google16932904379ad81c.html';
+assert.ok(JSON.parse(text('_routes.json')).include.includes('/' + googleFile));
+assert.equal(text(googleFile + '.txt'), readFileSync(`site/${googleFile}`, 'utf8'));
 assert.match(latest.base, /^https:\/\/foxhand.pages.dev\/download\/\d+\.\d+\.\d+$/);
 assert.equal(text('announcement.json'), readFileSync('popup-endpoint/public/popup.json', 'utf8'));
 assert.match(text('download/sh'), new RegExp(latest.base.replaceAll('.', '\\.')));
@@ -19,6 +22,9 @@ assert.ok(text('download/sh').includes(String.raw`\$env:FOXHAND_BASE='$BASE'; ir
 assert.ok(!text('_headers').includes("default-src 'none'"), 'website inline code remains usable');
 assert.match(text('_headers'), /Content-Type: text\/plain/);
 assert.match(text('index.html'), /https:\/\/foxhand.pages.dev\/download\/sh/);
+assert.match(text('robots.txt'), /^Sitemap: https:\/\/foxhand\.pages\.dev\/sitemap\.xml$/m);
+assert.match(text('sitemap.xml'), /<loc>https:\/\/foxhand\.pages\.dev\/download<\/loc>/);
+assert.match(text('index.html'), /rel="canonical" href="https:\/\/foxhand\.pages\.dev\/"/);
 for (const page of ['index.html', 'download/index.html']) {
   assert.ok(text(page).includes('brew install hamb1y/tap/foxhand-helper &amp;&amp; foxhand-helper install'));
   assert.ok(text(page).includes('npm install -g @foxhand/helper &amp;&amp; foxhand-helper install'));
@@ -36,10 +42,14 @@ const env = {
     if (name === 'announcement.json') return new Response(text(name));
     if (name === 'download/') return new Response(text('download/index.html'));
     if (name === 'download/latest.json') return Response.json(latest);
+    if (name === googleFile + '.txt') return new Response(text(name));
     return new Response('website');
   } }
 };
 const request = (url, options) => worker.fetch(new Request(`https://foxhand.pages.dev${url}`, options), env);
+const verification = await request('/' + googleFile);
+assert.equal(verification.status, 200);
+assert.equal(await verification.text(), text(googleFile + '.txt'));
 for (const os of ['darwin', 'linux', 'windows']) for (const arch of ['arm64', 'x64']) for (const prefix of ['foxhand', 'webmcp']) {
   const name = `${prefix}-host-${os}-${arch}${os === 'windows' ? '.exe' : ''}`;
   for (const method of ['GET', 'HEAD']) {

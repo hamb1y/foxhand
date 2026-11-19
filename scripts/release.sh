@@ -20,9 +20,13 @@ fi
 
 sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
 
-# A release always carries every platform, built now, and nothing else: assemble an
-# explicit list in a fresh staging directory and upload exactly that.
-TARGETS="$ALL_TARGETS" bash scripts/build-host.sh
+# CI supplies the exact binaries it installed and tested; local releases build them.
+HOST_DIR="${TESTED_HOST_DIR:-dist/host}"
+if [[ -n "${TESTED_HOST_DIR:-}" ]]; then
+  (cd "$HOST_DIR" && if command -v sha256sum >/dev/null; then sha256sum -c SHA256SUMS; else shasum -a 256 -c SHA256SUMS; fi)
+else
+  TARGETS="$ALL_TARGETS" bash scripts/build-host.sh
+fi
 bash scripts/pack-extension.sh >/dev/null
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
@@ -30,10 +34,10 @@ ASSETS=()
 for t in $ALL_TARGETS; do
   ext=""; [[ $t == windows-* ]] && ext=".exe"
   ASSETS+=("foxhand-host-$t$ext")
-  cp "dist/host/foxhand-host-$t$ext" "$OUT/"
+  cp "$HOST_DIR/foxhand-host-$t$ext" "$OUT/"
   # Same file under its pre-rename name, for download links in WebMCP Controller <= 0.4.
   ASSETS+=("webmcp-host-$t$ext")
-  cp "dist/host/foxhand-host-$t$ext" "$OUT/webmcp-host-$t$ext"
+  cp "$HOST_DIR/foxhand-host-$t$ext" "$OUT/webmcp-host-$t$ext"
 done
 cp scripts/install.sh scripts/install.ps1 foxhand.zip "$OUT/"
 ASSETS+=(install.sh install.ps1 foxhand.zip)
