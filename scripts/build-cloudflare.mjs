@@ -1,5 +1,5 @@
 // Local preparation only: never contacts or deploys to Cloudflare.
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { documentPage, markdown, downloadsPage, loginBody, loginScript, statsBody, feedbackBody, uninstalledBody } from './cloudflare-pages.mjs';
 import { fileURLToPath } from 'node:url';
@@ -45,7 +45,10 @@ writeFileSync(path.join(out, 'download/latest.json'), JSON.stringify({ version, 
 // Copy bytes verbatim: deploying the website must never alter announcement identity/content.
 cpSync(path.join(root, 'popup-endpoint/public/popup.json'), path.join(out, 'announcement.json'));
 cpSync(path.join(root, 'cloudflare/worker.mjs'), path.join(out, '_worker.js'));
-writeFileSync(path.join(out, '_routes.json'), JSON.stringify({ version: 1, include: ['/download', '/download/*', '/endpoint/*', '/stats', '/stats/*', '/go/*', '/sh', '/ps', '/popup.json'], exclude: [] }, null, 2));
+// Pages redirects static .html URLs to extensionless paths. Google needs the exact URL.
+const verificationFiles = readdirSync(out).filter(name => /^google[0-9a-f]+\.html$/.test(name));
+for (const name of verificationFiles) renameSync(path.join(out, name), path.join(out, name + '.txt'));
+writeFileSync(path.join(out, '_routes.json'), JSON.stringify({ version: 1, include: ['/download', '/download/*', '/endpoint/*', '/stats', '/stats/*', '/go/*', '/sh', '/ps', '/popup.json', ...verificationFiles.map(name => '/' + name)], exclude: [] }, null, 2));
 writeFileSync(path.join(out, '_headers'), '/download/sh\n  Content-Type: text/plain; charset=utf-8\n/download/ps\n  Content-Type: text/plain; charset=utf-8\n/download/latest.json\n  Content-Type: application/json; charset=utf-8\n/download/*\n  Cache-Control: no-store\n  X-Content-Type-Options: nosniff\n/announcement.json\n  Cache-Control: no-store\n  Content-Type: application/json; charset=utf-8\n');
 // Prevent accidental upload of an oversized asset to Pages.
 function check(dir) {
