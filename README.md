@@ -4,7 +4,7 @@
 
 Let your AI agent use your Firefox with your data, logins, and cookies.
 
-[Addon](https://foxhand.pages.dev/go/amo?from=readme) · [Site](https://foxhand.pages.dev/) · [What's new in 0.6.0](CHANGELOG.md)
+[Addon](https://foxhand.pages.dev/go/amo?from=readme) · [Site](https://foxhand.pages.dev/) · [What's new in 0.6.1](CHANGELOG.md)
 
 <img src="site/shots/cursor.webp" alt="The AI cursor on a Wikipedia article, with an orange bubble saying what it is doing.">
 
@@ -15,10 +15,15 @@ Formerly WebMCP Controller.
 ## Install
 
 1. Get the [addon](https://foxhand.pages.dev/go/amo?from=readme).
-2. Install the helper.
-   - macOS, Linux, WSL: `curl -fsSL https://foxhand.pages.dev/download/sh | sh`
-   - Windows: `irm https://foxhand.pages.dev/download/ps | iex`
+2. Install the helper on the system running Firefox. Choose one method:
+   - **Homebrew (macOS or Linux):** `brew install hamb1y/tap/foxhand-helper && foxhand-helper install`
+   - **npm (Node.js 22+, macOS or Linux):** `npm install -g @foxhand/helper && foxhand-helper install`
+   - **npm (Node.js 22+, Windows PowerShell):** `npm.cmd install -g @foxhand/helper; if ($LASTEXITCODE -eq 0) { foxhand-helper.cmd install }`
+   - **Shell installer (macOS, Linux or WSL):** `curl -fsSL https://foxhand.pages.dev/download/sh | sh`
+   - **PowerShell installer (Windows):** `irm https://foxhand.pages.dev/download/ps | iex`
 3. Paste the config from the setup page into your harness.
+
+If the add-on doesn't pick up the helper, restart Firefox. Run `foxhand-helper install` again after upgrading through Homebrew. If Firefox runs on Windows but your AI runs in WSL, install the helper on Windows and enable WSL access in Foxhand Settings.
 
 Claude Code:
 
@@ -38,7 +43,7 @@ Check it works:
 
 ```bash
 curl http://localhost:8901/health
-# {"ok":true,"extensionConnected":true,"version":"0.6.0"}
+# {"ok":true,"extensionConnected":true,"version":"0.6.1"}
 ```
 
 ## Tools
@@ -77,7 +82,7 @@ Needs Node.js 22.
 ```bash
 git clone https://github.com/hamb1y/foxhand.git
 cd foxhand
-git checkout v0.6.0
+git checkout v0.6.1
 npm ci
 npm run build
 npm test

@@ -20,6 +20,12 @@ jobs:
       - run: node scripts/i18n.mjs --check
       - run: npm run build
       - run: npm run typecheck
+      - name: Smoke-test the npm tarball
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          npm run pack:helper
+          npm install --prefix "$RUNNER_TEMP/foxhand-npm" "./dist/foxhand-helper-$version.tgz"
+          test "$("$RUNNER_TEMP/foxhand-npm/node_modules/.bin/foxhand-helper" --version 2>&1)" = "$version"
       - run: node test/cloudflare.mjs
       - run: node scripts/build-cloudflare.mjs
       - run: npx --no-install web-ext lint -s build/extension

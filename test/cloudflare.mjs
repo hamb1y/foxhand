@@ -19,6 +19,11 @@ assert.ok(text('download/sh').includes(String.raw`\$env:FOXHAND_BASE='$BASE'; ir
 assert.ok(!text('_headers').includes("default-src 'none'"), 'website inline code remains usable');
 assert.match(text('_headers'), /Content-Type: text\/plain/);
 assert.match(text('index.html'), /https:\/\/foxhand.pages.dev\/download\/sh/);
+for (const page of ['index.html', 'download/index.html']) {
+  assert.ok(text(page).includes('brew install hamb1y/tap/foxhand-helper &amp;&amp; foxhand-helper install'));
+  assert.ok(text(page).includes('npm install -g @foxhand/helper &amp;&amp; foxhand-helper install'));
+  assert.ok(text(page).includes('npm.cmd install -g @foxhand/helper'));
+}
 // Link previews: the og tags must name the live site and an image the build really ships.
 assert.ok(text('index.html').includes('<meta property="og:url" content="https://foxhand.pages.dev/">'));
 assert.ok(text('index.html').includes('<meta property="og:image" content="https://foxhand.pages.dev/shots/og.jpg">'));

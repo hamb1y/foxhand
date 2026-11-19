@@ -83,6 +83,11 @@ function renderInstall(st: Reply) {
   setText($('helperInfo'), (installed ? t('helperInstalledOn', [st.host!.version, s.os]) : t('helperFor', s.os)) +
     (st.host && st.host.extraUrls && st.host.extraUrls.length ? ' · ' + t('alsoWsl', st.host.extraUrls.join(', ')) : ''));
   setText($('uninstallCmd'), s.uninstall);
+  var os = st.platform?.os;
+  setHidden($('uninstallBrew'), os !== 'mac' && os !== 'linux');
+  setText($('uninstallNpm'), os === 'win'
+    ? 'foxhand-helper.cmd uninstall; if ($LASTEXITCODE -eq 0) { npm.cmd uninstall -g @foxhand/helper }'
+    : 'foxhand-helper uninstall && npm uninstall -g @foxhand/helper');
   // Missing or too old: steps up front. An optional update sits further down. Otherwise tucked away.
   setHidden($('install'), !need);
   $('install').classList.toggle('attention', !!(need && !need.soft));

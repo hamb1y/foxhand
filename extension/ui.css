@@ -66,6 +66,8 @@ pre.cmd {
   font: 12.5px/1.6 var(--mono); white-space: pre-wrap; word-break: break-all; user-select: all;
 }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.install-methods { margin-bottom: 8px; }
+.install-methods button[aria-pressed="true"] { border-color: var(--orange); }
 .sub { font-size: 13px; color: var(--muted); margin-top: 6px; }
 .intro { margin-bottom: 8px; }
 .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }

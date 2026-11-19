@@ -106,25 +106,53 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return e;
 }
 
-/* Install instructions as DOM: command + Copy, direct download link.
+/* Install instructions as DOM: install method, command + Copy, direct download link.
  * intro: optional sentence shown first (e.g. why an update is needed).
  * installed: the helper already runs, so don't promise the page will turn green. */
 function renderSetup(container: HTMLElement, platform: Platform, intro?: string, installed?: boolean): Setup {
   var s = hostSetup(platform);
   container.textContent = '';
   if (intro) container.appendChild(el('div', 'intro', intro));
-  var pre = el('pre', 'cmd', s.cmd);
+  var win = platform?.os === 'win';
+  var methods = [
+    { name: win ? 'PowerShell' : 'curl', cmd: s.cmd },
+    { name: 'npm (Node.js 22+)', cmd: win
+      ? 'npm.cmd install -g @foxhand/helper; if ($LASTEXITCODE -eq 0) { foxhand-helper.cmd install }'
+      : 'npm install -g @foxhand/helper && foxhand-helper install' }
+  ];
+  if (platform?.os === 'mac' || platform?.os === 'linux') {
+    methods.splice(platform.os === 'mac' ? 0 : 1, 0, {
+      name: 'Homebrew',
+      cmd: 'brew install hamb1y/tap/foxhand-helper && foxhand-helper install'
+    });
+  }
+  var pre = el('pre', 'cmd');
+  var choices = el('div', 'row install-methods');
+  choices.setAttribute('role', 'group');
+  choices.setAttribute('aria-label', t('needInstall'));
+  var methodButtons = methods.map(function (method) {
+    var button = el('button', 'small', method.name);
+    button.type = 'button';
+    choices.appendChild(button);
+    return button;
+  });
+  function pick(index: number): void {
+    pre.textContent = methods[index]!.cmd;
+    methodButtons.forEach(function (button, i) { button.setAttribute('aria-pressed', String(i === index)); });
+  }
+  methodButtons.forEach(function (button, i) { button.addEventListener('click', function () { pick(i); }); });
+  pick(0);
   var row = el('div', 'row');
   var btn = el('button', 'orange', t('copyCommand'));
   btn.type = 'button';
-  btn.addEventListener('click', function () { copy(s.cmd, btn).catch(function () {}); });
+  btn.addEventListener('click', function () { copy(pre.textContent || '', btn).catch(function () {}); });
   var dl = el('a', 'button', t('downloadApp'));
   dl.href = DOWNLOAD + s.file;
   dl.target = '_blank';
   dl.rel = 'noopener';
   row.appendChild(btn);
   row.appendChild(dl);
-  var parts: HTMLElement[] = [el('div', '', s.open), pre, row, el('div', 'sub', s.manual)];
+  var parts: HTMLElement[] = [choices, el('div', '', s.open), pre, row, el('div', 'sub', s.manual)];
   if (!installed) {
     // The add-on can't see how Firefox was packaged, so every Linux user without a helper gets the line.
     if (platform && platform.os === 'linux') parts.push(el('div', 'sub', t('linuxSandbox')));

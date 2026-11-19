@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1
+
+- Install the helper with Homebrew on macOS and Linux, or with npm on macOS, Linux and Windows.
+- The toolbar popup, first-run setup, Settings and Downloads page show the new install options. The script installers and direct downloads are still available.
+- New releases publish the npm package automatically. The Homebrew tap tracks stable releases using their published checksums.
+
 ## 0.6.0
 
 - The add-on is now written in TypeScript and built with esbuild. It shares its protocol types with the helper.

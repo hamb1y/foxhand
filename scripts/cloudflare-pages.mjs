@@ -87,11 +87,15 @@ pre { overflow-x: auto; padding: 16px; background: var(--surface); border: 1px s
 export function downloadsPage(version) {
   const base = `/download/${version}`;
   const rows = [['macOS', 'Apple Silicon (arm64)', 'darwin-arm64'], ['macOS', 'Intel (x64)', 'darwin-x64'], ['Linux', 'arm64', 'linux-arm64'], ['Linux', 'x64', 'linux-x64'], ['Windows', 'arm64', 'windows-arm64.exe'], ['Windows', 'x64', 'windows-x64.exe']];
-  return `<h1>Downloads</h1><p>Foxhand ${escape(version)}. Install the Firefox add-on and its companion helper on the same computer.</p>
+  return `<h1>Downloads</h1><p>Foxhand ${escape(version)}. Install the Firefox add-on and its companion helper on the same system.</p>
 <h2>Firefox add-on</h2><p><a class="btn orange" href="/go/amo?from=site">Get Foxhand for Firefox</a></p>
-<h2>Install the helper</h2><p>The installer selects your platform, verifies the release checksum and registers the helper with Firefox. Review the script before running it.</p>
-<h3>macOS, Linux or WSL</h3><pre><code>curl -fsSL https://foxhand.pages.dev/download/sh | sh</code></pre><p><a href="/download/sh">View shell installer</a></p>
-<h3>Windows PowerShell</h3><pre><code>irm https://foxhand.pages.dev/download/ps | iex</code></pre><p><a href="/download/ps">View PowerShell installer</a></p>
+<h2>Install the helper</h2><p>Choose one method. Restart Firefox if the popup doesn't pick up the helper.</p>
+<h3>Homebrew (macOS or Linux)</h3><pre><code>brew install hamb1y/tap/foxhand-helper &amp;&amp; foxhand-helper install</code></pre><p>Run <code>foxhand-helper install</code> again after upgrading the formula.</p>
+<h3>npm (Node.js 22+)</h3><p>macOS or Linux:</p><pre><code>npm install -g @foxhand/helper &amp;&amp; foxhand-helper install</code></pre>
+<p>Windows PowerShell:</p><pre><code>npm.cmd install -g @foxhand/helper; if ($LASTEXITCODE -eq 0) { foxhand-helper.cmd install }</code></pre>
+<h3>Installer scripts</h3><p>The scripts select your platform, verify the release checksum and register the helper with Firefox. Review them before running them.</p>
+<p>macOS, Linux or WSL:</p><pre><code>curl -fsSL https://foxhand.pages.dev/download/sh | sh</code></pre><p><a href="/download/sh">View shell installer</a></p>
+<p>Windows PowerShell:</p><pre><code>irm https://foxhand.pages.dev/download/ps | iex</code></pre><p><a href="/download/ps">View PowerShell installer</a></p>
 <h2>Direct release files</h2><p>These links redirect to the original GitHub Release assets; binaries are hosted by GitHub. Choose your computer’s architecture. Downloading a helper binary alone does not register it with Firefox; use the installer above for setup.</p>
 <div class="table-scroll"><table><thead><tr><th>Platform</th><th>Architecture</th><th>Helper binary</th></tr></thead><tbody>${rows.map(([os, arch, file]) => `<tr><td>${os}</td><td>${arch}</td><td><a href="${base}/foxhand-host-${file}">Download</a></td></tr>`).join('')}</tbody></table></div>
 <p><a href="${base}/SHA256SUMS">SHA256SUMS</a> · <a href="${base}/foxhand.zip">Release add-on archive</a> · <a href="/download/latest.json">Release metadata</a></p><p><a href="/changelog">Read the changelog</a> · <a href="/privacy">Privacy policy</a></p>`;

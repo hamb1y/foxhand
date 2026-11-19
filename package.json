@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "webmcp-controller",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Firefox MCP: WebExtension + native messaging host that serves MCP over HTTP to any harness",
   "type": "module",
   "workspaces": [
@@ -17,6 +17,7 @@
     "build:cloudflare": "node scripts/build-cloudflare.mjs",
     "test:cloudflare": "node test/cloudflare.mjs",
     "build:host": "bash scripts/build-host.sh",
+    "pack:helper": "node scripts/pack-helper.mjs",
     "install-host": "npm run build && node mcp-server/dist/host.js install",
     "release": "bash scripts/release.sh",
     "test": "node test/e2e.mjs && MISSING=1 node test/e2e.mjs && node test/host.mjs && node test/audit.mjs && node test/audit-helper.mjs && node test/content.mjs && node test/options.mjs && node test/announcements.mjs && node test/stats.mjs"

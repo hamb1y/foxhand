@@ -6,8 +6,11 @@ Firefox starts the helper itself; the helper serves MCP on
 
 ## 1. Install the helper (once per computer)
 
-- **Windows:** in PowerShell: `irm https://foxhand.pages.dev/download/ps | iex`
-- **macOS / Linux:** in Terminal: `curl -fsSL https://foxhand.pages.dev/download/sh | sh`
+- **Homebrew (macOS or Linux):** `brew install hamb1y/tap/foxhand-helper && foxhand-helper install`
+- **npm (Node.js 22+, macOS or Linux):** `npm install -g @foxhand/helper && foxhand-helper install`
+- **npm (Node.js 22+, Windows PowerShell):** `npm.cmd install -g @foxhand/helper; if ($LASTEXITCODE -eq 0) { foxhand-helper.cmd install }`
+- **Windows script (PowerShell):** `irm https://foxhand.pages.dev/download/ps | iex`
+- **macOS / Linux script:** `curl -fsSL https://foxhand.pages.dev/download/sh | sh`
 
 The toolbar popup shows the exact file and command for your system when the
 helper is missing. `status` / `uninstall` work the same way.
