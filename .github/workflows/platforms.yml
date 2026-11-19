@@ -112,6 +112,7 @@ jobs:
           if ($v -ne $want) { throw "version $v, expected $want" }
 
       # ---- the whole thing, live ----
+      - run: npm run build:extension
       - name: Find Firefox
         id: ff
         shell: bash
