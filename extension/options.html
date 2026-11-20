@@ -198,6 +198,11 @@
     <label id="whereRow"><input type="checkbox" id="inWsl"> <span data-i18n="aiInWsl">My AI runs inside WSL</span></label>
   </div>
   <div class="callout" id="tokenNote"><span data-i18n="configSecret"></span></div>
+  <div class="callout" id="setupPrompt">
+    <p data-i18n="setupPromptIntro"></p>
+    <div class="row"><button id="copySetupPrompt" type="button" data-i18n="copySetupPrompt"></button></div>
+    <p class="sub" data-i18n="setupPromptSecret"></p>
+  </div>
   <div class="state" id="connState" role="status"><span class="dot wait" id="connDot"></span><span id="connTxt"></span></div>
   <div id="wsl" hidden>
     <label class="toggle"><span class="tx"><b data-i18n="letWsl">Let AIs in WSL connect</b></span> <input type="checkbox" id="allowWsl" class="switch"></label>

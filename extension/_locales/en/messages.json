@@ -215,6 +215,18 @@
   "copyCommand": {
     "message": "Copy command"
   },
+  "helperRunWhole": {
+    "message": "Run the whole command. It also tells Firefox where to find the helper."
+  },
+  "setupPromptIntro": {
+    "message": "Or paste a setup prompt into the AI app you want to connect."
+  },
+  "copySetupPrompt": {
+    "message": "Copy setup prompt"
+  },
+  "setupPromptSecret": {
+    "message": "The prompt leaves out your access token. Add it in your AI app’s local settings, not in chat."
+  },
   "downloadApp": {
     "message": "Download app"
   },

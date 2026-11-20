@@ -15,6 +15,8 @@ const slots = (s) => [...new Set(s.match(/\$\d/g) ?? [])].sort().join(",");
 
 const en = read("en.json");
 const keys = Object.keys(en);
+// Firefox uses the default locale for these new messages until translations land.
+const pendingTranslations = new Set(["helperRunWhole", "setupPromptIntro", "copySetupPrompt", "setupPromptSecret"]);
 let problems = 0;
 const fail = (msg) => { console.error(msg); problems++; };
 
@@ -22,6 +24,7 @@ const fail = (msg) => { console.error(msg); problems++; };
 function toMessages(strings) {
   const out = {};
   for (const k of keys) {
+    if (!(k in strings)) continue; // validated below; only pending translations may be absent
     const text = strings[k];
     const placeholders = {};
     const message = text.replace(/\$(\d)|\$/g, (m, n) => {
@@ -38,6 +41,7 @@ for (const file of fs.readdirSync(src).filter((f) => f.endsWith(".json")).sort()
   const locale = file.replace(/\.json$/, "");
   const strings = read(file);
   for (const k of keys) {
+    if (locale !== "en" && !(k in strings) && pendingTranslations.has(k)) continue;
     if (typeof strings[k] !== "string" || !strings[k].trim()) fail(`${locale}: missing "${k}"`);
     else if (slots(strings[k]) !== slots(en[k])) fail(`${locale}: "${k}" uses ${slots(strings[k]) || "no slots"}, English uses ${slots(en[k]) || "none"}`);
   }

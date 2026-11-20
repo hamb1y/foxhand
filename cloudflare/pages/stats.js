@@ -64,7 +64,7 @@ fetch('/endpoint/stats', { credentials: 'same-origin', cache: 'no-store' }).then
   out.append(mt);
   out.append($('p', 'note', 'User-days by minutes, last 30 days.'));
   out.append(bars(s.minutes.buckets.map(b => ({ name: b.label, n: b.n })), r => r.name + ' min'));
-  h2('Setup funnel', 'Installs by the furthest step they reached.');
+  h2('Setup funnel', 'Opt-in installs by the furthest step reported. Progress made after a daily report can show up on a later day.');
   const f = s.funnel;
   out.append(bars([{ k: 'Add-on installed', n: f.installed }, { k: 'Helper connected', n: f.helper }, { k: 'First AI command', n: f.command }], r => r.k));
   h2('Stuck at the helper', 'Installs that never got the helper connected, by reason and days since their first report.');
@@ -77,6 +77,10 @@ fetch('/endpoint/stats', { credentials: 'same-origin', cache: 'no-store' }).then
   out.append(s.byVersion.length ? bars(s.byVersion, r => r.name) : $('div', 'empty', 'No data.'));
   h2('Active in the last 30 days, by OS');
   out.append(s.byOs.length ? bars(s.byOs, r => r.name) : $('div', 'empty', 'No data.'));
+  h2('Active in the last 30 days, by Firefox language', 'Firefox’s UI language only, without regions. Older reports are counted as Unknown.');
+  const languages = new Intl.DisplayNames(['en'], { type: 'language' });
+  const byLanguage = s.byLanguage || [];
+  out.append(byLanguage.length ? bars(byLanguage, r => r.name === 'unknown' ? 'Unknown' : r.name === 'other' ? 'Other' : languages.of(r.name)) : $('div', 'empty', 'No data.'));
   h2('Harnesses', 'Installs that connected an AI client of each kind in the last 30 days, against how many picked it on the setup page.');
   if (!s.harnesses.length) out.append($('div', 'empty', 'None counted.'));
   else out.append(bars(s.harnesses.map(r => ({ name: r.name, n: r.used30, picked: r.picked, y: r.usedYesterday })), r => r.name + ' (picked ' + num(r.picked) + ', yesterday ' + num(r.y) + ')'));

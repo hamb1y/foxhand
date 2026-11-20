@@ -13,6 +13,7 @@ function makeDb() {
   db.exec(readFileSync('cloudflare/migrations/0002_clicks.sql', 'utf8'));
   db.exec(readFileSync('cloudflare/migrations/0003_used.sql', 'utf8'));
   db.exec(readFileSync('cloudflare/migrations/0004_minutes.sql', 'utf8'));
+  db.exec(readFileSync('cloudflare/migrations/0005_language.sql', 'utf8'));
   const statement = (sql, args = []) => ({
     bind: (...a) => statement(sql, a),
     first: async () => db.prepare(sql).get(...args) ?? null,
@@ -40,7 +41,7 @@ const daysAgo = n => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10)
 let env = mkEnv();
 assert.equal((await post(env, '/endpoint/ping', PING)).status, 204);
 // the same install again the same day: still one active install; the stage only goes up, the pick follows the latest report
-assert.equal((await post(env, '/endpoint/ping', { ...PING, stage: 2, reason: null, harnesses: ['claude-code'], picked: 'codex', used: true, minutes: 12 })).status, 204);
+assert.equal((await post(env, '/endpoint/ping', { ...PING, language: 'fr', stage: 2, reason: null, harnesses: ['claude-code'], picked: 'codex', used: true, minutes: 12 })).status, 204);
 assert.equal((await post(env, '/endpoint/ping', { ...PING, id: ID(1), used: true, minutes: 1500 })).status, 400, 'over a day of minutes is refused');
 assert.equal((await post(env, '/endpoint/ping', { ...PING, stage: 1, reason: null, harnesses: [] })).status, 204);
 assert.equal((await post(env, '/endpoint/ping', { ...PING, id: ID(2), os: 'win', stage: 1, reason: null, harnesses: ['codex'], picked: null })).status, 204);
@@ -51,12 +52,14 @@ assert.deepEqual(stats.daily, [{ day: TODAY, n: 2, used: 1, minutes: 12 }], 'dis
 assert.deepEqual(stats.rolling, { mau: 2, aau7: 1, aau30: 1 }, 'AAU: installs with a command, not just a report');
 assert.equal(stats.months[0].n, 2); assert.ok(!('years' in stats) && !('aau' in stats.rolling));
 assert.deepEqual(stats.byOs.map(x => [x.name, x.n]).sort(), [['linux', 1], ['win', 1]]);
+assert.deepEqual(stats.byLanguage, [{ name: 'fr', n: 1 }, { name: 'unknown', n: 1 }], 'older reports stay valid without overwriting a known language');
 assert.deepEqual(stats.harnesses.map(h => [h.name, h.picked, h.used30]).sort(), [['claude-code', 1, 1], ['codex', 0, 2]], 'distinct installs per kind; picks from the latest report');
 assert.equal(stats.stuck.length, 0, 'nobody is at stage 0 any more');
 assert.ok(!JSON.stringify(stats).includes(ID(1)) && !JSON.stringify(stats).includes('0000-4000'), 'no install ID in the stats JSON');
 assert.equal(stats.feedback.total, 0);
 for (const bad of [
   { ...PING, extra: 1 }, { ...PING, url: 'https://x' }, { ...PING, v: '1.2' }, { ...PING, os: 'beos' }, { ...PING, stage: 3 }, { ...PING, stage: '1' },
+  { ...PING, language: 'en-US' }, { ...PING, language: 'zh-Hant' }, { ...PING, language: null }, { ...PING, language: 'English' },
   { ...PING, reason: 'oops: C:\\Users\\me' }, { ...PING, harnesses: ['Claude Code 1.2.3'] }, { ...PING, harnesses: ['codex', 'codex'] }, { ...PING, picked: 'gemini' }, { ...PING, picked: undefined },
   { ...PING, id: undefined }, { ...PING, used: undefined }, { ...PING, used: 'yes' }, { ...PING, used: 1 }, { ...PING, minutes: undefined }, { ...PING, minutes: -1 }, { ...PING, minutes: 1441 }, { ...PING, minutes: 1.5 }, { ...PING, minutes: '5' }, { ...PING, minutes: null }, { ...PING, id: 'not-a-uuid' }, { ...PING, id: 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA' }, { ...PING, id: '00000000-0000-1000-8000-000000000003' }, { ...PING, id: '00000000-0000-4000-c000-000000000003' },
   { ...PING, id: ID(3) + ' ' }, { ...PING, id: 5 }, [], 'text', null, { v: 'x'.repeat(600) },
@@ -71,7 +74,7 @@ for (const table of ['users', 'activity', 'harness_use', 'downloads', 'feedback'
 assert.ok(!db.prepare('PRAGMA table_info(feedback)').all().some(c => c.name === 'id' && false) && !db.prepare('PRAGMA table_info(feedback)').all().some(c => /uuid|user/i.test(c.name)), 'feedback carries no install ID');
 // metrics from first_day / activity: rolling windows, calendar months, stuck age, retention
 env = mkEnv();
-const put = (id, first, last, stage, reason, os = 'linux', v = '0.6.0') => env.DB.db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?,?,NULL)').run(ID(id), first, last, v, os, stage, reason);
+const put = (id, first, last, stage, reason, os = 'linux', v = '0.6.0') => env.DB.db.prepare('INSERT INTO users (id,first_day,last_day,v,os,stage,reason) VALUES (?,?,?,?,?,?,?)').run(ID(id), first, last, v, os, stage, reason);
 const act = (id, d, used = 0, minutes = 0) => env.DB.db.prepare('INSERT INTO activity (day, id, used, minutes) VALUES (?,?,?,?)').run(d, ID(id), used, minutes);
 put(10, daysAgo(40), daysAgo(40), 0, 'missing'); act(10, daysAgo(40));                                   // stuck, 40 days old, gone
 put(11, daysAgo(40), daysAgo(1), 2, null, 'mac'); for (const d of [40, 39, 33, 10, 1]) act(11, daysAgo(d), d === 39 || d === 10 || d === 1 ? 1 : 0, { 39: 20, 10: 40, 1: 3 }[d] || 0); // kept on day 1 and 7
@@ -93,10 +96,10 @@ assert.deepEqual(stats.stuck.map(s => [s.reason, s.age, s.n]).sort(), [['missing
 assert.deepEqual(stats.retention.map(r => [r.day, r.cohort, r.kept, r.keptUsed]), [[1, 4, 1, 1], [7, 3, 1, 0], [30, 3, 1, 1]], 'retention: cohort and active-again counts');
 assert.deepEqual(stats.byVersion.map(v => [v.name, v.n]), [['0.6.0', 3]], 'versions of installs active in the last 30 days');
 assert.equal(stats.firsts.reduce((a, x) => a + x.n, 0), 4, 'installs by first day, last 90 days');
-// several reports the same day add up (counting minutes, not commands), capped at a day
+// A retry or a larger snapshot still counts each minute only once.
 env = mkEnv();
-for (const minutes of [10, 20, 1430]) await post(env, '/endpoint/ping', { ...PING, used: true, minutes });
-assert.equal(env.DB.db.prepare('SELECT minutes, used FROM activity').get().minutes, 1440);
+for (const minutes of [10, 10, 20, 10]) await post(env, '/endpoint/ping', { ...PING, used: true, minutes });
+assert.equal(env.DB.db.prepare('SELECT minutes, used FROM activity').get().minutes, 20);
 assert.equal(env.DB.db.prepare('SELECT COUNT(*) AS n FROM activity').get().n, 1);
 // hourly ceiling: further reports are dropped without an error
 env = mkEnv();
@@ -185,14 +188,15 @@ console.log('ok  feedback: plain text only, length cap, bots, rate limit, stored
 
 /* ---------------------------------------------------------- the add-on's report */
 const code = readFileSync('build/extension/stats.js', 'utf8');
-function addon({ granted = true, store = {}, os = 'linux', fail = false, version = '0.6.0' } = {}) {
+function addon({ granted = true, store = {}, os = 'linux', fail = false, version = '0.6.0', locale = 'EN-gb', duringPost, duringPlatform } = {}) {
   const sent = [], listeners = {}, uninstall = [], timers = [];
   const state = { granted };
   let n = 0;
   const context = vm.createContext({
     browser: {
+      i18n: { getUILanguage: () => locale },
       runtime: {
-        getManifest: () => ({ version }), getPlatformInfo: async () => ({ os }),
+        getManifest: () => ({ version }), getPlatformInfo: async () => { duringPlatform?.(state); return { os }; },
         setUninstallURL: async url => { uninstall.push(url); },
         onInstalled: { addListener: fn => { listeners.installed = fn; } },
       },
@@ -202,14 +206,14 @@ function addon({ granted = true, store = {}, os = 'linux', fail = false, version
         onChanged: { addListener: fn => { listeners.changed = fn; } } },
     },
     crypto: { randomUUID: () => crypto.randomUUID() },
-    fetch: async (url, init) => { sent.push({ url, init }); if (fail) throw new Error('offline'); return new Response(null, { status: 204 }); },
+    fetch: async (url, init) => { sent.push({ url, init }); duringPost?.(store, sent.length); if (fail) throw new Error('offline'); return new Response(null, { status: 204 }); },
     AbortController, setTimeout: (fn, ms) => { timers.push([fn, ms]); return 1; }, clearTimeout() {}, setInterval: () => 1, Date, JSON, encodeURIComponent,
   });
   vm.runInContext(code, context);
   return { sent, store, state, uninstall, listeners, tick: () => timers.find(t => t[1] === 20000)[0](), settle: () => new Promise(r => setImmediate(r)) };
 }
 const wait = async a => { await a.settle(); await a.settle(); await new Promise(r => setTimeout(r, 20)); };
-const ALLOWED = ['harnesses', 'id', 'minutes', 'os', 'picked', 'reason', 'stage', 'used', 'v'];
+const ALLOWED = ['harnesses', 'id', 'language', 'minutes', 'os', 'picked', 'reason', 'stage', 'used', 'v'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 let a = addon();
 a.listeners.installed({ reason: 'install' });
@@ -220,21 +224,45 @@ assert.equal(a.sent[0].init.credentials, 'omit'); assert.equal(a.sent[0].init.re
 let body = JSON.parse(a.sent[0].init.body);
 assert.deepEqual(Object.keys(body).sort(), ALLOWED, 'only the allowed fields');
 assert.match(body.id, UUID); assert.equal(a.store.statsId, body.id, 'the ID is kept locally');
-assert.deepEqual({ ...body, id: 0 }, { id: 0, v: '0.6.0', os: 'linux', stage: 0, reason: 'unknown', harnesses: [], picked: null, used: false, minutes: 0 });
+assert.deepEqual({ ...body, id: 0 }, { id: 0, v: '0.6.0', os: 'linux', language: 'en', stage: 0, reason: 'unknown', harnesses: [], picked: null, used: false, minutes: 0 });
+for (const [locale, expected] of [['zh-Hant-TW', 'zh'], ['fil-PH', 'other'], [null, 'other']]) {
+  const report = addon({ locale });
+  report.tick();
+  await wait(report);
+  assert.equal(JSON.parse(report.sent[0].init.body).language, expected);
+}
 assert.ok(!/https?:|token|port|localhost|tab/i.test(a.sent[0].init.body), 'nothing about browsing, token or ports');
 a.tick(); await wait(a);
 assert.equal(a.sent.length, 1, 'at most one report per day');
 const id = body.id;
 // a later day: same ID, new stage, harness kinds once
-a.store.statsStage = 2; a.store.statsLast = '2000-01-01'; a.store.statsHarnesses = ['codex', 'bogus', 'claude-code']; a.store.statsPicked = 'codex'; a.store.statsUsed = true; a.store.statsMinutes = 7;
+a.store.statsStage = 2; a.store.statsLast = '2000-01-01'; a.store.statsHarnessCounts = { codex: 1, bogus: 2, 'claude-code': 1 }; a.store.statsPicked = 'codex'; a.store.statsMinutes = 7;
 a.tick(); await wait(a);
 body = JSON.parse(a.sent[1].init.body);
-assert.deepEqual(body, { id, v: '0.6.0', os: 'linux', stage: 2, reason: null, harnesses: ['claude-code', 'codex'], picked: 'codex', used: true, minutes: 7 });
-assert.equal(a.store.statsUsed, false, 'cleared after a successful report');
-assert.equal(a.store.statsMinutes, 0, 'minutes reset after a successful report');
-assert.equal(JSON.stringify(a.store.statsHarnesses), '[]', 'reported kinds are cleared');
+assert.deepEqual(body, { id, v: '0.6.0', os: 'linux', language: 'en', stage: 2, reason: null, harnesses: ['claude-code', 'codex'], picked: 'codex', used: true, minutes: 7 });
+assert.equal(a.store.statsMinutesReported, 7, 'minutes acknowledged after a successful report');
+assert.deepEqual({ ...a.store.statsHarnessesReported }, { 'claude-code': 1, codex: 1 }, 'only known kinds acknowledged');
 a.store.statsLast = '2000-01-01'; a.store.statsMinutes = 99999; a.tick(); await wait(a);
 assert.equal(JSON.parse(a.sent.at(-1).init.body).minutes, 1440, 'capped at a day');
+const inFlight = addon({
+  store: { statsMinutes: 5, statsHarnessCounts: { codex: 1 } },
+  duringPost(store, n) {
+    if (n !== 1) return;
+    store.statsMinutes = 6;
+    store.statsHarnessCounts = { codex: 2, opencode: 1 };
+  },
+});
+inFlight.tick(); await wait(inFlight);
+inFlight.store.statsLast = '2000-01-01'; inFlight.tick(); await wait(inFlight);
+body = JSON.parse(inFlight.sent[1].init.body);
+assert.equal(body.minutes, 1, 'a command during the previous upload survives');
+assert.deepEqual(body.harnesses.sort(), ['codex', 'opencode'], 'client detections during the upload survive, even when the same client was just reported');
+const upgraded = addon({ store: { statsUsed: true, statsHarnesses: ['codex'] } });
+upgraded.tick(); await wait(upgraded);
+assert.equal(JSON.parse(upgraded.sent[0].init.body).used, true);
+upgraded.store.statsLast = '2000-01-01'; upgraded.tick(); await wait(upgraded);
+assert.equal(JSON.parse(upgraded.sent[1].init.body).used, false, 'legacy activity is only acknowledged once');
+assert.deepEqual(JSON.parse(upgraded.sent[1].init.body).harnesses, []);
 a = addon({ fail: true, store: { statsMinutes: 5 } }); a.tick(); await wait(a);
 assert.equal(a.store.statsMinutes, 5, 'minutes are kept when the report failed');
 // permission off: nothing is sent, the ID stays, turning it back on keeps the same ID
@@ -248,6 +276,9 @@ assert.equal(a.sent.length, 1, 'sends once it is granted (checked at send time)'
 assert.equal(JSON.parse(a.sent[0].init.body).id, kept, 'the same ID, not a new user');
 a.state.granted = false; a.store.statsLast = '2000-01-01'; a.tick(); await wait(a);
 assert.equal(a.sent.length, 1, 'revoked again: nothing more');
+const revokedBeforeUpload = addon({ duringPlatform: state => { state.granted = false; } });
+revokedBeforeUpload.tick(); await wait(revokedBeforeUpload);
+assert.equal(revokedBeforeUpload.sent.length, 0, 'recheck permission after async platform lookup, just before posting');
 // an update from an older version (no ID stored) gets one on first run; a stored ID is never replaced; junk IDs are replaced
 a = addon({ store: { statsStage: 1 } }); a.tick(); await wait(a);
 body = JSON.parse(a.sent[0].init.body);

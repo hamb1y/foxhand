@@ -5,6 +5,7 @@
 
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { BridgeEvent } from "@webmcp-controller/shared";
 import type { ExtensionBridge } from "../bridge/bridge.js";
 import type { ServerConfig } from "../config.js";
@@ -35,10 +36,13 @@ export const SERVER_INSTRUCTIONS = [
   "Closing tabs/windows and deleting bookmarks or cookies need confirm:true. Don't do anything irreversible (purchases, sending messages, deleting data) the user didn't ask for.",
 ].join("\n\n");
 
+type ToolRelay = (name: string, args: Record<string, unknown>, signal?: AbortSignal) => Promise<CallToolResult>;
+
 export function registerFirefoxTools(
   server: McpServer,
   bridge: ExtensionBridge,
   config: ServerConfig,
+  relay?: ToolRelay,
 ): void {
   // Every handler runs with the request's cancellation signal in scope, so the bridge can abort.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,7 +51,9 @@ export function registerFirefoxTools(
   (server as any).registerTool = (name: string, cfg: any, cb: any) =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     register(name, cfg, (args: any, extra: unknown) =>
-      withSignal((extra as { signal?: AbortSignal } | undefined)?.signal, () => cb(args, extra)),
+      withSignal((extra as { signal?: AbortSignal } | undefined)?.signal, () =>
+        relay ? relay(name, args, (extra as { signal?: AbortSignal } | undefined)?.signal) : cb(args, extra),
+      ),
     );
 
   registerTabTools(server, bridge, config);

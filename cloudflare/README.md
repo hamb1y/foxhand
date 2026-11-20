@@ -66,6 +66,16 @@ fixtures; the command above checks GitHub itself.
 
 ## Authorized deployment
 
+Before deploying the worker with Firefox language distribution, apply the
+additive `0005_language.sql` migration to production D1:
+
+```sh
+npx --yes wrangler@4.159.0 d1 migrations apply foxhand-stats --remote
+```
+
+Existing reports remain valid and appear as **Unknown** until the install sends
+its primary Firefox UI language. The panel only shows aggregate counts.
+
 The Direct Upload project `foxhand` has been created. Do not enable Git-triggered
 deployments. No R2 bucket, binding, AWS CLI or R2 secret is needed. Configure only
 `CLOUDFLARE_ACCOUNT_ID` and a Pages-edit `CLOUDFLARE_API_TOKEN` for the workflow.

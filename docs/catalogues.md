@@ -8,6 +8,27 @@ Every client needs the same two things from the user: the helper address
 (`http://localhost:8901/mcp` by default) and the token from the add-on. No
 catalogue file contains a token.
 
+## Glama and the upstream list
+
+The [Glama listing](https://glama.ai/mcp/servers/hamb1y/foxhand) exists, but its
+Schema page reports **No tools**. The maintainer of
+[awesome-mcp-servers PR #19501](https://github.com/punkpeye/awesome-mcp-servers/pull/19501)
+is waiting for Glama's quality score, not for another submission. Glama's sandbox
+cannot reach an MCP port opened by Firefox on somebody else's computer.
+
+After the stdio shim reaches `main`, sync the repository in Glama, claim the
+listing as `hamb1y` (`glama.json`), and trigger a build and inspection in
+[Glama Admin](https://glama.ai/mcp/servers/hamb1y/foxhand/admin).
+Use Node 22+, build with `npm ci` then `npm run build`, and start with
+`node mcp-server/dist/host.js mcp`. No token is needed to list the real tool
+schemas. The sandbox cannot carry out browser actions; those still require a
+local Firefox and a bearer token. Do not attach a user's token or expose their
+helper to the internet. Once the score appears, follow up on PR #19501.
+
+`mcpservers.org` returned HTTP 403 from our client. Its listing was not verified
+or changed. The Gemini GitHub topic is present; that doesn't confirm the gallery
+actually indexed the entry.
+
 ## Gemini CLI extension gallery
 
 - Files: `gemini-extension.json` and `GEMINI.md` at the repo root.
@@ -48,7 +69,8 @@ catalogue file contains a token.
 
 ## Official MCP Registry
 
-Not publishable yet. Needs the owner's OK on a new package first.
+The public registry returns no Foxhand match. Publish the entry only after an
+`@foxhand/helper` release containing the `mcp` command and `mcpName` is on npm.
 
 - A `remotes` entry is out: the registry requires a remote to be publicly
   reachable, and Foxhand only listens on localhost.
@@ -57,9 +79,9 @@ Not publishable yet. Needs the owner's OK on a new package first.
   release binary is none of these.
 - The helper is also started by Firefox, not by the MCP client, so whatever
   the registry points at has to be something a client can launch itself.
-- Smallest fit: the npm package proposed in docs/install-npx-proposal.md,
-  which a client runs as `npx -y foxhand mcp` and which relays stdio to the
-  helper. The `server.json` would then be:
+- An MCP client launches `npx -y @foxhand/helper mcp`; it relays calls to the
+  helper after validating the localhost URL and bearer token. Use the actual
+  published version for both version fields in `server.json`:
 
 ```json
 {
@@ -73,19 +95,22 @@ Not publishable yet. Needs the owner's OK on a new package first.
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "foxhand",
+      "identifier": "@foxhand/helper",
       "version": "X.Y.Z",
       "runtimeHint": "npx",
       "packageArguments": [{ "type": "positional", "value": "mcp" }],
-      "transport": { "type": "stdio" }
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        { "name": "FOXHAND_TOKEN", "description": "Token from Foxhand Settings, without Bearer", "isRequired": true, "isSecret": true },
+        { "name": "FOXHAND_URL", "description": "Local MCP URL; set this only if you changed the helper port", "default": "http://localhost:8901/mcp" }
+      ]
     }
   ]
 }
 ```
 
-- The npm package's `package.json` needs `"mcpName": "io.github.hamb1y/foxhand"`
-  (the registry's ownership check). The npm name `foxhand` was free on
-  2026-11-14.
+- The npm tarball embeds `"mcpName": "io.github.hamb1y/foxhand"` for the
+  registry ownership check. This is not retroactive for `0.6.1`.
 - The alternative without npm is an `.mcpb` bundle attached to each GitHub
   release, with `fileSha256` in `server.json`. It carries the same bridge
   code, so it is not less work, and fewer clients install MCPB.
@@ -95,7 +120,8 @@ Not publishable yet. Needs the owner's OK on a new package first.
 
 ## awesome-mcp-servers (punkpeye)
 
-Draft only. The owner opens the PR.
+[PR #19501](https://github.com/punkpeye/awesome-mcp-servers/pull/19501) is open;
+the upstream maintainer is waiting for Glama's score.
 
 - Section: **Browser Automation**. Alphabetical by `owner/repo`, so the line
   goes after `hahahahahahahahah6/browser-buddy` and before `hanzili/comet-mcp`.

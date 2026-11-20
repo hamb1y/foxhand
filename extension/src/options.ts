@@ -253,6 +253,10 @@ function copyFrom(text: string, btn: HTMLElement) {
   F.copy(text, btn).catch(function (e) { toast(errText(e), true); });
 }
 $('copyCfg').addEventListener('click', function () { copyFrom(cfgEl.textContent!, this); });
+$('copySetupPrompt').addEventListener('click', function () {
+  if (!last) return;
+  copyFrom(F.setupPrompt(last, kind(), where()), this);
+});
 $('copyToken').addEventListener('click', function () { copyFrom(tokenEl.value, this); });
 
 $('reveal').addEventListener('click', function () {

@@ -1964,6 +1964,7 @@ function helperReason(): HelperReason | '' {
 }
 
 /* An MCP client connected to the helper: keep its category (a fixed list entry) for the next report. */
+var harnessChain: Promise<unknown> = Promise.resolve();
 function trackClient(hs: { client?: string; clientSeq?: number }): void {
   var seq = typeof hs.clientSeq === 'number' ? hs.clientSeq : 0;
   var first = clientSeqSeen < 0;
@@ -1972,24 +1973,22 @@ function trackClient(hs: { client?: string; clientSeq?: number }): void {
   // The first status after (re)connecting only sets the baseline: that client may have been counted already.
   if (first || !changed || !hs.client || (HARNESSES as readonly string[]).indexOf(hs.client) < 0) return;
   var kind = hs.client;
-  call(B.storage.local, 'get', ['statsHarnesses']).then(function (got: Record<string, unknown>) {
-    var list = Array.isArray(got.statsHarnesses) ? (got.statsHarnesses as unknown[]).filter(function (x) { return typeof x === 'string'; }) : [];
-    if (list.indexOf(kind) < 0) { list.push(kind); return call(B.storage.local, 'set', { statsHarnesses: list }); }
-    return undefined;
+  harnessChain = harnessChain.then(async function () {
+    var got = (await call(B.storage.local, 'get', ['statsHarnessCounts'])) || {};
+    var counts = got.statsHarnessCounts || {};
+    counts[kind] = (Number.isSafeInteger(counts[kind]) ? counts[kind] : 0) + 1;
+    await call(B.storage.local, 'set', { statsHarnessCounts: counts });
   }).catch(function () {});
 }
 
-/* An AI command ran: mark the install as used and count the clock minute once (the last minute counted is kept,
- * never a command time). stats.ts reports the count with the daily report and resets it. */
+/* Count clock minutes with a command. Reporting saves a watermark instead of resetting the counter. */
 var minuteChain: Promise<unknown> = Promise.resolve();
 function countMinute(): void {
   var minute = Math.floor(Date.now() / 60000);
   minuteChain = minuteChain.then(async function () {
     var got: Record<string, unknown> = (await call(B.storage.local, 'get', ['statsMinutes', 'statsLastMinute'])) || {};
     var n = typeof got.statsMinutes === 'number' && got.statsMinutes > 0 ? Math.floor(got.statsMinutes) : 0;
-    var data: Record<string, unknown> = { statsUsed: true };
-    if (got.statsLastMinute !== minute) { data.statsMinutes = Math.min(1440, n + 1); data.statsLastMinute = minute; }
-    await call(B.storage.local, 'set', data);
+    if (got.statsLastMinute !== minute) await call(B.storage.local, 'set', { statsMinutes: n + 1, statsLastMinute: minute });
   }).catch(function () {});
 }
 
@@ -2121,12 +2120,13 @@ interface StoredConfig {
   mcpConfirm?: unknown;
   mcpShowCursor?: unknown;
   mcpPaused?: unknown;
+  statsStage?: unknown;
 }
 
 async function loadConfig() {
   var got: StoredConfig = {};
   try {
-    got = (await call(B.storage.local, 'get', ['mcpToken', 'mcpPort', 'mcpBind', 'mcpAllowWsl', 'mcpConfirm', 'mcpShowCursor', 'mcpPaused'])) || {};
+    got = (await call(B.storage.local, 'get', ['mcpToken', 'mcpPort', 'mcpBind', 'mcpAllowWsl', 'mcpConfirm', 'mcpShowCursor', 'mcpPaused', 'statsStage'])) || {};
   } catch (e) {}
   CFG.token = (typeof got.mcpToken === 'string' && got.mcpToken.length >= 16) ? got.mcpToken : '';
   CFG.port = validPort(got.mcpPort) || DEFAULT_PORT;
@@ -2135,6 +2135,8 @@ async function loadConfig() {
   CFG.confirmDestructive = got.mcpConfirm !== false;
   CFG.showCursor = got.mcpShowCursor !== false;
   paused = got.mcpPaused === true;
+  // Don't overwrite the first-command milestone while reconnecting after a restart.
+  if (got.statsStage === 1 || got.statsStage === 2) stageSeen = Math.max(stageSeen, got.statsStage);
   if (!CFG.token) {
     CFG.token = randomToken();
     try { await call(B.storage.local, 'set', { mcpToken: CFG.token }); } catch (e) {}
@@ -2312,4 +2314,3 @@ updateBadge();
 loadConfig().then(connect);
 
 })();
-

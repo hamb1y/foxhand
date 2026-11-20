@@ -39,6 +39,16 @@ Everything else:
 
 The setup page has the config for other harnesses.
 
+### Claude Desktop (the Claude app)
+
+Claude may refuse when you ask it to edit its own configuration. Set up Foxhand yourself from the app's settings:
+
+1. In Firefox, open **Foxhand → Settings → Connect your AI → Claude app**, then copy the config. This setup needs Node.js.
+2. In the Claude app, open **Settings → Developer → Edit Config**. Paste the setup JSON if the file is empty. If it already has servers, add only the `firefox` entry inside its existing `mcpServers` object.
+3. Save `claude_desktop_config.json`. Fully quit and reopen Claude, keep Firefox open with Foxhand showing **Ready**, then ask Claude to list your Firefox tabs.
+
+Don't paste the config into the chat: it contains your local bearer token. This is for the desktop app, not claude.ai in a browser.
+
 Check it works:
 
 ```bash

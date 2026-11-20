@@ -32,6 +32,7 @@ try {
   await chmod(host, 0o755);
   await writeFile(path.join(stage, "package.json"), JSON.stringify({
     name: "@foxhand/helper",
+    mcpName: "io.github.hamb1y/foxhand",
     version,
     description: "Native messaging and MCP helper for the Foxhand Firefox add-on",
     license,
@@ -57,6 +58,10 @@ foxhand-helper install
 In Windows PowerShell, use \`npm.cmd\` and \`foxhand-helper.cmd\` instead.
 Restart Firefox, then open Foxhand to connect your MCP client.
 Run \`foxhand-helper uninstall\` before removing the npm package.
+
+Stdio-only MCP clients can launch \`npx -y @foxhand/helper mcp\`. Set
+\`FOXHAND_TOKEN\` to the token from Foxhand Settings (without \`Bearer\`).
+If you changed the port, also set \`FOXHAND_URL\` to the localhost MCP URL.
 `);
   execFileSync(process.execPath, [process.env.npm_execpath, "pack", "--pack-destination", output], {
     cwd: stage,
