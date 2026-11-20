@@ -4,7 +4,7 @@
 
 Let your AI agent use your Firefox with your data, logins, and cookies.
 
-[Addon](https://foxhand.pages.dev/go/amo?from=readme) · [Site](https://foxhand.pages.dev/) · [What's new in 0.6.1](CHANGELOG.md)
+[Addon](https://foxhand.pages.dev/go/amo?from=readme) · [Site](https://foxhand.pages.dev/) · [What's new in 0.6.2](CHANGELOG.md)
 
 <img src="site/shots/cursor.webp" alt="The AI cursor on a Wikipedia article, with an orange bubble saying what it is doing.">
 
@@ -53,7 +53,7 @@ Check it works:
 
 ```bash
 curl http://localhost:8901/health
-# {"ok":true,"extensionConnected":true,"version":"0.6.1"}
+# {"ok":true,"extensionConnected":true,"version":"0.6.2"}
 ```
 
 ## Tools
@@ -92,7 +92,7 @@ Needs Node.js 22.
 ```bash
 git clone https://github.com/hamb1y/foxhand.git
 cd foxhand
-git checkout v0.6.1
+git checkout v0.6.2
 npm ci
 npm run build
 npm test

@@ -1,6 +1,6 @@
 {
   "name": "foxhand",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Drive the Firefox you already use from Gemini CLI: your profile, tabs and logins. Needs the Foxhand add-on and its helper.",
   "mcpServers": {
     "firefox": {

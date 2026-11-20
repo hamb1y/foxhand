@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.2
+
+- Run the whole helper install command: it also tells Firefox where to find the helper.
+- Copy a setup prompt from onboarding or Settings. A local AI can help choose an installer and configure its MCP connection, or explain what you need to do yourself. The prompt leaves out the access token.
+- Clarify manual Claude Desktop setup and update the OpenCode configuration format.
+- Keep opt-in setup progress across Firefox restarts and preserve activity recorded during a report. Retrying a report no longer double-counts minutes.
+- Opt-in reports now include Firefox’s primary interface language, without region or script.
+- Stdio-only MCP clients can use `foxhand-helper mcp` to reach the authenticated local helper. This does not expose Firefox to the internet.
+
 ## 0.6.1
 
 - Install the helper with Homebrew on macOS and Linux, or with npm on macOS, Linux and Windows.
