@@ -89,6 +89,15 @@ npm test
 bash scripts/pack-extension.sh
 ```
 
+## Star History
+
+<a href="https://www.star-history.com/?repos=hamb1y%2Ffoxhand&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=hamb1y/foxhand&type=date&theme=dark&legend=top-left" />
+   <img alt="Foxhand GitHub star history" src="https://api.star-history.com/chart?repos=hamb1y/foxhand&type=date&legend=top-left" />
+ </picture>
+</a>
+
 ## License
 
 [MPL-2.0](LICENSE). Cursors are [Bibata](https://github.com/ful1e5/Bibata_Cursor) (GPL-3.0).
