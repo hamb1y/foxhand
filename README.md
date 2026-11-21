@@ -2,9 +2,9 @@
 
 # Foxhand
 
-Let your AI agent use your Firefox with your data, logins, and cookies.
+Foxhand is an open-source Firefox extension and local MCP server. It lets your AI agent use the Firefox you already have open, with your tabs and logins.
 
-[Addon](https://foxhand.pages.dev/go/amo?from=readme) · [Site](https://foxhand.pages.dev/) · [What's new in 0.6.2](CHANGELOG.md)
+[Foxhand on Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/foxhand/) · [Official website](https://foxhand.pages.dev/) · [What's new in 0.6.2](CHANGELOG.md)
 
 <img src="site/shots/cursor.webp" alt="The AI cursor on a Wikipedia article, with an orange bubble saying what it is doing.">
 

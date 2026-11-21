@@ -3,17 +3,47 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Foxhand: let your AI agent use your real Firefox</title>
+<title>Foxhand — Firefox Extension and MCP Server</title>
 <link rel="canonical" href="https://foxhand.pages.dev/">
-<meta name="description" content="A Firefox add-on that lets Claude Code, Codex, Antigravity or any MCP client use the Firefox you already use: your tabs, your logins. Runs on your computer. Formerly WebMCP Controller.">
-<meta property="og:title" content="Foxhand">
-<meta property="og:description" content="Let your AI agent use your real Firefox: your tabs, your logins. Runs on your computer.">
+<meta name="description" content="Foxhand is the open-source Firefox extension and local MCP server that lets Claude Code, Codex, and OpenCode use your existing Firefox tabs.">
+<meta property="og:site_name" content="Foxhand">
+<meta property="og:title" content="Foxhand — Firefox Extension and MCP Server">
+<meta property="og:description" content="Let your AI agent use your real Firefox tabs with Foxhand, an open-source extension and local MCP server.">
 <meta property="og:image" content="https://foxhand.pages.dev/shots/og.jpg">
 <meta property="og:url" content="https://foxhand.pages.dev/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0a0a0a">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="preload" href="GoogleSansFlex-latin.woff2" as="font" type="font/woff2" crossorigin>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://foxhand.pages.dev/#website",
+      "name": "Foxhand",
+      "alternateName": "Foxhand Firefox MCP",
+      "url": "https://foxhand.pages.dev/"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://foxhand.pages.dev/#foxhand",
+      "name": "Foxhand",
+      "url": "https://foxhand.pages.dev/",
+      "description": "An open-source Firefox extension and local MCP server for AI browser control.",
+      "operatingSystem": "Windows, macOS, Linux",
+      "applicationCategory": "DeveloperApplication",
+      "isAccessibleForFree": true,
+      "license": "https://www.mozilla.org/MPL/2.0/",
+      "sameAs": [
+        "https://addons.mozilla.org/en-US/firefox/addon/foxhand/",
+        "https://github.com/hamb1y/foxhand"
+      ]
+    }
+  ]
+}
+</script>
 <style>
   @font-face {
     font-family: 'Google Sans Flex';
@@ -250,9 +280,9 @@
 <div class="wrap" id="main">
 
   <header class="hero">
-    <p class="kicker">A Firefox add-on for AI agents</p>
-    <h1>Let your AI agent use your real Firefox.</h1>
-    <p class="lead">Foxhand connects Claude Code, Codex, Antigravity or any other MCP client to the browser you already use, with your tabs and your logins. A cursor on the page shows what the agent is doing, and it all runs on your own computer.</p>
+    <p class="kicker">An open-source Firefox extension and MCP server</p>
+    <h1>Foxhand for Firefox</h1>
+    <p class="lead">Let Claude Code, Codex, OpenCode, or any MCP client use your real Firefox, with the tabs and logins you already have. Watch the agent’s cursor as it works, or pause it any time. It all runs on your own computer.</p>
     <div class="actions">
       <a class="btn orange" href="https://foxhand.pages.dev/go/amo?from=site">Add to Firefox</a>
       <a class="btn" href="#calls">See what it does</a>
@@ -519,6 +549,7 @@ http_headers = { Authorization = "Bearer &lt;token&gt;" }</pre><button class="co
 <footer>
   <div class="wrap">
     <a href="https://foxhand.pages.dev/go/github?from=site">Source</a>
+    <a href="https://addons.mozilla.org/en-US/firefox/addon/foxhand/">Foxhand on Firefox Add-ons</a>
     <a href="/changelog">Changelog</a>
     <a href="/privacy">Privacy</a>
     <a href="/download">Downloads</a>
