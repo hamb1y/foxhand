@@ -25,6 +25,18 @@ assert.match(text('index.html'), /https:\/\/foxhand.pages.dev\/download\/sh/);
 assert.match(text('robots.txt'), /^Sitemap: https:\/\/foxhand\.pages\.dev\/sitemap\.xml$/m);
 assert.match(text('sitemap.xml'), /<loc>https:\/\/foxhand\.pages\.dev\/download<\/loc>/);
 assert.match(text('index.html'), /rel="canonical" href="https:\/\/foxhand\.pages\.dev\/"/);
+const homepage = text('index.html');
+assert.match(homepage, /<title>Foxhand — Firefox Extension and MCP Server<\/title>/);
+assert.match(homepage, /<h1>Foxhand for Firefox<\/h1>/);
+assert.match(homepage, /<meta property="og:site_name" content="Foxhand">/);
+const identities = JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(homepage)?.[1] ?? '{}')['@graph'];
+assert.deepEqual(identities.find(node => node['@type'] === 'WebSite'), {
+  '@type': 'WebSite', '@id': 'https://foxhand.pages.dev/#website',
+  name: 'Foxhand', alternateName: 'Foxhand Firefox MCP', url: 'https://foxhand.pages.dev/',
+});
+const listingUrl = 'https://addons.mozilla.org/en-US/firefox/addon/foxhand/';
+assert.ok(identities.find(node => node['@type'] === 'SoftwareApplication').sameAs.includes(listingUrl));
+assert.ok(homepage.includes(`href="${listingUrl}">Foxhand on Firefox Add-ons</a>`));
 for (const page of ['index.html', 'download/index.html']) {
   assert.ok(text(page).includes('brew install hamb1y/tap/foxhand-helper &amp;&amp; foxhand-helper install'));
   assert.ok(text(page).includes('npm install -g @foxhand/helper &amp;&amp; foxhand-helper install'));
