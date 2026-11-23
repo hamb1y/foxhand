@@ -215,6 +215,18 @@
   "copyCommand": {
     "message": "复制命令"
   },
+  "helperRunWhole": {
+    "message": "运行完整命令。它还会告诉 Firefox 辅助程序在哪里。"
+  },
+  "setupPromptIntro": {
+    "message": "或者把设置提示词粘贴到你要连接的 AI 应用中。"
+  },
+  "copySetupPrompt": {
+    "message": "复制设置提示词"
+  },
+  "setupPromptSecret": {
+    "message": "提示词不包含你的访问令牌。请在 AI 应用的本地设置中添加，不要在聊天中添加。"
+  },
   "downloadApp": {
     "message": "下载程序"
   },
@@ -1059,6 +1071,18 @@
   },
   "lblStorageRemovePast": {
     "message": "删除了保存的数据"
+  },
+  "lblPageEvalNow": {
+    "message": "正在页面上运行代码"
+  },
+  "lblPageEvalPast": {
+    "message": "在页面上运行了代码"
+  },
+  "lblPageLinksNow": {
+    "message": "正在读取链接"
+  },
+  "lblPageLinksPast": {
+    "message": "读取了链接"
   },
   "hintPaused": {
     "message": "恢复之前，所有 AI 命令都会被拒绝。"

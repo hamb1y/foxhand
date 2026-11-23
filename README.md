@@ -4,7 +4,7 @@
 
 Foxhand is an open-source Firefox extension and local MCP server. It lets your AI agent use the Firefox you already have open, with your tabs and logins.
 
-[Foxhand on Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/foxhand/) · [Official website](https://foxhand.pages.dev/) · [What's new in 0.6.2](CHANGELOG.md)
+[Foxhand on Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/foxhand/) · [Official website](https://foxhand.pages.dev/) · [What's new in 0.6.3](CHANGELOG.md)
 
 <img src="site/shots/cursor.webp" alt="The AI cursor on a Wikipedia article, with an orange bubble saying what it is doing.">
 
@@ -53,7 +53,7 @@ Check it works:
 
 ```bash
 curl http://localhost:8901/health
-# {"ok":true,"extensionConnected":true,"version":"0.6.2"}
+# {"ok":true,"extensionConnected":true,"version":"0.6.3"}
 ```
 
 ## Tools
@@ -61,17 +61,24 @@ curl http://localhost:8901/health
 Tabs and windows (12)
 `tab_query` `tab_check_active` `tab_create` `tab_navigate` `tab_focus` `tab_close` `tab_pin` `tab_mute` `window_query` `window_create` `window_focus` `window_close`
 
-Reading pages (6)
-`page_snapshot` `page_text` `page_html` `page_screenshot` `page_info` `page_find`
+Reading pages (7)
+`page_snapshot` `page_text` `page_html` `page_screenshot` `page_info` `page_find` `page_links`
 
-Acting on pages (10)
-`page_click` `page_type` `page_fill` `page_select` `page_hover` `page_scroll` `page_key` `page_wait` `page_drag` `page_upload`
+Acting on pages (11)
+`page_click` `page_type` `page_fill` `page_select` `page_hover` `page_scroll` `page_key` `page_wait` `page_drag` `page_upload` `page_eval`
 
 Browser data (14)
 `bookmark_query` `bookmark_create` `bookmark_remove` `history_query` `download_query` `download_start` `cookie_query` `cookie_set` `cookie_remove` `storage_get` `storage_set` `storage_remove` `session_query` `session_restore`
 
 Meta (3)
 `extension_status` `thought` `event_wait`
+
+## How it behaves
+
+Works in background tabs. It doesn't switch the tab you're looking at unless you ask it to.
+Page tools take a `tabId`. Leave it out and they use the last tab the AI used, if that tab is still open.
+Text from web pages is marked untrusted. A site can't give your agent orders.
+`page_eval` runs the AI's own JavaScript inside the page, with your logins. The add-on runs no page code of its own.
 
 ## Safety
 
@@ -92,7 +99,7 @@ Needs Node.js 22.
 ```bash
 git clone https://github.com/hamb1y/foxhand.git
 cd foxhand
-git checkout v0.6.2
+git checkout v0.6.3
 npm ci
 npm run build
 npm test

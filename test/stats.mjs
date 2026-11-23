@@ -49,7 +49,7 @@ let stats = await (await call(env, '/endpoint/stats', { headers: auth })).json()
 assert.equal(stats.installs, 2);
 assert.deepEqual(stats.funnel, { installed: 2, helper: 2, command: 1 }, 'highest stage per install');
 assert.deepEqual(stats.daily, [{ day: TODAY, n: 2, used: 1, minutes: 12 }], 'distinct installs per day; used stays set once any report that day had it');
-assert.deepEqual(stats.rolling, { mau: 2, aau7: 1, aau30: 1 }, 'AAU: installs with a command, not just a report');
+assert.deepEqual(stats.rolling, { aau7: 1, aau30: 1 }, 'active: installs with a command, not just a report');
 assert.equal(stats.months[0].n, 2); assert.ok(!('years' in stats) && !('aau' in stats.rolling));
 assert.deepEqual(stats.byOs.map(x => [x.name, x.n]).sort(), [['linux', 1], ['win', 1]]);
 assert.deepEqual(stats.byLanguage, [{ name: 'fr', n: 1 }, { name: 'unknown', n: 1 }], 'older reports stay valid without overwriting a known language');
@@ -84,7 +84,6 @@ put(14, daysAgo(2), daysAgo(0), 1, null); act(14, daysAgo(2)); act(14, daysAgo(0
 stats = await (await call(env, '/endpoint/stats', { headers: auth })).json();
 assert.equal(stats.installs, 5);
 assert.deepEqual(stats.funnel, { installed: 5, helper: 3, command: 1 });
-assert.equal(stats.rolling.mau, 3, 'ids active in the last 30 days: 11, 12, 14');
 assert.deepEqual([stats.rolling.aau7, stats.rolling.aau30], [2, 2], 'ids with a command in the last 7 / 30 days: 11 and 14');
 assert.equal(stats.daily.find(d => d.day === TODAY).used, 1);
 assert.deepEqual(stats.minutes.buckets.map(b => [b.label, b.n]), [['under 5', 1], ['5-29', 0], ['30-119', 1], ['120+', 1]], 'user-days by minutes, last 30 days');

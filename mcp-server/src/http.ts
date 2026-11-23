@@ -12,7 +12,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import type { ServerConfig } from "./config.js";
 import { tokensEqual, type ExtensionBridge } from "./bridge/bridge.js";
 import { withSignal } from "./bridge/thought.js";
-import { registerFirefoxTools, SERVER_INSTRUCTIONS } from "./tools/index.js";
+import { registerFirefoxTools, SERVER_INSTRUCTIONS, type TabMemory } from "./tools/index.js";
 
 export const SERVER_VERSION = VERSION;
 
@@ -102,6 +102,8 @@ export class McpHttp {
   /** Settings we want listening; kept while a busy port is being retried. */
   private wanted: ServerConfig | null = null;
   private applying: Promise<void> = Promise.resolve();
+  /** The tab agents last used, for page tools called without tabId (the endpoint is stateless). */
+  private tabMemory: TabMemory = {};
   private applySeq = 0;
   private timer: NodeJS.Timeout | null = null;
   /** In-flight requests by JSON-RPC id, for notifications/cancelled. */
@@ -444,7 +446,7 @@ export class McpHttp {
           { name: "foxhand", version: SERVER_VERSION },
           { instructions: SERVER_INSTRUCTIONS },
         );
-        registerFirefoxTools(server, this.bridge, this.config!);
+        registerFirefoxTools(server, this.bridge, this.config!, undefined, this.tabMemory);
         const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
         res.on("close", () => {
           if (!res.writableFinished) ctl.abort(); // client went away mid-call

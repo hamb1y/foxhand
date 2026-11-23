@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.3
+
+- Works in background tabs. New tabs open in the background, and page tools need a tab id (the last tab the AI used is the fallback). Focus only moves when you ask for it.
+- The thought bubble shows only for the tab you're looking at, in a focused window.
+- Text from web pages is marked untrusted, so a site can't give the AI orders.
+- Cookies: `cookie_query`, `cookie_set`, `cookie_remove`. Values stay hidden unless asked for.
+- `page_eval`: the AI can run its own JavaScript on a page, with your logins. Pause stops it.
+- Read a page in parts: snapshots take `within` and `links`, and `page_links` lists links by text or address.
+- `page_wait` can wait for something to disappear, like a spinner.
+- Screenshots: one element or the whole page, JPEG by default, scaled down.
+- Usage stats count an install as active only when an AI command ran. Background checks don't count.
+- Fixes: a failed click inside an iframe no longer reports success; history paging past the first page works; dialogs and long tab lists are capped.
+
 ## 0.6.2
 
 - Run the whole helper install command: it also tells Firefox where to find the helper.

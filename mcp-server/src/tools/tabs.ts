@@ -8,7 +8,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ExtensionBridge } from "../bridge/bridge.js";
 import type { ServerConfig } from "../config.js";
-import { callBridge, paginationFields, confirmField, refusal, requireConfirm, tabIdField, text } from "./helpers.js";
+import { callBridge, paginationFields, confirmField, optionalTabIdField, refusal, requireConfirm, tabIdField, text } from "./helpers.js";
 
 const waitForLoadField = z
   .boolean()
@@ -60,7 +60,7 @@ export function registerTabTools(
   server.registerTool(
     "tab_check_active",
     {
-      description: "The tab the user is looking at in the focused window (id, url, title, windowId).",
+      description: "The only way to ask what the user is looking at: the active tab of the focused window (id, url, title, windowId). Do not act on it by default; work in your own background tab.",
       inputSchema: {},
     },
     async () => text(await callBridge(bridge, "active.tab")),
@@ -70,13 +70,12 @@ export function registerTabTools(
     "tab_create",
     {
       description:
-        "Open a new tab. A URL without a scheme gets one: \"example.com\" opens https://example.com, " +
+        "Open a new tab in the background; the user's view does not change (tab_focus shows it, only when the user asks). A URL without a scheme gets one: \"example.com\" opens https://example.com, " +
         "\"localhost:3000\" opens http://localhost:3000. Pass duplicateOf to copy an existing tab (with its history) instead. " +
         "Waits for the page to load by default and returns the new tab.",
       inputSchema: {
         url: z.string().optional().describe("Address to open (default: the new-tab page)"),
         duplicateOf: z.number().int().positive().optional().describe("Duplicate this tab instead of opening a URL"),
-        active: z.boolean().optional().describe("Switch to the new tab (default true)"),
         windowId: z.number().int().positive().optional().describe("Open it in this window (default: the current one)"),
         waitForLoad: waitForLoadField,
         timeoutMs: loadTimeoutField,
@@ -89,7 +88,7 @@ export function registerTabTools(
         await callBridge(
           bridge,
           "tab.create",
-          { url: args.url, duplicateOf: args.duplicateOf, active: args.active, windowId: args.windowId, waitForLoad: wait, timeoutMs: t },
+          { url: args.url, duplicateOf: args.duplicateOf, active: false, windowId: args.windowId, waitForLoad: wait, timeoutMs: t },
           { timeoutMs: t + 10000 },
         ),
       );
@@ -100,7 +99,7 @@ export function registerTabTools(
     "tab_navigate",
     {
       description:
-        "Load a URL in a tab, or go back, forward or reload with `go`. Missing http(s):// is added like tab_create. " +
+        "Load a URL in tab tabId, or go back, forward or reload with `go`. Stays in the background. Missing http(s):// is added like tab_create. " +
         "Waits for the load by default; loadComplete=false means it was still loading when the wait ran out.",
       inputSchema: {
         tabId: tabIdField,
@@ -128,7 +127,7 @@ export function registerTabTools(
   server.registerTool(
     "tab_focus",
     {
-      description: "Switch to a tab and bring its window to the front. page_screenshot works without this.",
+      description: "Switch to a tab and bring its window to the front, changing what the user sees. Only when the user asked to see it; never to read or screenshot (those work by tab id in the background).",
       inputSchema: {
         tabId: z.number().int().positive().describe("Tab to switch to"),
       },
@@ -140,15 +139,16 @@ export function registerTabTools(
     "tab_close",
     {
       description:
-        "Close tabs: several (tabIds), one (tabId), or the active tab (neither). " +
+        "Close tabs: several (tabIds) or one (tabId); one of them is required. " +
         "Destructive: needs confirm:true unless the user turned the guard off. session_restore can reopen them.",
       inputSchema: {
         tabIds: z.array(z.number().int().positive()).min(1).optional().describe("Tab ids to close"),
-        tabId: tabIdField,
+        tabId: optionalTabIdField,
         confirm: confirmField,
       },
     },
     async (args) => {
+      if (!args.tabIds && args.tabId === undefined) return refusal("ERROR [INVALID_PARAMS]: tab_close needs tabId or tabIds; it never closes a tab you didn't name.");
       const denied = requireConfirm(config, args.confirm, "tab_close");
       if (denied) return refusal(denied);
       return text(await callBridge(bridge, "tab.close", args.tabIds ? { tabIds: args.tabIds } : { tabId: args.tabId }));
@@ -158,7 +158,7 @@ export function registerTabTools(
   server.registerTool(
     "tab_pin",
     {
-      description: "Pin a tab, or unpin it with pinned:false (defaults to the active tab).",
+      description: "Pin a tab, or unpin it with pinned:false.",
       inputSchema: {
         tabId: tabIdField,
         pinned: z.boolean().optional().describe("true to pin (default), false to unpin"),
@@ -170,7 +170,7 @@ export function registerTabTools(
   server.registerTool(
     "tab_mute",
     {
-      description: "Mute a tab, or unmute it with muted:false (defaults to the active tab).",
+      description: "Mute a tab, or unmute it with muted:false.",
       inputSchema: {
         tabId: tabIdField,
         muted: z.boolean().optional().describe("true to mute (default), false to unmute"),
@@ -191,7 +191,7 @@ export function registerTabTools(
   server.registerTool(
     "window_create",
     {
-      description: "Open a new window, optionally with a URL (missing http(s):// is added).",
+      description: "Open a new window behind the current one (it does not take focus), optionally with a URL (missing http(s):// is added).",
       inputSchema: {
         url: z.string().optional().describe("Address to open in the new window"),
       },
@@ -202,7 +202,7 @@ export function registerTabTools(
   server.registerTool(
     "window_focus",
     {
-      description: "Bring a window to the front.",
+      description: "Bring a window to the front, changing what the user sees. Only when the user asked to see it.",
       inputSchema: { windowId: windowIdField },
     },
     async (args) => text(await callBridge(bridge, "window.focus", { windowId: args.windowId })),

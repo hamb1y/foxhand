@@ -24,7 +24,7 @@ import {
   type HelloMessage,
   MAX_HOST_MESSAGE_BYTES,
 } from "@webmcp-controller/shared";
-import { currentSignal, currentThought, takePendingThought } from "./thought.js";
+import { currentSignal, currentThought } from "./thought.js";
 
 export interface ExtensionInfo {
   extensionId: string;
@@ -187,9 +187,8 @@ export class ExtensionBridge {
   ): Promise<unknown> {
     const timeoutMs = opts?.timeoutMs ?? this.cmdTimeoutMs;
     const signal = opts?.signal ?? currentSignal();
-    // The pending thought from the `thought` tool goes with the next page action,
-    // so its bubble shows the agent's words instead of the cursor's own.
-    const thought = currentThought() ?? (/^(page\.(snapshot|text|html)|act\.)/.test(method) ? takePendingThought() : undefined);
+    // A thought only travels with the call that carried it (tool `thought` field, gated on the focused tab); never auto-injected.
+    const thought = currentThought();
     if (thought && params["thought"] === undefined) params = { ...params, thought };
     return new Promise((resolve, reject) => {
       const link = this.socket;

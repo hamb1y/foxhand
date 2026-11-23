@@ -392,6 +392,46 @@ await load(`<div role=region aria-label=Box style="height:100px;overflow:auto"><
 r = await run({ kind: "act-scroll", role: "region", direction: "down", pixels: 100 });
 check("role-only scroll targets the requested container", await ev(`document.querySelector('[role=region]').scrollTop`) === 100, JSON.stringify(r));
 
+// ---- links: short by default, full on request, none; page-links finds one ----
+const LINKS = Array.from({ length: 150 }, (_, i) => `<li><a href="https://shop.example.com/products/category-${i % 7}/item-${i}?utm_source=newsletter&utm_medium=email&ref=home-${i}">Product ${i}</a></li>`).join("");
+await load(`<ul>${LINKS}</ul><a href="/pricing">See pricing</a>`);
+const sizes = {};
+for (const mode of ["full", "short", "none"]) sizes[mode] = (await snap({ links: mode, maxChars: 100000 })).text.length;
+const dflt = await snap({ maxChars: 100000 });
+console.log("     snapshot chars on 150 links:", JSON.stringify({ ...sizes, default: dflt.text.length }));
+check("links:\"short\" is the default and drops URLs but keeps link text", dflt.text.length === sizes.short && /link "Product 7"/.test(dflt.text) && !/utm_source/.test(dflt.text), dflt.text.slice(0, 200));
+check("links:\"full\" shows whole URLs", /link "Product 7" -> https:\/\/shop\.example\.com\/products\/category-0\/item-7\?utm_source=newsletter&utm_medium=email&ref=home-7/.test((await snap({ links: "full" })).text));
+check("links:\"none\" leaves links out", !/link "/.test((await snap({ links: "none" })).text) && sizes.none < sizes.short && sizes.short < sizes.full, JSON.stringify(sizes));
+r = await run({ kind: "page-links", text: "pricing" });
+check("page-links finds a link by text, with its full URL and a ref", r.total === 1 && /\/pricing$/.test(r.links[0].href) && r.links[0].ref > 0, JSON.stringify(r));
+r = await run({ kind: "page-links", hrefContains: "category-3" });
+check("page-links filters by URL and counts all matches", r.total === 21 && r.returned === 21 && !r.truncated, JSON.stringify({ total: r.total, returned: r.returned }));
+r = await run({ kind: "page-links" });
+check("page-links caps at 50 by default and gives the total", r.returned === 50 && r.total === 151 && r.truncated === true, JSON.stringify({ total: r.total, returned: r.returned }));
+r = await run({ kind: "page-links", limit: 5, within: { selector: "ul" } });
+check("page-links takes within and limit", r.returned === 5 && r.total === 150, JSON.stringify({ total: r.total, returned: r.returned }));
+
+// ---- hover: JS menus open; CSS :hover-only menus can't, and the result says so ----
+await load(`<style>.nav ul{display:none} .nav li:hover ul{display:block}</style>
+  <ul class=nav><li><span id=top tabindex=0>Products</span><ul><li><a href="/a">Alpha</a></li></ul></li></ul>
+  <div id=js onmouseenter="document.getElementById('jm').hidden=false" role=button tabindex=0>Menu</div><ul id=jm hidden><li><a href="/b">Beta</a></li></ul>`);
+r = await run({ kind: "act-hover", selector: "#top" });
+const cssHover = await ev(`[document.getElementById('top').matches(':hover'), getComputedStyle(document.querySelector('.nav li ul')).display]`);
+check("a content script cannot set CSS :hover (menu stays hidden)", cssHover[0] === false && cssHover[1] === "none", JSON.stringify(cssHover));
+check("hover over a CSS :hover-only menu says it can't open it and suggests page_click", /CSS :hover/.test(r.note || "") && /page_click/.test(r.note || ""), JSON.stringify(r));
+r = await run({ kind: "act-hover", selector: "#js" });
+check("hover opens a menu that listens for mouse events, with no note", (await ev(`document.getElementById('jm').hidden`)) === false && !r.note, JSON.stringify(r));
+
+// ---- wait gone: a spinner that goes after 1 second ----
+for (const [what, msg] of [["text", { text: "Loading…" }], ["selector", { selector: "#spin" }]]) {
+  await load(`<div id=spin role=status>Loading…</div><script>setTimeout(() => document.getElementById('spin').remove(), 1000)</script>`);
+  r = await run({ kind: "act-wait", ...msg, gone: true, timeoutMs: 5000 });
+  check(`page_wait gone:true by ${what} returns once the spinner is gone`, r.gone === true && !r.timedOut && r.elapsedMs >= 800 && r.elapsedMs < 3000, JSON.stringify(r));
+}
+await load(`<div id=spin>Loading…</div>`);
+r = await run({ kind: "act-wait", selector: "#spin", gone: true, timeoutMs: 600 });
+check("page_wait gone:true times out when it stays", r.timedOut === true, JSON.stringify(r));
+
 await browser.close();
 console.log(failures ? `\n${failures} failed` : "\nall passed");
 process.exit(failures ? 1 : 0);

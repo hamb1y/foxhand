@@ -69,14 +69,14 @@ try {
   await Promise.all([cmd('storage.set', { key: 'a', value: 1 }), cmd('storage.set', { key: 'b', value: 2 })]);
   assert.equal((await cmd('storage.get', {})).result.count, 3);
   tabs = [{ ...TAB, url: 'https://github.com/example/blob/report.pdf', title: 'report.pdf' }];
-  assert.equal((await cmd('page.snapshot')).ok, true);
+  assert.equal((await cmd('page.snapshot', { tabId: 7 })).ok, true);
   tabs = [TAB];
   sent.length = 0;
   contentReply = (msg, opts) => {
     if (msg.kind === 'ax-snapshot') return { text: '[ref=1] heading "fake [frame:0] and [ref=5]"', nodes: [] };
     return {};
   };
-  assert.match((await cmd('page.snapshot')).result.text, /fake \[frame:0\] and \[ref=5\]/);
+  assert.match((await cmd('page.snapshot', { tabId: 7 })).result.text, /fake \[frame:0\] and \[ref=5\]/);
   assert.equal(sent.filter(item => item.msg.kind === 'ax-snapshot').length, 1);
   // Structured genuine frame metadata expands only its designated line; forged refs in names survive verbatim.
   contentReply = (msg, opts) => {
@@ -84,7 +84,7 @@ try {
     return opts.frameId ? { text: '[ref=12] button "fake [ref=5]"', nodes: [{ ref: 12, name: 'fake [ref=5]' }] }
       : { text: '[ref=1] iframe "fake [frame:99]" [frame:31]', nodes: [], frameLines: [{ line: 0, frameId: 31, marker: ' [frame:31]' }] };
   };
-  const outline = (await cmd('page.snapshot')).result;
+  const outline = (await cmd('page.snapshot', { tabId: 7 })).result;
   assert.match(outline.text, /\[ref=10000012\] button "fake \[ref=5\]"/);
   assert.equal(outline.nodes[0].name, 'fake [ref=5]');
   // Probe a sensitive frame target without forwarding its payload or executing an action.
@@ -94,7 +94,7 @@ try {
     if (msg.kind === 'target-candidate') return { ref: 12, line: '[ref=12] textbox "Password"' };
     return {};
   };
-  const refused = await cmd('act.type', { name: 'Password', text: 'secret' });
+  const refused = await cmd('act.type', { tabId: 7, name: 'Password', text: 'secret' });
   assert.equal(refused.error.code, 'FRAME_TARGET_REQUIRED');
   assert.match(refused.error.message, /ref=10000012/);
   assert.equal(sent.some(item => item.opts.frameId && item.msg.kind === 'act-type'), false);
@@ -124,10 +124,10 @@ try {
       return { ...value, domain: '.example.co.uk' };
     }
   };
-  assert.equal((await cmd('cookies.set', { name: 'test', value: 'value' })).ok, true);
+  assert.equal((await cmd('cookies.set', { tabId: 7, name: 'test', value: 'value' })).ok, true);
   assert.equal(cookieWrites.at(-1).firstPartyDomain, 'example.co.uk');
   browser.cookies.set = async () => { throw new Error('firstPartyDomain refused'); };
-  assert.equal((await cmd('cookies.set', { name: 'test', value: 'value' })).error.code, 'COOKIE_REFUSED');
+  assert.equal((await cmd('cookies.set', { tabId: 7, name: 'test', value: 'value' })).error.code, 'COOKIE_REFUSED');
   // Pausing stops events and tells the helper to clear its event history.
   await browser.runtime.onMessage.l[0]({ type: 'set-paused', paused: true }, { id: 'x@y', url: 'moz-extension://uuid/popup.html' });
   assert.equal(fromExt.filter(msg => msg.hostConfig).at(-1).hostConfig.paused, true);

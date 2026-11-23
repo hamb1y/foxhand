@@ -158,7 +158,7 @@ r = await req(PORT, { body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "too
 check("body over the HTTP limit -> 413", r.status === 413, String(r.status));
 
 // Larger than one native message: refused before it reaches Firefox.
-r = await call(PORT, "page_type", { ref: 1, text: "x".repeat(1100 * 1024) });
+r = await call(PORT, "page_type", { tabId: 7, ref: 1, text: "x".repeat(1100 * 1024) });
 check("oversized command -> PAYLOAD_TOO_LARGE", r.json?.result?.isError && /PAYLOAD_TOO_LARGE/.test(resultText(r)), resultText(r).slice(0, 120));
 
 // Cancellation by dropping the HTTP request.
@@ -167,7 +167,7 @@ const ac = new AbortController();
 const pending = fetch(`http://127.0.0.1:${PORT}/mcp`, {
   method: "POST", signal: ac.signal,
   headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: "Bearer " + TOKEN },
-  body: JSON.stringify({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "page_wait", arguments: { text: "never", timeoutMs: 60000 } } }),
+  body: JSON.stringify({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "page_wait", arguments: { tabId: 7, text: "never", timeoutMs: 60000 } } }),
 }).catch(() => "aborted");
 let cmd = await waitFor((m) => m.method === "act.wait");
 ac.abort();
@@ -177,7 +177,7 @@ check("closing the request cancels the command in Firefox", !!cancel, cmd ? "" :
 
 // Cancellation by notifications/cancelled.
 fromHost.length = 0;
-const slow = call(PORT, "page_wait", { text: "never", timeoutMs: 60000 }, 77);
+const slow = call(PORT, "page_wait", { tabId: 7, text: "never", timeoutMs: 60000 }, 77);
 cmd = await waitFor((m) => m.method === "act.wait");
 await req(PORT, { body: { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: 77, reason: "test" } } });
 cancel = cmd && (await waitFor((m) => m.cancel === cmd.id));

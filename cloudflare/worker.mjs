@@ -168,7 +168,7 @@ async function numbers(env, withFeedback) {
   const [daily, months, windows, totals, firsts, byVersion, byOs, byLanguage, downloads, assets, stuck, harnesses, r1, r7, r30, m7, m30, mBuckets, clicks, count, recent] = (await env.DB.batch([
     q('SELECT day, COUNT(*) AS n, SUM(used) AS used, SUM(minutes) AS minutes FROM activity WHERE day >= ? GROUP BY day ORDER BY day', since(89)),
     q('SELECT substr(day, 1, 7) AS month, COUNT(DISTINCT id) AS n FROM activity GROUP BY month ORDER BY month DESC LIMIT 24'),
-    q('SELECT (SELECT COUNT(DISTINCT id) FROM activity WHERE day >= ?) AS mau, (SELECT COUNT(DISTINCT id) FROM activity WHERE used = 1 AND day >= ?) AS aau7, (SELECT COUNT(DISTINCT id) FROM activity WHERE used = 1 AND day >= ?) AS aau30', since(29), since(6), since(29)),
+    q('SELECT (SELECT COUNT(DISTINCT id) FROM activity WHERE used = 1 AND day >= ?) AS aau7, (SELECT COUNT(DISTINCT id) FROM activity WHERE used = 1 AND day >= ?) AS aau30', since(6), since(29)),
     q('SELECT COUNT(*) AS users, SUM(stage >= 0) AS f0, SUM(stage >= 1) AS f1, SUM(stage >= 2) AS f2, MIN(first_day) AS since FROM users'),
     q('SELECT first_day AS day, COUNT(*) AS n FROM users WHERE first_day >= ? GROUP BY first_day ORDER BY first_day', since(89)),
     q('SELECT v AS name, COUNT(*) AS n FROM users WHERE last_day >= ? GROUP BY v ORDER BY n DESC', since(29)),
@@ -193,9 +193,9 @@ async function numbers(env, withFeedback) {
     since: t.since || null,
     users: t.users || 0,
     installs: t.users || 0,
-    // Rolling windows of distinct installs: MAU = reported in the last 30 days; AAU (actual active users) =
-    // had an AI command run, in the last 7 / 30 days. Per-day counts are in daily (n reported, used ran a command).
-    rolling: { mau: windows[0].mau, aau7: windows[0].aau7, aau30: windows[0].aau30 },
+    // Active installs: distinct installs that ran an AI command in the last 7 / 30 days. Per day, daily.used is the DAU
+    // (installs that ran a command that day); daily.n is the installs that reported (not an activity measure).
+    rolling: { aau7: windows[0].aau7, aau30: windows[0].aau30 },
     funnel: { installed: t.f0 || 0, helper: t.f1 || 0, command: t.f2 || 0 },
     daily, months, firsts, byVersion, byOs, byLanguage, harnesses,
     // Minutes per actual active user per day (a report covers the time since the previous one).

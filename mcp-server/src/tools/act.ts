@@ -71,7 +71,7 @@ export function registerActTools(
     "page_click",
     {
       description:
-        "Click an element. " + TARGET_HELP + " Use x,y for canvas apps (maps, editors, games). " +
+        "Click an element in the tab tabId (works in background tabs; never switches tabs). " + TARGET_HELP + " Use x,y for canvas apps (maps, editors, games). " +
         "Returns what changed, tabs the click opened (openedTabs), and the new URL if it navigated.",
       inputSchema: {
         tabId: tabIdField,

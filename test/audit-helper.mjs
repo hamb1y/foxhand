@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { ExtensionBridge } from '../mcp-server/dist/bridge/bridge.js';
 import { McpHttp } from '../mcp-server/dist/http.js';
 import { fmt } from '../mcp-server/dist/tools/helpers.js';
-import { withSignal, setPendingThought, takePendingThought } from '../mcp-server/dist/bridge/thought.js';
 const bridge = new ExtensionBridge();
 bridge.connect({ send() {} }, { extensionId: 'test', version: '0.5.7', profile: 'isolated-test', firefoxVersion: 'test', capabilities: [] });
 bridge.receive({ event: 'tab.updated', data: { url: 'https://before.test' } });
@@ -17,13 +16,6 @@ bridge.setPaused(false);
 const resumed = bridge.waitForEvent(['tab.updated'], () => true, 500, { afterSeq: 0 });
 bridge.receive({ event: 'tab.updated', data: { url: 'https://after.test' } });
 assert.equal((await resumed).data.url, 'https://after.test');
-const signal = new AbortController().signal;
-withSignal(signal, () => {
-  setPendingThought('request-local');
-  assert.equal(takePendingThought(), 'request-local');
-});
-withSignal(signal, () => { setPendingThought('must not cross requests'); });
-withSignal(signal, () => assert.equal(takePendingThought(), undefined));
 assert.equal(JSON.parse(fmt({ nested: ['x'.repeat(40000)] })).truncated, true);
 // Simulate a network adapter appearing; the retry must accept Address errors too.
 const http = new McpHttp(bridge);
@@ -36,4 +28,4 @@ try {
   await http.reconcile();
   assert.equal(http.status.listening, true);
 } finally { await http.stop(); bridge.disconnect(); }
-console.log('Audit helper regressions passed: pause clears/wakes/rejects event access, request-local thoughts, valid oversized JSON, missing-address recovery.');
+console.log('Audit helper regressions passed: pause clears/wakes/rejects event access, valid oversized JSON, missing-address recovery.');

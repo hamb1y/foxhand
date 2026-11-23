@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "__MSG_extName__",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "default_locale": "en",
   "description": "__MSG_extDescription__",
   "author": "hamb1y",
@@ -37,6 +37,7 @@
     "downloads",
     "sessions",
     "cookies",
+    "scripting",
     "<all_urls>"
   ],
   "background": {

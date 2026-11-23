@@ -215,6 +215,18 @@
   "copyCommand": {
     "message": "Copier la commande"
   },
+  "helperRunWhole": {
+    "message": "Exécutez la commande entière. Elle indique aussi à Firefox où trouver l’assistant."
+  },
+  "setupPromptIntro": {
+    "message": "Ou collez un prompt de configuration dans l’application d’IA que vous voulez connecter."
+  },
+  "copySetupPrompt": {
+    "message": "Copier le prompt de configuration"
+  },
+  "setupPromptSecret": {
+    "message": "Le prompt ne contient pas votre jeton d’accès. Ajoutez-le dans les réglages locaux de votre application d’IA, pas dans le chat."
+  },
   "downloadApp": {
     "message": "Télécharger l’application"
   },
@@ -1059,6 +1071,18 @@
   },
   "lblStorageRemovePast": {
     "message": "A supprimé des données enregistrées"
+  },
+  "lblPageEvalNow": {
+    "message": "Exécution de code sur la page"
+  },
+  "lblPageEvalPast": {
+    "message": "A exécuté du code sur la page"
+  },
+  "lblPageLinksNow": {
+    "message": "Lecture des liens"
+  },
+  "lblPageLinksPast": {
+    "message": "A lu les liens"
   },
   "hintPaused": {
     "message": "Chaque commande de l’IA est refusée tant que vous ne reprenez pas."

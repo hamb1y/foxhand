@@ -215,6 +215,18 @@
   "copyCommand": {
     "message": "Copiar comando"
   },
+  "helperRunWhole": {
+    "message": "Ejecuta el comando completo. También le indica a Firefox dónde está la app auxiliar."
+  },
+  "setupPromptIntro": {
+    "message": "O pega un prompt de configuración en la app de IA que quieras conectar."
+  },
+  "copySetupPrompt": {
+    "message": "Copiar prompt de configuración"
+  },
+  "setupPromptSecret": {
+    "message": "El prompt no incluye tu token de acceso. Agrégalo en la configuración local de tu app de IA, no en el chat."
+  },
   "downloadApp": {
     "message": "Descargar app"
   },
@@ -1059,6 +1071,18 @@
   },
   "lblStorageRemovePast": {
     "message": "Borró datos guardados"
+  },
+  "lblPageEvalNow": {
+    "message": "Ejecutando código en la página"
+  },
+  "lblPageEvalPast": {
+    "message": "Ejecutó código en la página"
+  },
+  "lblPageLinksNow": {
+    "message": "Leyendo los enlaces"
+  },
+  "lblPageLinksPast": {
+    "message": "Leyó los enlaces"
   },
   "hintPaused": {
     "message": "Cada comando de la IA se rechaza hasta que la reanudes."

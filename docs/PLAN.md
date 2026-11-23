@@ -108,6 +108,18 @@ Still pointing at the old places:
 - [ ] Old announcement endpoint stays until 0.5.6 and 0.5.7 are gone. The per-version numbers say when
 - [x] Binaries stay on GitHub Releases behind the `/download` redirect
 
+## 5b. Next release (0.6.x)
+
+- [x] Background by default: tab_create opens in the background; page tools need tabId; screenshots never switch tabs; thought only for the visible tab
+- [x] Cookie tools: cookie_query / cookie_set / cookie_remove (container-aware, values opt-in)
+- [x] page_eval: agent code in the page MAIN world; timeoutMs (default 10000), maxChars (default 20000)
+- [ ] OWNER: decide page_eval gating (always on now, no confirm). Options: an add-on setting, off by default, or confirm:true per call
+- [ ] Update GEMINI.md and the README for page_eval and background behaviour
+- [ ] Haiku translations: lblPageEvalNow, lblPageEvalPast (de/es/fr/zh_CN)
+- [ ] Re-run live.mjs after the gating decision
+- [ ] Opus audit (medium): fix findings before release
+- [ ] web-ext lint: DANGEROUS_EVAL warning, write the AMO reviewer note
+
 ## 6. Repo layout
 
 Last, moves only.

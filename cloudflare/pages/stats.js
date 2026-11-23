@@ -48,14 +48,13 @@ fetch('/endpoint/stats', { credentials: 'same-origin', cache: 'no-store' }).then
   const tiles = $('div', 'tiles');
   const usedRow = d => Number((s.daily.find(r => r.day === d) || {}).used || 0);
   const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : 'n/a';
-  tiles.append(tile('DAU', dayRow(yest), 'yesterday; ' + num(dayRow(s.today)) + ' so far today'),
-    tile('AAU', usedRow(yest), 'yesterday; ' + num(s.rolling.aau7) + ' in 7 days; ' + num(s.rolling.aau30) + ' in 30'),
-    tile('MAU', s.rolling.mau, 'last 30 days; ' + num((s.months[0] || {}).n) + ' this month'),
-    tile('Unique installs', s.installs, 'all time'));
-  const share = $('p', 'note', 'DAU and MAU count installs that reported. AAU counts installs where an AI command ran. AAU share yesterday: ' + pct(usedRow(yest), dayRow(yest)) + ' of DAU. Over 30 days: ' + pct(s.rolling.aau30, s.installs) + ' of all installs, ' + pct(s.rolling.aau30, s.rolling.mau) + ' of MAU.');
+  tiles.append(tile('DAU', usedRow(yest), 'yesterday; ' + num(usedRow(s.today)) + ' so far today'),
+    tile('Active, 30 days', s.rolling.aau30, 'installs that ran a command; ' + num(s.rolling.aau7) + ' in 7 days'),
+    tile('Installs', s.installs, 'all time'));
+  const share = $('p', 'note', 'DAU is installs that ran an AI command that day. Active, 30 days is installs that ran one in the last 30 days. Installs counts every install that has reported. Active over 30 days: ' + pct(s.rolling.aau30, s.installs) + ' of installs.');
   out.append(tiles, share);
-  h2('Daily actives', 'Installs that reported, last 60 days.');
-  if (s.daily.length) out.append(chart(s.daily, s.today)); else out.append($('div', 'empty', 'No data.'));
+  h2('Daily actives', 'Installs that ran an AI command each day, last 60 days.');
+  if (s.daily.length) out.append(chart(s.daily, s.today, 'used')); else out.append($('div', 'empty', 'No data.'));
   h2('Usage minutes', 'A minute counts when an AI command ran in it. A report covers the time since the previous report, so a day can include the tail of the day before. Per actual active user per day.');
   if (s.daily.some(r => r.minutes)) out.append(chart(s.daily, s.today, 'minutes', 'Usage minutes')); else out.append($('div', 'empty', 'No usage minutes yet.'));
   const mt = $('div', 'tiles');

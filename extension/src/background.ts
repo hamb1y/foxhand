@@ -1,5 +1,6 @@
 import type { BridgeErrorCode, HelperReason, HostStatus, BridgeMethod, BridgeParams, CodedError, ContentEnvelope, ErrLike, ErrObj, ContentMessage, SetConfigError, Status, UiMessage } from './messages';
 import { PROTOCOL, HARNESSES } from '../../shared/src/protocol';
+import { evalInPage, type PageEvalResult } from './page-eval';
 /* Foxhand (formerly WebMCP Controller) — background page.
  * Plain classic script (no modules). Firefox launches the companion helper
  * (native messaging host "webmcp_controller") on connectNative(); the helper
@@ -49,11 +50,12 @@ var CAPABILITIES: BridgeMethod[] = [
   'tab.navigate', 'act.drag', 'act.upload',
   'cookies.query', 'cookies.set', 'cookies.remove',
   'downloads.query', 'downloads.start',
-  'storage.get', 'storage.set', 'storage.remove'
+  'storage.get', 'storage.set', 'storage.remove',
+  'page.eval', 'page.links'
 ];
 
 /* Methods whose thought is shown by the content script as part of the action itself. */
-var CONTENT_METHODS = /^(page\.(snapshot|text|html)|act\.)/;
+var CONTENT_METHODS = /^(page\.(snapshot|text|html|links)|act\.)/;
 /* Methods that navigate or close the page: a note shown there would vanish immediately. */
 var NO_NOTE_METHODS = /^(tab\.(create|update|navigate|close|duplicate)|nav\.|window\.|sessions\.restore|page\.shot)/;
 
@@ -215,16 +217,19 @@ function toWindowInfo(w: browser.windows.Window) {
   };
 }
 
-/* Resolve a tab id, defaulting to the active tab of the focused window. */
+/* Resolve a tab id. There is no default: only active.tab asks for the user's tab (activeTab). */
 async function resolveTab(tabId?: unknown): Promise<browser.tabs.Tab> {
-  if (tabId !== undefined && tabId !== null && tabId !== '') {
-    var id = Number(tabId);
-    try {
-      return await call(B.tabs, 'get', id);
-    } catch (e) {
-      throw be('TAB_NOT_FOUND', 'No tab with id ' + tabId);
-    }
+  if (tabId === undefined || tabId === null || tabId === '') throw be('INVALID_PARAMS', 'tabId is required; Foxhand never guesses the active tab');
+  var id = Number(tabId);
+  try {
+    return await call(B.tabs, 'get', id);
+  } catch (e) {
+    throw be('TAB_NOT_FOUND', 'No tab with id ' + tabId);
   }
+}
+
+/* The active tab of the focused window: what the user is looking at. */
+async function activeTab(): Promise<browser.tabs.Tab> {
   var cands = await call(B.tabs, 'query', { active: true, lastFocusedWindow: true });
   if (!cands || !cands.length) cands = await call(B.tabs, 'query', { active: true, currentWindow: true });
   if (!cands || !cands.length) cands = await call(B.tabs, 'query', { active: true });
@@ -333,7 +338,7 @@ function sleep(ms: number): Promise<void> { return new Promise(function (r) { se
 
 /* The page went away (navigated, reloaded, closed) before its content script replied. */
 var PAGE_GONE_RE = /destroyed before|message manager disconnected|context is inactive|page (was )?unloaded/i;
-var READ_KINDS = /^(ax-snapshot|page-text|page-html|act-find|page-storage|page-metrics|element-rect)$/;
+var READ_KINDS = /^(ax-snapshot|page-text|page-html|page-links|act-find|page-storage|page-metrics|element-rect)$/;
 
 /* sendToTab, but an action that navigated the page before replying isn't reported as a failure
  * (the AI would repeat a click that worked), and a read retries once on the page that replaced it. */
@@ -471,7 +476,8 @@ async function frameSend(tabId: number, p: BridgeParams, msg: PageMsg, frameId: 
   try {
     return await sendToTab(tabId, p, msg, frameId);
   } catch (e) {
-    var gone = !e || !(e as ErrObj).code || (e as ErrObj).code === 'NO_CONTENT_SCRIPT' || (e as ErrObj).code === 'REF_STALE' || PAGE_GONE_RE.test(String(e && (e as ErrObj).message));
+    // Only a frame that went away mid-message counts; REF_STALE and other page answers are real errors.
+    var gone = !!e && PAGE_GONE_RE.test(String((e as ErrObj).message || e));
     if (gone && FRAME_ACTS.test(msg.kind)) {
       return { done: true, frameClosed: true, note: 'The frame went away as the action finished (a dialog closing itself after the click, most likely). Check the page before repeating it.' };
     }
@@ -531,7 +537,7 @@ async function pageCall(tabId: number, p: BridgeParams, msg: PageMsg): Promise<u
 }
 
 /* Splice each cross-origin frame's outline in under its [frame:N] line. */
-async function withFrameOutlines(tabId: number, p: BridgeParams, snap: PageResult, base: { compact?: boolean; maxChars?: number; viewportOnly?: boolean }): Promise<PageResult> {
+async function withFrameOutlines(tabId: number, p: BridgeParams, snap: PageResult, base: { compact?: boolean; maxChars?: number; viewportOnly?: boolean; links?: 'full' | 'short' | 'none' }): Promise<PageResult> {
   if (!snap || typeof snap.text !== 'string') return snap;
   var frameLines = new Map<number, FrameLine>((snap.frameLines || []).map(function (f: FrameLine) { return [f.line, f] as [number, FrameLine]; }));
   delete snap.frameLines;
@@ -552,7 +558,7 @@ async function withFrameOutlines(tabId: number, p: BridgeParams, snap: PageResul
     if (!read && budget < 8000) budget = 8000;
     if (budget < 200 || read >= 6) { out.push(replaceMarker(' [cross-origin frame: not read here; page_snapshot within:{ref} of this frame reads it]')); continue; }
     try {
-      var sub = await withTimeout(sendToPage(tabId, p, { kind: 'ax-snapshot', compact: base.compact, maxChars: budget, viewportOnly: base.viewportOnly }, fid), 6000, 'The frame') as PageResult;
+      var sub = await withTimeout(sendToPage(tabId, p, { kind: 'ax-snapshot', compact: base.compact, maxChars: budget, viewportOnly: base.viewportOnly, links: base.links }, fid), 6000, 'The frame') as PageResult;
       var slot = frameSlot(tabId, fid);
       sub = frameRefs(sub, slot);
       read++;
@@ -682,6 +688,8 @@ async function withOpenedTabs(result: PageResult, ids: number[]): Promise<PageRe
 
 /* One screenshot at a time: two that each switch tabs would otherwise hand
  * focus back in the wrong order. */
+/* Default screenshot size: the longest side at most this many pixels (CSS px times scale). */
+var SHOT_MAX_SIDE = 1280;
 interface ShotResult { image: string; format: 'jpeg' | 'png'; tabId?: number; }
 var shootChain: Promise<unknown> = Promise.resolve();
 function shoot(tab: browser.tabs.Tab, p: ShotParams): Promise<ShotResult> {
@@ -691,37 +699,21 @@ function shoot(tab: browser.tabs.Tab, p: ShotParams): Promise<ShotResult> {
 }
 
 async function shootNow(tab: browser.tabs.Tab, p: ShotParams): Promise<ShotResult> {
-  var format: 'jpeg' | 'png' = p.format === 'jpeg' ? 'jpeg' : 'png';
+  var format: 'jpeg' | 'png' = p.format === 'png' ? 'png' : 'jpeg'; // jpeg by default: far fewer bytes
   var opts: browser.extensionTypes.ImageDetails = format === 'jpeg' ? { format: format, quality: Math.max(10, Math.min(100, num(p.quality, 80))) } : { format: format };
   if (p.rect) opts.rect = p.rect as browser.extensionTypes.ImageDetails['rect'];
   if (p.scale !== undefined) opts.scale = p.scale as number;
   try { tab = await call(B.tabs, 'get', tab.id!); } catch (e) {} // may have changed while queued
-  // Fast path (Firefox 125+): capture a background tab without switching to it.
-  if (!tab.active && B.tabs && typeof B.tabs.captureTab === 'function') {
+  // Never switch tabs to take a picture: a background tab is captured in place with captureTab.
+  if (!tab.active) {
     try {
       return { image: await call(B.tabs as { captureTab(tabId: number, options?: browser.extensionTypes.ImageDetails): Promise<string> }, 'captureTab', tab.id!, opts), format: format, tabId: tab.id };
-    } catch (e) { /* fall back to activate + captureVisibleTab */ }
-  }
-  var restoreId: number | null = null;
-  if (!tab.active) {
-    var prev = await call(B.tabs, 'query', { active: true, windowId: tab.windowId });
-    if (prev && prev[0]) restoreId = prev[0].id!;
-    await call(B.tabs, 'update', tab.id!, { active: true });
-    await sleep(250); // let the compositor paint the newly active tab
-  }
-  try {
-    var dataUrl = await call(B.tabs as { captureVisibleTab(windowId?: number, options?: browser.extensionTypes.ImageDetails): Promise<string> }, 'captureVisibleTab', tab.windowId, opts);
-    return { image: dataUrl, format: format, tabId: tab.id };
-  } finally {
-    // Hand the user's tab back so screenshots don't hijack what they're looking at,
-    // unless they've switched tabs themselves meanwhile.
-    if (restoreId !== null && !p.keepActive) {
-      try {
-        var now = await call(B.tabs, 'query', { active: true, windowId: tab.windowId });
-        if (now && now[0] && now[0].id === tab.id) await call(B.tabs, 'update', restoreId, { active: true });
-      } catch (e) {}
+    } catch (e) {
+      throw be('NOT_SUPPORTED', 'Could not capture the background tab (' + ((e as Error).message || e) + '). Foxhand does not switch tabs to capture; use page_snapshot or page_text instead, or ask the user before tab_focus.');
     }
   }
+  var dataUrl = await call(B.tabs as { captureVisibleTab(windowId?: number, options?: browser.extensionTypes.ImageDetails): Promise<string> }, 'captureVisibleTab', tab.windowId, opts);
+  return { image: dataUrl, format: format, tabId: tab.id };
 }
 
 /* Best-effort cursor op on a tab that may have no content script: never injects, never throws. */
@@ -981,21 +973,23 @@ async function storageOpNow(op: 'get' | 'set' | 'remove', p: BridgeParams): Prom
 /* The cookie jar a tab sees: its container / private store, across first-party
  * isolation, including cookies partitioned under its site (CHIPS / Total Cookie
  * Protection). Older Firefox lacks some keys; drop them and retry. */
-interface CookieQuery { url: string; firstPartyDomain?: string | null; partitionKey?: object; storeId?: string; }
-async function jarCookies(tab: browser.tabs.Tab | null | undefined, url: string, extra?: { [k: string]: unknown } | null): Promise<browser.cookies.Cookie[]> {
-  var q: CookieQuery = Object.assign({ url: url.split('#')[0], firstPartyDomain: null, partitionKey: {} }, extra || {}) as CookieQuery;
-  if (tab && tab.cookieStoreId) q.storeId = tab.cookieStoreId;
-  var cookies: browser.cookies.Cookie[] | undefined;
+interface CookieQuery { url?: string; domain?: string; name?: string; firstPartyDomain?: string | null; partitionKey?: object; storeId?: string; }
+async function allCookies(q: CookieQuery): Promise<browser.cookies.Cookie[]> {
   for (var attempt = 0; ; attempt++) {
     try {
-      cookies = await call(B.cookies, 'getAll', q as browser.cookies._GetAllDetails);
-      break;
+      return (await call(B.cookies, 'getAll', q as browser.cookies._GetAllDetails)) || [];
     } catch (e) {
       if (attempt === 0 && 'partitionKey' in q) { delete q.partitionKey; continue; }
       if (attempt <= 1 && 'firstPartyDomain' in q) { delete q.firstPartyDomain; continue; }
       throw e;
     }
   }
+}
+async function jarCookies(tab: browser.tabs.Tab | null | undefined, url: string, extra?: { [k: string]: unknown } | null): Promise<browser.cookies.Cookie[]> {
+  var q: CookieQuery = { url: url.split('#')[0], firstPartyDomain: null, partitionKey: {} };
+  if (tab && tab.cookieStoreId) q.storeId = tab.cookieStoreId;
+  Object.assign(q, extra || {});
+  var cookies = await allCookies(q);
   var host = '', scheme = '';
   try { var u = new URL(url); host = u.hostname; scheme = u.protocol; } catch (e) {}
   var under = function (d: string): boolean { return host === d || host.endsWith('.' + d); };
@@ -1025,14 +1019,23 @@ async function cookieTarget(p: BridgeParams): Promise<{ tab: browser.tabs.Tab; u
   return { tab: tab, url: url };
 }
 
-interface CookieInfo { name: string; value: string; domain: string; path: string; secure: boolean; httpOnly: boolean; sameSite: string; session: boolean; expires?: string; partitionedUnder?: string; }
-function cookieInfo(c: browser.cookies.Cookie): CookieInfo {
+/* An explicit cookie store ("firefox-default", "firefox-container-2", "firefox-private") overrides the tab's. */
+function cookieStoreParam(p: BridgeParams): { storeId: string } | null {
+  if (p.storeId === undefined || p.storeId === null || p.storeId === '') return null;
+  if (typeof p.storeId !== 'string' || !/^[\w-]{1,100}$/.test(p.storeId)) throw be('INVALID_PARAMS', 'storeId must be a cookie store id such as "firefox-default" or "firefox-container-1"');
+  return { storeId: p.storeId };
+}
+
+interface CookieInfo { name: string; value?: string; domain: string; path: string; secure: boolean; httpOnly: boolean; sameSite: string; session: boolean; expires?: string; storeId?: string; partitionedUnder?: string; }
+function cookieInfo(c: browser.cookies.Cookie, withValue: boolean): CookieInfo {
   var o: CookieInfo = {
-    name: c.name, value: c.value, domain: c.domain, path: c.path,
+    name: c.name, domain: c.domain, path: c.path,
     secure: !!c.secure, httpOnly: !!c.httpOnly, sameSite: c.sameSite || 'no_restriction',
     session: !!c.session
   };
+  if (withValue) o.value = c.value;
   if (!c.session && c.expirationDate) o.expires = new Date(c.expirationDate * 1000).toISOString();
+  if (c.storeId) o.storeId = c.storeId;
   if (c.partitionKey && c.partitionKey.topLevelSite) o.partitionedUnder = c.partitionKey.topLevelSite;
   return o;
 }
@@ -1065,6 +1068,8 @@ interface ListPage<T> {
 
 /* Additive pagination: small unpaged results retain their array shape. Large
  * lists get a valid, resumable envelope instead of being cut in the middle of JSON. */
+var HISTORY_FETCH_MAX = 5000;
+
 function listPage<T>(items: T[], p: BridgeParams): T[] | ListPage<T> {
   var offset = Math.max(0, Math.floor(Number(p.offset) || 0));
   var limit = Math.max(1, Math.min(1000, Math.floor(Number(p.limit) || items.length || 1)));
@@ -1097,7 +1102,6 @@ interface ShotRect { x: number; y: number; width: number; height: number; }
 interface ShotParams {
   format?: unknown;
   quality?: unknown;
-  keepActive?: unknown;
   rect?: ShotRect;
   scale?: number;
 }
@@ -1138,20 +1142,20 @@ var handlers: { [M in BridgeMethod]: (p: BridgeParams, ctx: Ctx) => Promise<unkn
     return wins.map(toWindowInfo);
   },
   'active.tab': async function () {
-    return toTabInfo(await resolveTab(undefined));
+    return toTabInfo(await activeTab());
   },
 
   /* ---- tab management ---- */
   'tab.create': async function (p, ctx) {
     if (p.duplicateOf !== undefined && p.duplicateOf !== null) {
       var src = await resolveTab(p.duplicateOf);
-      var dup = await call(B.tabs, 'duplicate', src.id!, p.active === false ? { active: false } : undefined);
+      var dup = await call(B.tabs, 'duplicate', src.id!, { active: false });
       return toTabInfo(dup);
     }
     var details: browser.tabs._CreateCreateProperties = {};
     if (p.windowId !== undefined) details.windowId = Number(p.windowId);
     if (p.url !== undefined) details.url = fixUrl(p.url);
-    if (p.active !== undefined) details.active = !!p.active;
+    details.active = false; // never steals the user's view; tab_focus does that on request
     var waiter = details.url && p.waitForLoad ? tabLoadWaiter(num(p.timeoutMs, 20000), ctx.signal, details.url) : null;
     var created: browser.tabs.Tab;
     try {
@@ -1233,7 +1237,7 @@ var handlers: { [M in BridgeMethod]: (p: BridgeParams, ctx: Ctx) => Promise<unkn
     var ids: number[];
     if (Array.isArray(p.tabIds)) ids = p.tabIds.map(Number);
     else if (p.tabId !== undefined) ids = [Number(p.tabId)];
-    else ids = [(await resolveTab(undefined)).id!];
+    else throw be('INVALID_PARAMS', 'tab.close needs tabId or tabIds');
     try {
       await call(B.tabs, 'remove', ids);
     } catch (e) {
@@ -1282,7 +1286,9 @@ var handlers: { [M in BridgeMethod]: (p: BridgeParams, ctx: Ctx) => Promise<unkn
 
   /* ---- windows ---- */
   'window.create': async function (p) {
-    var w = await call(B.windows, 'create', p.url ? { url: fixUrl(p.url) } : {});
+    var props: browser.windows._CreateCreateData = { focused: false };
+    if (p.url) props.url = fixUrl(p.url);
+    var w = await call(B.windows, 'create', props);
     return {
       id: w.id,
       focused: !!w.focused,
@@ -1324,7 +1330,7 @@ var handlers: { [M in BridgeMethod]: (p: BridgeParams, ctx: Ctx) => Promise<unkn
   'page.snapshot': async function (p) {
     var tab = await resolveTab(p.tabId);
     assertContentAllowed(tab);
-    var base = pick(p, ['within', 'viewportOnly'], {
+    var base = pick(p, ['within', 'viewportOnly', 'links'], {
       kind: 'ax-snapshot',
       compact: p.compact !== undefined ? !!p.compact : true,
       maxChars: num(p.maxChars, 50000)
@@ -1350,9 +1356,16 @@ var handlers: { [M in BridgeMethod]: (p: BridgeParams, ctx: Ctx) => Promise<unkn
       maxChars: num(p.maxChars, 50000)
     }));
   },
+  'page.links': async function (p) {
+    var tab = await resolveTab(p.tabId);
+    assertContentAllowed(tab);
+    var lm = pick(p, ['within', 'text', 'hrefContains', 'limit'], { kind: 'page-links' });
+    if (lm.within) lm.within = Object.assign({}, lm.within);
+    return await pageCall(tab.id!, p, lm);
+  },
   'page.shot': async function (p) {
     var tab = await resolveTab(p.tabId);
-    var shotP: ShotParams = { format: p.format, quality: p.quality, keepActive: p.keepActive };
+    var shotP: ShotParams = { format: p.format, quality: p.quality, };
     var scale = p.scale !== undefined ? Math.max(0.1, Math.min(2, Number(p.scale) || 1)) : null;
     var extra: { cutOff?: string; element?: unknown; region?: ShotRect } = {};
     var element = hasTargetParams(p);
@@ -1367,11 +1380,12 @@ var handlers: { [M in BridgeMethod]: (p: BridgeParams, ctx: Ctx) => Promise<unkn
       var maxH = 16000;
       if (r.height > maxH) { extra.cutOff = 'Only the top ' + maxH + 'px of ' + Math.round(r.height) + 'px were captured.'; r.height = maxH; }
       shotP.rect = { x: Math.floor(r.x), y: Math.floor(r.y), width: Math.ceil(r.width), height: Math.ceil(r.height) };
-      // A tall page at full size is a huge image: shrink it unless a scale was asked for.
-      if (scale === null) scale = Math.min(1, 4000 / Math.max(r.width, r.height));
+      // Keep the longest side at or below SHOT_MAX_SIDE unless a scale was asked for.
+      if (scale === null) scale = Math.min(1, SHOT_MAX_SIDE / Math.max(r.width, r.height));
       if (element) extra.element = m.line;
       extra.region = shotP.rect;
     }
+    if (scale === null && tab.width && tab.height) scale = Math.min(1, SHOT_MAX_SIDE / Math.max(tab.width, tab.height));
     if (scale !== null) shotP.scale = scale;
     // Keep the AI cursor out of the picture.
     var concealed = !!(await cursorOp(tab.id!, 'conceal'));
@@ -1393,6 +1407,8 @@ var handlers: { [M in BridgeMethod]: (p: BridgeParams, ctx: Ctx) => Promise<unkn
   },
   'page.info': async function (p) {
     var tab = await resolveTab(p.tabId);
+    var windowFocused = false;
+    try { windowFocused = !!(await call(B.windows, 'get', tab.windowId!)).focused; } catch (e) {}
     return {
       id: tab.id,
       url: tab.url || '',
@@ -1400,12 +1416,57 @@ var handlers: { [M in BridgeMethod]: (p: BridgeParams, ctx: Ctx) => Promise<unkn
       status: tab.status || '',
       windowId: tab.windowId,
       active: !!tab.active,
+      windowFocused: windowFocused,
       pinned: !!tab.pinned,
       audible: !!tab.audible,
       muted: !!(tab.mutedInfo && tab.mutedInfo.muted),
       discarded: !!tab.discarded,
       index: tab.index
     };
+  },
+  /* The agent's code string, run in the page's own JS world (never in the add-on), top frame by default. */
+  'page.eval': async function (p, ctx) {
+    var code = typeof p.code === 'string' ? p.code : '';
+    if (!code.trim()) throw be('INVALID_PARAMS', 'page_eval needs code');
+    var tab = await resolveTab(p.tabId);
+    assertContentAllowed(tab);
+    if (!B.scripting || typeof B.scripting.executeScript !== 'function') throw be('NOT_SUPPORTED', 'scripting.executeScript is not available');
+    var timeoutMs = Math.min(Math.max(num(p.timeoutMs, 10000), 100), 60000);
+    var maxChars = Math.min(Math.max(num(p.maxChars, 20000), 100), 100000);
+    var frameId = Math.max(0, Math.floor(num(p.frameId, 0)));
+    var timer: ReturnType<typeof setTimeout> | undefined;
+    var onAbort: (() => void) | undefined;
+    // A synchronous endless loop never returns to Firefox; stop waiting a little after the page's own timeout.
+    var giveUp = new Promise<never>(function (_resolve, reject) {
+      timer = setTimeout(function () {
+        reject(be('TIMEOUT', 'The code did not finish within ' + timeoutMs + ' ms; it may still be running in the page.'));
+      }, timeoutMs + 2000);
+      onAbort = function () { reject(be('CANCELLED', 'Cancelled')); };
+      ctx.signal.addEventListener('abort', onAbort);
+    });
+    var results: browser.scripting.InjectionResult[];
+    try {
+      results = await Promise.race([
+        call(B.scripting, 'executeScript', {
+          target: { tabId: tab.id as number, frameIds: [frameId] },
+          world: 'MAIN',
+          func: evalInPage,
+          args: [code, timeoutMs, maxChars]
+        }),
+        giveUp
+      ]);
+    } finally {
+      clearTimeout(timer);
+      if (onAbort) ctx.signal.removeEventListener('abort', onAbort);
+    }
+    var first = results && results[0];
+    if (!first) throw be('INTERNAL', 'Firefox returned no result for frame ' + frameId);
+    var injErr = (first as { error?: unknown }).error;
+    if (injErr) throw be('SCRIPT_ERROR', String((injErr as Error).message || injErr));
+    var out = first.result as PageEvalResult | undefined;
+    if (!out || typeof out !== 'object') throw be('INTERNAL', 'The page returned no result');
+    if (out.error) throw be(out.error.code, out.error.message);
+    return out;
   },
 
   /* ---- acting (content script does the DOM work) ---- */
@@ -1507,10 +1568,21 @@ var handlers: { [M in BridgeMethod]: (p: BridgeParams, ctx: Ctx) => Promise<unkn
     return { removed: true, id: String(p.id) };
   },
   'history.search': async function (p) {
-    var h: { text: string; maxResults: number; startTime?: number } = { text: p.query !== undefined ? String(p.query) : '', maxResults: num(p.maxResults, 20) };
+    // Paging past maxResults: fetch enough for offset + limit (capped).
+    var want = num(p.maxResults, 20);
+    if (p.offset !== undefined || p.limit !== undefined) want = Math.max(want, Math.max(0, Math.floor(Number(p.offset) || 0)) + Math.max(1, Math.floor(Number(p.limit) || 20)));
+    want = Math.min(want, HISTORY_FETCH_MAX);
+    var h: { text: string; maxResults: number; startTime?: number } = { text: p.query !== undefined ? String(p.query) : '', maxResults: want };
     // Firefox searches only the last 24 hours unless told otherwise; "that page from last week" needs all of it.
     h.startTime = p.startTime !== undefined ? Number(p.startTime) : 0;
-    return listPage(await call(B.history, 'search', h), p);
+    var visits = await call(B.history, 'search', h);
+    var page = listPage(visits, p);
+    // A full fetch may have more behind it: say where to continue.
+    if (!Array.isArray(page) && page.nextOffset === undefined && visits.length >= want && want < HISTORY_FETCH_MAX) {
+      page.nextOffset = page.offset + page.returned;
+      page.truncated = true;
+    }
+    return page;
   },
   'downloads.list': async function (p) {
     var limit = num(p.limit, 20);
@@ -1561,15 +1633,31 @@ var handlers: { [M in BridgeMethod]: (p: BridgeParams, ctx: Ctx) => Promise<unkn
     return await jarCookies(tab, url);
   },
   'cookies.query': async function (p) {
+    var withValues = p.includeValues === true;
+    var store = cookieStoreParam(p);
+    var byName = p.name ? { name: String(p.name) } : {};
+    var show = function (c: browser.cookies.Cookie) { return cookieInfo(c, withValues); };
+    if (typeof p.domain === 'string' && p.domain.trim() && (p.url === undefined || p.url === null || p.url === '')) {
+      // Every cookie for a domain and its subdomains, in the tab's store, whichever site set it.
+      var domain = p.domain.trim().replace(/^\./, '').toLowerCase();
+      var q: CookieQuery = Object.assign({ domain: domain, firstPartyDomain: null, partitionKey: {} }, byName);
+      var dtab = await resolveTab(p.tabId);
+      if (dtab.cookieStoreId) q.storeId = dtab.cookieStoreId;
+      if (store) q.storeId = store.storeId;
+      var all = await allCookies(q);
+      return { domain: domain, storeId: q.storeId, count: all.length, cookies: all.map(show) };
+    }
     var t = await cookieTarget(p);
-    var list = await jarCookies(t.tab, t.url, p.name ? { name: String(p.name) } : null);
-    return { url: t.url, count: list.length, cookies: list.map(cookieInfo) };
+    var list = await jarCookies(t.tab, t.url, Object.assign({}, byName, store));
+    return { url: t.url, storeId: store ? store.storeId : t.tab.cookieStoreId, count: list.length, cookies: list.map(show) };
   },
   'cookies.set': async function (p) {
     if (!p.name) throw be('INVALID_PARAMS', 'cookie_set needs name');
     var t = await cookieTarget(p);
     var d: browser.cookies._SetDetails = { url: t.url.split('#')[0], name: String(p.name), value: p.value === undefined || p.value === null ? '' : String(p.value) };
     if (t.tab.cookieStoreId) d.storeId = t.tab.cookieStoreId;
+    var setStore = cookieStoreParam(p);
+    if (setStore) d.storeId = setStore.storeId;
     pick(p, ['domain', 'path', 'secure', 'httpOnly', 'sameSite'], d);
     if (p.expiresInSeconds !== undefined) d.expirationDate = Math.floor(Date.now() / 1000) + Number(p.expiresInSeconds);
     else if (p.expires !== undefined) {
@@ -1584,19 +1672,19 @@ var handlers: { [M in BridgeMethod]: (p: BridgeParams, ctx: Ctx) => Promise<unkn
       // First-party isolation needs the jar named explicitly.
       if (!/firstPartyDomain/i.test(String((e as Error).message || e))) throw be('COOKIE_REFUSED', 'Firefox refused the cookie: ' + ((e as Error).message || e));
       var jar: browser.cookies.Cookie[];
-      try { jar = await jarCookies(t.tab, t.url); } catch (jarError) { throw be('COOKIE_REFUSED', 'Could not determine the Firefox first-party cookie jar: ' + ((jarError as Error).message || jarError)); }
+      try { jar = await jarCookies(t.tab, t.url, setStore); } catch (jarError) { throw be('COOKIE_REFUSED', 'Could not determine the Firefox first-party cookie jar: ' + ((jarError as Error).message || jarError)); }
       var domains = Array.from(new Set(jar.map(function (item) { return item.firstPartyDomain; }).filter(Boolean)));
       if (domains.length !== 1) throw be('COOKIE_REFUSED', 'Firefox requires a firstPartyDomain, but its existing cookie jar does not identify one unambiguously. No cookie was written.');
       d.firstPartyDomain = domains[0];
       try { c = await call(B.cookies, 'set', d); } catch (retryError) { throw be('COOKIE_REFUSED', 'Firefox refused the cookie: ' + ((retryError as Error).message || retryError)); }
     }
     if (!c) throw be('COOKIE_REFUSED', 'Firefox refused the cookie (check domain, secure and sameSite against the URL).');
-    return { set: true, url: d.url, cookie: cookieInfo(c) };
+    return { set: true, url: d.url, cookie: cookieInfo(c, true) };
   },
   'cookies.remove': async function (p) {
     if (!p.name) throw be('INVALID_PARAMS', 'cookie_remove needs name');
     var t = await cookieTarget(p);
-    var list = await jarCookies(t.tab, t.url, { name: String(p.name) });
+    var list = await jarCookies(t.tab, t.url, Object.assign({ name: String(p.name) }, cookieStoreParam(p)));
     var removed = 0;
     for (var i = 0; i < list.length; i++) {
       var c = list[i];
@@ -1613,7 +1701,18 @@ var handlers: { [M in BridgeMethod]: (p: BridgeParams, ctx: Ctx) => Promise<unkn
   },
   'sessions.restore': async function (p) {
     if (p.sessionId === undefined) throw be('INVALID_PARAMS', 'sessions.restore requires sessionId');
-    return await call(B.sessions, 'restore', String(p.sessionId));
+    // sessions.restore has no background option and shows what it reopens; hand the user's view back.
+    var prevWin: browser.windows.Window | null = null, prevTab: browser.tabs.Tab | null = null;
+    try {
+      prevWin = await call(B.windows, 'getLastFocused', {});
+      prevTab = ((await call(B.tabs, 'query', { active: true, windowId: prevWin.id })) || [])[0] || null;
+    } catch (e) {}
+    var restored = await call(B.sessions, 'restore', String(p.sessionId));
+    try {
+      if (prevTab && prevTab.id !== undefined) await call(B.tabs, 'update', prevTab.id, { active: true });
+      if (prevWin && prevWin.focused && prevWin.id !== undefined) await call(B.windows, 'update', prevWin.id, { focused: true });
+    } catch (e) {}
+    return restored;
   }
 };
 
@@ -1629,7 +1728,7 @@ var LABELS: { [M in BridgeMethod]: [string, string] } = {
   'window.remove': ['Closing a window', 'Closed a window'],
   'nav.back': ['Going back', 'Went back'], 'nav.forward': ['Going forward', 'Went forward'], 'nav.reload': ['Reloading', 'Reloaded'],
   'page.snapshot': ['Reading the page', 'Read the page'], 'page.text': ['Reading the page', 'Read the page'],
-  'page.html': ['Reading the page source', 'Read the page source'], 'page.shot': ['Taking a screenshot', 'Took a screenshot'],
+  'page.html': ['Reading the page source', 'Read the page source'], 'page.links': ['Reading the links', 'Read the links'], 'page.shot': ['Taking a screenshot', 'Took a screenshot'],
   'page.info': ['Checking the page', 'Checked the page'],
   'act.click': ['Clicking', 'Clicked'], 'act.type': ['Typing', 'Typed'], 'act.fillForm': ['Filling in a form', 'Filled in a form'],
   'act.select': ['Choosing an option', 'Chose an option'], 'act.hover': ['Pointing at something', 'Pointed at something'],
@@ -1646,7 +1745,8 @@ var LABELS: { [M in BridgeMethod]: [string, string] } = {
   'cookies.remove': ['Deleting a cookie', 'Deleted a cookie'],
   'downloads.query': ['Checking downloads', 'Checked downloads'], 'downloads.start': ['Downloading a file', 'Downloaded a file'],
   'storage.get': ['Reading saved data', 'Read saved data'], 'storage.set': ['Saving data', 'Saved data'],
-  'storage.remove': ['Deleting saved data', 'Deleted saved data']
+  'storage.remove': ['Deleting saved data', 'Deleted saved data'],
+  'page.eval': ['Running code on the page', 'Ran code on the page']
 };
 /* "tabs.list" -> i18n keys "lblTabsListNow" / "lblTabsListPast". */
 function labelsFor(method: BridgeMethod): [string, string] {
@@ -1676,9 +1776,12 @@ async function onCommand(cmd: { id: string; method: BridgeMethod; params: Bridge
   var handler = handlers[cmd.method];
   if (!handler) throw be('UNKNOWN_METHOD', 'Unknown method: ' + cmd.method);
   var params = (cmd.params && typeof cmd.params === 'object') ? cmd.params : {};
+  // The MCP server's own probes (tab gating, error hints, thought notes) are marked internal:
+  // they are not AI work, so they don't count toward the usage stats.
+  var internal = params.internal === true;
+  if (internal) { params = Object.assign({}, params); delete params.internal; }
   cmdCount += 1;
-  trackSetup(2);
-  countMinute();
+  if (!internal) { trackSetup(2); countMinute(); }
   var label = labelsFor(cmd.method);
   var cur: NowEntry = now = { text: label[0], past: label[1], site: '', tabId: null, at: Date.now(), done: false };
   if (TAB_METHODS.test(cmd.method)) {
@@ -2047,6 +2150,7 @@ function wireTabEvents() {
     }
     if (B.tabs && B.tabs.onRemoved) {
       B.tabs.onRemoved.addListener(function (tabId, removeInfo) {
+        frameSlots.delete(tabId);
         sendEvent({
           event: 'tab.removed',
           data: {
