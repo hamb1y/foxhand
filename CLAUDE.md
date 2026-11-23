@@ -88,5 +88,5 @@ CI (`.github/workflows/ci.yml`) runs all of the above. Run it locally before you
 - The only accent color is Firefox orange `#FF7139`.
 - No AI slop and no fake content: no made-up screenshots, quotes, testimonials or numbers.
 - Use `qw-root` instead of `sudo` on this machine.
-- Don't add JS eval or anything that runs page-supplied code in the extension's privileged context.
+- No JS eval or page-supplied code in the extension's privileged context. One exception, owner-approved: `page_eval` runs the agent's own code string in the page's MAIN world (`scripting.executeScript`), never in the add-on's privileged context and never with input read from page content. Don't add any other eval.
 - Give the user short progress updates of a few words. Don't spawn subagents unless asked; translations are the standing exception.

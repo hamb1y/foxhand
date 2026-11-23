@@ -234,6 +234,8 @@
   "lblStorageGetNow": "Reading saved data", "lblStorageGetPast": "Read saved data",
   "lblStorageSetNow": "Saving data", "lblStorageSetPast": "Saved data",
   "lblStorageRemoveNow": "Deleting saved data", "lblStorageRemovePast": "Deleted saved data",
+  "lblPageEvalNow": "Running code on the page", "lblPageEvalPast": "Ran code on the page",
+  "lblPageLinksNow": "Reading the links", "lblPageLinksPast": "Read the links",
 
   "hintPaused": "Every AI command is refused until you resume.",
   "hintReady": "Your AI can use this Firefox. Pause any time.",

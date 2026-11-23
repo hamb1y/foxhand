@@ -8,12 +8,17 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ExtensionBridge } from "../bridge/bridge.js";
 import type { ServerConfig } from "../config.js";
-import { callBridge, paginationFields, confirmField, refusal, requireConfirm, tabIdField, text } from "./helpers.js";
+import { callBridge, paginationFields, confirmField, optionalTabIdField, refusal, requireConfirm, tabIdField, text } from "./helpers.js";
 
 const cookieUrlField = z
   .string()
   .optional()
   .describe("Site whose cookies to use, e.g. \"github.com\" (default: the tab's page). Uses the tab's container/private jar.");
+
+const storeIdField = z
+  .string()
+  .optional()
+  .describe("Cookie store to use instead of the tab's, e.g. \"firefox-default\" or \"firefox-container-1\" (cookie_query shows each cookie's storeId)");
 
 const areaField = z
   .enum(["agent", "local", "session"])
@@ -139,14 +144,24 @@ export function registerBrowserTools(
   server.registerTool(
     "cookie_query",
     {
-      description: "Cookies a page sees (name, value, domain, path, flags, expiry), including partitioned ones. Useful for debugging logins.",
+      description:
+        "Cookies a page sees (name, domain, path, flags, expiry, storeId), including partitioned ones, from the tab's container or private jar. " +
+        "Or every cookie for a domain and its subdomains. Values only with includeValues:true. Useful for debugging logins.",
       inputSchema: {
         tabId: tabIdField,
         url: cookieUrlField,
+        domain: z.string().optional().describe("Instead of url: every cookie for this domain and its subdomains, e.g. \"github.com\""),
         name: z.string().optional().describe("Only cookies with this name"),
+        includeValues: z.boolean().optional().describe("Include cookie values (default false; values are often login tokens)"),
+        storeId: storeIdField,
       },
     },
-    async (args) => text(await callBridge(bridge, "cookies.query", { tabId: args.tabId, url: args.url, name: args.name })),
+    async (args) =>
+      text(
+        await callBridge(bridge, "cookies.query", {
+          tabId: args.tabId, url: args.url, domain: args.domain, name: args.name, includeValues: args.includeValues, storeId: args.storeId,
+        }),
+      ),
   );
 
   server.registerTool(
@@ -167,6 +182,7 @@ export function registerBrowserTools(
         sameSite: z.enum(["no_restriction", "lax", "strict"]).optional(),
         expiresInSeconds: z.number().int().positive().optional().describe("Lifetime from now"),
         expires: z.string().optional().describe("Or an absolute ISO date"),
+        storeId: storeIdField,
       },
     },
     async (args) => text(await callBridge(bridge, "cookies.set", { ...args, path: args.path ?? "/" })),
@@ -182,13 +198,14 @@ export function registerBrowserTools(
         tabId: tabIdField,
         url: cookieUrlField,
         name: z.string().min(1).describe("Cookie name"),
+        storeId: storeIdField,
         confirm: confirmField,
       },
     },
     async (args) => {
       const denied = requireConfirm(config, args.confirm, "cookie_remove");
       if (denied) return refusal(denied);
-      return text(await callBridge(bridge, "cookies.remove", { tabId: args.tabId, url: args.url, name: args.name }));
+      return text(await callBridge(bridge, "cookies.remove", { tabId: args.tabId, url: args.url, name: args.name, storeId: args.storeId }));
     },
   );
 
@@ -202,7 +219,7 @@ export function registerBrowserTools(
         area: areaField,
         key: z.string().optional().describe("Key to read (omit to list keys)"),
         prefix: z.string().optional().describe("Agent area: only list keys starting with this"),
-        tabId: tabIdField,
+        tabId: optionalTabIdField.describe("Area local/session: the tab whose page storage to use (default: the tab you last used)"),
       },
     },
     async (args) =>
@@ -219,7 +236,7 @@ export function registerBrowserTools(
         area: areaField,
         key: z.string().min(1).max(200).describe("Key, e.g. \"shopping/last-order\""),
         value: z.unknown().describe("The value"),
-        tabId: tabIdField,
+        tabId: optionalTabIdField.describe("Area local/session: the tab whose page storage to use (default: the tab you last used)"),
       },
     },
     async (args) =>
@@ -233,7 +250,7 @@ export function registerBrowserTools(
       inputSchema: {
         area: areaField,
         key: z.string().min(1).describe("Key to delete"),
-        tabId: tabIdField,
+        tabId: optionalTabIdField.describe("Area local/session: the tab whose page storage to use (default: the tab you last used)"),
       },
     },
     async (args) => text(await callBridge(bridge, "storage.remove", { area: args.area, key: args.key, tabId: args.tabId })),
@@ -254,7 +271,7 @@ export function registerBrowserTools(
   server.registerTool(
     "session_restore",
     {
-      description: "Reopen a recently closed tab or window (sessionId from session_query).",
+      description: "Reopen a recently closed tab or window (sessionId from session_query). Firefox shows what it reopens; Foxhand then switches back to the tab the user was on.",
       inputSchema: {
         sessionId: z.string().describe("Session id"),
       },

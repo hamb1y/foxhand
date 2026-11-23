@@ -623,6 +623,16 @@ function iconName(el: Element): string {
   return '';
 }
 
+/* How page_snapshot shows links: "full" URLs, "short" (text only, the default) or "none" (left out). */
+var linkMode: 'full' | 'short' | 'none' = 'short';
+
+/* A link's whole URL for page_links and links:"full" (javascript: dropped, very long ones capped). */
+function fullHref(href: string): string {
+  var h = String(href);
+  if (/^javascript:/i.test(h)) return '';
+  return h.length > 2000 ? h.slice(0, 1997) + '...' : h;
+}
+
 /* Same-origin links shown as paths to save tokens; others absolute, capped. */
 function shortHref(href: string): string {
   var h = String(href);
@@ -728,7 +738,7 @@ function nodeFor(el: HTMLElement, compact?: boolean): NodeLine | null {
     var al = Number(el.getAttribute('aria-level'));
     if (al >= 1 && al <= 9) node.level = al;
   }
-  if (tag === 'A' && (el as HTMLAnchorElement).href) node.href = shortHref((el as HTMLAnchorElement).href);
+  if (tag === 'A' && (el as HTMLAnchorElement).href && linkMode === 'full') node.href = fullHref((el as HTMLAnchorElement).href);
   if (role === 'iframe') {
     node.href = shortHref((el as HTMLIFrameElement).src || '');
     if (!frameDoc(el)) node.crossOrigin = true;
@@ -1024,6 +1034,7 @@ function buildSnapshot(compact: boolean | undefined, maxChars: number, root: Ele
       if (include && !visible(el) && interesting && actionable(el) && shownOnHover(el)) onHover = true;
       if (include && (onHover || visible(el)) && (!viewportOnly || onHover || inViewport(el))) {
         var nl = nodeFor(el, compact);
+        if (nl && linkMode === 'none' && nl.node.role === 'link') nl = null;
         if (nl && onHover) nl.line += ' [on hover]';
         if (nl) {
           var d = openContainers(el);
@@ -2339,10 +2350,23 @@ async function doHover(msg: Extract<ContentMessage, { kind: 'act-hover' }>) {
   });
   ptr(el, 'pointermove', true);
   el.dispatchEvent(mouseEvent('mousemove', pos));
-  return {
-    hovered: true,
-    ref: refOf(outerHover)
-  };
+  var out: { hovered: boolean; ref: number | undefined; note?: string } = { hovered: true, ref: refOf(outerHover) };
+  // Synthetic events never set CSS :hover, so a menu opened only by a :hover rule stays shut. Say so instead of pretending.
+  await sleep(250);
+  if (outerHover.getAttribute('aria-expanded') === 'false' || hiddenSubmenu(outerHover)) {
+    out.note = 'Nothing opened. Menus that open only on CSS :hover cannot be opened by an add-on (its pointer events do not set :hover). ' +
+      'If this is a menu button, use page_click on it instead.';
+  }
+  return out;
+}
+
+/* A menu or list that belongs to the hovered element (inside it, its list item, or named by aria-controls) and is still hidden. */
+function hiddenSubmenu(el: HTMLElement): boolean {
+  var scope: Element = (el.closest && el.closest('li')) || el;
+  var subs = Array.prototype.slice.call(scope.querySelectorAll('[role="menu"], [role="listbox"], ul, ol')) as Element[];
+  var ctl = el.getAttribute('aria-controls');
+  if (ctl) { var c = document.getElementById(ctl); if (c) subs.push(c); }
+  return subs.some(function (s) { return s !== el && !s.contains(el) && !visible(s); });
 }
 
 /* Press on one element (or point), move in steps, release on another. Also runs
@@ -3197,7 +3221,7 @@ interface SavedDialog { own: boolean; fn: unknown; }
 /** The page's window as seen through the Firefox wrappedJSObject view. */
 interface PageWindow { wrappedJSObject?: Record<string, unknown>; }
 /** A result the page builds up field by field (an action's answer, plus what is added to it). */
-interface ActResult { changes?: unknown; dialogs?: DialogEntry[]; dialogNote?: string; notes?: string[]; navigating?: boolean; note?: string; result?: unknown; }
+interface ActResult { changes?: unknown; dialogs?: DialogEntry[]; dialogsTotal?: number; dialogNote?: string; notes?: string[]; navigating?: boolean; note?: string; result?: unknown; }
 
 /* alert/confirm/prompt stop the page until someone answers, which would freeze an action half-way
  * (the click never returns) and leave the dialog up for the user. While the AI acts, and briefly
@@ -3207,7 +3231,10 @@ interface ActResult { changes?: unknown; dialogs?: DialogEntry[]; dialogNote?: s
 var DIALOG_GRACE_MS = 1500;
 var dialogDepth = 0, dialogRestore: (() => void) | null = null, dialogTimer = 0;
 var dialogPolicy: DialogPolicy = { accept: false, promptText: undefined };
+/* The first DIALOG_LOG_MAX dialogs are kept; dialogCount counts them all (a page can loop on alert()). */
+var DIALOG_LOG_MAX = 10;
 var dialogLog: DialogEntry[] = [];
+var dialogCount = 0;
 
 function installDialogs() {
   if (dialogRestore || typeof exportFunction !== 'function' || !(window as unknown as PageWindow).wrappedJSObject) return;
@@ -3224,7 +3251,8 @@ function installDialogs() {
         var answer = type === 'alert' ? undefined
           : type === 'confirm' ? accept
           : accept ? String(dialogPolicy.promptText !== undefined ? dialogPolicy.promptText : (dflt === undefined ? '' : dflt)) : null;
-        dialogLog.push({ type: type, message: text, answered: type === 'alert' ? 'ok' : accept ? 'accepted' : 'cancelled' });
+        dialogCount += 1;
+        if (dialogLog.length < DIALOG_LOG_MAX) dialogLog.push({ type: type, message: text, answered: type === 'alert' ? 'ok' : accept ? 'accepted' : 'cancelled' });
         return answer;
       }, window);
     } catch (e) {}
@@ -3260,15 +3288,18 @@ function endDialogs() {
 
 /* Attach the dialogs the page showed (since the last report) to a result. */
 function withDialogLog(result: unknown) {
-  if (!dialogLog.length) return result;
+  if (!dialogCount) return result;
   var shown = dialogLog.splice(0, dialogLog.length);
+  var total = dialogCount;
+  dialogCount = 0;
   var out = ((result && typeof result === 'object' && !Array.isArray(result)) ? result : { result: result }) as ActResult;
   out.dialogs = shown;
+  if (total > shown.length) out.dialogsTotal = total;
   // The page did react: with a dialog. "Nothing changed" would contradict that.
   if (typeof out.changes === 'string' && /^none/.test(out.changes)) delete out.changes;
   var asked = shown.filter(function (d) { return d.type !== 'alert' && d.answered === 'cancelled'; });
   out.dialogNote = 'The page showed ' + shown.map(function (d) { return d.type + '(' + JSON.stringify(d.message) + ')'; }).join(', ') +
-    '. ' + (asked.length ? 'It was answered "Cancel"; to answer "OK" instead, repeat the action with dialog:"accept".' : 'It was acknowledged.');
+    (total > shown.length ? ' and ' + (total - shown.length) + ' more' : '') + '. ' + (asked.length ? 'It was answered "Cancel"; to answer "OK" instead, repeat the action with dialog:"accept".' : 'It was acknowledged.');
   return out;
 }
 
@@ -3442,7 +3473,7 @@ async function finishWatch(w: Watch, result: ActResult) {
         if (ch) result.changes = ch;
         else if (!w.count && /hover/.test(w.kind)) {
           result.changes = 'none visible';
-          result.note = 'Hover events went out, but nothing opened. Menus that open on pure CSS :hover can\'t be triggered by an add-on; page_click the item instead.';
+          if (!result.note) result.note = 'Hover events went out, but nothing opened. Menus that open on pure CSS :hover can\'t be triggered by an add-on; page_click the item instead.';
         } else if (!w.count && /click|drag/.test(w.kind)) result.changes = 'none visible: nothing on the page changed (it may still have acted in the background, e.g. saved or copied; check before repeating)';
       }
     }
@@ -3720,6 +3751,7 @@ interface PageTextResult { text: string; totalChars: number; offset: number; tru
 async function dispatch(msg: ContentMessage): Promise<unknown> {
   switch (msg.kind) {
     case 'ax-snapshot': {
+      linkMode = msg.links === 'full' || msg.links === 'none' ? msg.links : 'short';
       await settle(1500);
       var maxChars = (msg.maxChars !== undefined && Number.isFinite(Number(msg.maxChars))) ? Number(msg.maxChars) : 50000;
       var sroot = await scopeRoot(msg);
@@ -3770,6 +3802,28 @@ async function dispatch(msg: ContentMessage): Promise<unknown> {
       html = String(html).replace(/<fxmcp-cursor\b[^>]*><\/fxmcp-cursor>/g, ''); // our overlay isn't page content
       var trunc2 = html.length > mc2;
       return { html: trunc2 ? html.slice(0, mc2) : html, truncated: trunc2, totalChars: html.length, url: location.href, title: document.title || '' };
+    }
+    case 'page-links': {
+      await settle(1500);
+      var lroot = await scopeRoot(msg);
+      var wantText = given(msg.text) ? norm(msg.text) : '';
+      var wantHref = given(msg.hrefContains) ? String(msg.hrefContains).toLowerCase() : '';
+      var cap = Math.max(1, Math.min(500, Math.floor(Number(msg.limit) || 50)));
+      var anchors = deepQueryAll(lroot || document, 'a[href], area[href]') as HTMLAnchorElement[];
+      var hits: { ref: number; text: string; href: string }[] = [], total = 0;
+      for (var li = 0; li < anchors.length; li++) {
+        var a = anchors[li], href = fullHref(a.href || '');
+        if (!href || (!visible(a) && !shownOnHover(a))) continue;
+        var ltext = computeName(a, a.tagName).replace(/\s+/g, ' ').trim().slice(0, 200);
+        if (wantText && norm(ltext).indexOf(wantText) < 0) continue;
+        if (wantHref && href.toLowerCase().indexOf(wantHref) < 0) continue;
+        total++;
+        if (hits.length < cap) hits.push({ ref: refFor(a), text: ltext, href: href });
+      }
+      var lout: { url: string; title: string; total: number; returned: number; truncated: boolean; links: typeof hits; within?: string } =
+        { url: location.href, title: document.title || '', total: total, returned: hits.length, truncated: total > hits.length, links: hits };
+      if (lroot) lout.within = lineFor(lroot);
+      return lout;
     }
     case 'page-storage': return doPageStorage(msg);
     case 'page-metrics': return pageMetrics();

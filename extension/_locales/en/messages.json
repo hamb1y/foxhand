@@ -1072,6 +1072,18 @@
   "lblStorageRemovePast": {
     "message": "Deleted saved data"
   },
+  "lblPageEvalNow": {
+    "message": "Running code on the page"
+  },
+  "lblPageEvalPast": {
+    "message": "Ran code on the page"
+  },
+  "lblPageLinksNow": {
+    "message": "Reading the links"
+  },
+  "lblPageLinksPast": {
+    "message": "Read the links"
+  },
   "hintPaused": {
     "message": "Every AI command is refused until you resume."
   },

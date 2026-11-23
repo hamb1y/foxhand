@@ -67,7 +67,8 @@ export interface UploadFile {
 type Msg<K extends string, F> = { kind: K } & F & ContentCommon;
 
 export type ContentMessage =
-  | Msg<'ax-snapshot', { compact?: boolean; maxChars?: number; viewportOnly?: boolean; within?: TargetFields }>
+  | Msg<'ax-snapshot', { compact?: boolean; maxChars?: number; viewportOnly?: boolean; within?: TargetFields; links?: 'full' | 'short' | 'none' }>
+  | Msg<'page-links', { text?: string; hrefContains?: string; limit?: number; within?: TargetFields }>
   | Msg<'page-text', { maxChars?: number; offset?: number; format?: string; within?: TargetFields; withFrames?: boolean }>
   | Msg<'page-html', { maxChars?: number; selector?: string; within?: TargetFields; generation?: string }>
   | Msg<'page-storage', { op: 'get' | 'set' | 'remove'; area: 'local' | 'session'; key?: string; value?: unknown }>

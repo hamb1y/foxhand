@@ -70,7 +70,7 @@ export type BridgeMethod =
   | "page.html"
   | "page.shot"
   | "page.info"
-  // acting (all take an optional tabId; default = active tab)
+  // acting (all need tabId; the add-on never falls back to the active tab)
   | "act.click"
   | "act.type"
   | "act.fillForm"
@@ -101,7 +101,11 @@ export type BridgeMethod =
   | "downloads.start"
   | "storage.get"
   | "storage.set"
-  | "storage.remove";
+  | "storage.remove"
+  // added in 0.6.2
+  | "page.eval"
+  // added after 0.6.2
+  | "page.links";
 
 export interface BridgeCommand {
   id: string;
@@ -219,6 +223,7 @@ export const BRIDGE_ERRORS = {
   NAVIGATION_FAILED: "NAVIGATION_FAILED", // no history to go back/forward to
   DOWNLOAD_FAILED: "DOWNLOAD_FAILED", // Firefox refused to start a download
   COOKIE_REFUSED: "COOKIE_REFUSED", // Firefox refused to set a cookie
+  SCRIPT_ERROR: "SCRIPT_ERROR", // page_eval: the agent's code threw, or its result isn't JSON
 } as const;
 
 // ----------------------------------------------------------- host config ---

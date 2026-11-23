@@ -281,7 +281,7 @@ const title = async (tabId) => (await tool('page_info', { tabId })).json?.title;
 /* ------------------------------------------------------------ scenario */
 async function scenario() {
   const tools = await client.listTools();
-  ok('lists 45 tools', tools.tools.length === 45, tools.tools.length);
+  ok('lists 47 tools', tools.tools.length === 47, tools.tools.length);
 
   let t = await tool('extension_status');
   ok('extension_status says connected', /connected/i.test(t.text) && !t.isError, t.text);
@@ -303,7 +303,7 @@ async function scenario() {
   ok('tab_query rejects catastrophic regex', t.isError || /not supported/.test(t.text), t.text);
 
   t = await tool('tab_check_active');
-  ok('tab_check_active is the new tab', t.json?.id === tabId, t.text);
+  ok('tab_check_active stays on the user\'s tab: new tabs open in the background', t.json?.id !== tabId, t.text);
 
   t = await tool('page_snapshot', { tabId });
   const snap = t.text;
@@ -393,6 +393,32 @@ async function scenario() {
   ok('page_text offset continues', /chars \d+-\d+ of \d+/.test(t.text) && !/Paragraph 0\b/.test(t.text), t.text.slice(0, 200));
   t = await tool('page_snapshot', { tabId, within: { selector: '#p5' }, compact: false });
   ok('page_snapshot within one region', /Paragraph 5/.test(t.text) && !/Paragraph 6\b/.test(t.text), t.text.slice(0, 300));
+  {
+    // Image size from a JPEG's SOF header or a PNG's IHDR.
+    const dims = (b64) => {
+      const b = Buffer.from(b64, 'base64');
+      if (b[0] === 0x89) return { type: 'png', w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
+      for (let i = 2; i < b.length - 9;) {
+        if (b[i] !== 0xff) { i++; continue; }
+        const m = b[i + 1];
+        if (m >= 0xc0 && m <= 0xc3) return { type: 'jpeg', h: b.readUInt16BE(i + 5), w: b.readUInt16BE(i + 7) };
+        i += 2 + b.readUInt16BE(i + 2);
+      }
+      return null;
+    };
+    const img = (r) => (r.content || []).find((c) => c.type === 'image');
+    let s = await tool('page_screenshot', { tabId });
+    let d = img(s.r) && dims(img(s.r).data);
+    ok('page_screenshot defaults to jpeg with the longest side at most 1280px', d?.type === 'jpeg' && Math.max(d.w, d.h) <= 1280, JSON.stringify(d));
+    const metrics = (await tool('page_eval', { tabId, code: '[innerWidth, innerHeight, document.documentElement.scrollHeight]' })).json;
+    s = await tool('page_screenshot', { tabId, fullPage: true, scale: 0.25 });
+    d = img(s.r) && dims(img(s.r).data);
+    const want = Math.min(metrics[2], 16000) * 0.25;
+    ok('page_screenshot fullPage captures beyond the viewport in a background tab (captureTab rect)', !!d && Math.abs(d.h - want) <= 4 && d.h > metrics[1] * 0.25 * 1.5, `${JSON.stringify(d)} page=${JSON.stringify(metrics)} want h≈${want}`);
+    s = await tool('page_screenshot', { tabId, selector: '#p5' });
+    d = img(s.r) && dims(img(s.r).data);
+    ok('page_screenshot crops to one element', !!d && d.h < 200, JSON.stringify(d) + ' ' + s.text.slice(-200));
+  }
   t = await tool('page_screenshot', { tabId, selector: '#bottom', format: 'jpeg', scale: 0.5 });
   ok('element screenshot as jpeg', (t.r.content || []).some((c) => c.type === 'image' && c.mimeType === 'image/jpeg'), t.text);
   await tool('tab_navigate', { tabId, url: F('/drop'), waitForLoad: true });
@@ -453,7 +479,17 @@ async function scenario() {
   t = await tool('cookie_set', { tabId, name: 'livetest', value: 'v1', expiresInSeconds: 600 });
   ok('cookie_set', !t.isError && t.json?.set === true, t.text);
   t = await tool('cookie_query', { tabId, name: 'livetest' });
+  ok('cookie_query leaves values out by default', t.json?.cookies?.some((c) => c.name === 'livetest' && c.value === undefined && c.storeId), t.text);
+  t = await tool('cookie_query', { tabId, name: 'livetest', includeValues: true });
   ok('cookie_query sees it', t.json?.cookies?.some((c) => c.name === 'livetest' && c.value === 'v1'), t.text);
+  t = await tool('page_eval', { tabId, code: "document.cookie.includes('livetest=v1')" });
+  ok('page_eval runs in the page', t.text === 'true', t.text);
+  t = await tool('page_eval', { tabId, code: "window.__fhProbe = 1; typeof browser" });
+  ok('page_eval has no extension APIs (MAIN world)', t.text === '"undefined"', t.text);
+  t = await tool('page_eval', { tabId, code: "await new Promise((ok) => setTimeout(() => ok(document.title), 50))" });
+  ok('page_eval awaits', typeof t.json === 'string' && !t.isError, t.text);
+  t = await tool('page_eval', { tabId, code: "null.x" });
+  ok('page_eval reports errors', t.isError && /SCRIPT_ERROR/.test(t.text) && /TypeError/.test(t.text), t.text);
   t = await tool('cookie_remove', { tabId, name: 'livetest', confirm: true });
   ok('cookie_remove', t.json?.removed >= 1, t.text);
   t = await tool('storage_set', { key: 'live/test', value: { n: 1, list: ['a'] } });
@@ -542,6 +578,8 @@ async function edges() {
   await tool('page_hover', { tabId, ref: refOf(snap, '"Menu"') });
   snap = (await tool('page_snapshot', { tabId })).text;
   ok('page_hover opens a JS menu', /link "Item"/.test(snap), snap.slice(0, 300));
+  t = await tool('page_links', { tabId, text: 'item' });
+  ok('page_links returns the matching link with its full URL, wrapped as page content', /links: 1 of 1 matching/.test(t.text) && /"Item" -> http:\/\/127\.0\.0\.1:\d+\//.test(t.text) && /<untrusted-page-content nonce=/.test(t.text), t.text);
 
   await tool('tab_navigate', { tabId, url: F('/big'), waitForLoad: true });
   t = await timed(() => tool('page_snapshot', { tabId, maxChars: 2000 }));

@@ -215,6 +215,18 @@
   "copyCommand": {
     "message": "Befehl kopieren"
   },
+  "helperRunWhole": {
+    "message": "Führen Sie den ganzen Befehl aus. Er sagt Firefox außerdem, wo der Helfer liegt."
+  },
+  "setupPromptIntro": {
+    "message": "Oder fügen Sie einen Einrichtungs-Prompt in die KI-App ein, die Sie verbinden möchten."
+  },
+  "copySetupPrompt": {
+    "message": "Einrichtungs-Prompt kopieren"
+  },
+  "setupPromptSecret": {
+    "message": "Der Prompt enthält Ihr Zugriffs-Token nicht. Tragen Sie es in den lokalen Einstellungen Ihrer KI-App ein, nicht im Chat."
+  },
   "downloadApp": {
     "message": "App herunterladen"
   },
@@ -1059,6 +1071,18 @@
   },
   "lblStorageRemovePast": {
     "message": "Gespeicherte Daten gelöscht"
+  },
+  "lblPageEvalNow": {
+    "message": "Führt Code auf der Seite aus"
+  },
+  "lblPageEvalPast": {
+    "message": "Hat Code auf der Seite ausgeführt"
+  },
+  "lblPageLinksNow": {
+    "message": "Liest die Links"
+  },
+  "lblPageLinksPast": {
+    "message": "Links gelesen"
   },
   "hintPaused": {
     "message": "Jeder KI-Befehl wird abgelehnt, bis Sie fortsetzen."
